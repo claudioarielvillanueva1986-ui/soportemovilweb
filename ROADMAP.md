@@ -36,12 +36,14 @@ Recreación del sistema "Soporte Móvil v1" (Flask + SQLite + Alpine.js en Pytho
 - [x] Caja: turnos, retiros con motivo, cierre con arqueo y diferencia
 - [x] Panel unificado `/panel` con navegación (Resumen, POS, Caja, Inventario, Clientes, Reparaciones)
 
-### Fase 2 — Dinero
-- [ ] Mercado Pago QR dinámico (API route + tabla de QR activo)
-- [ ] Mercado Pago Point (Newland N950 o equivalente)
-- [ ] Webhook MP (ruta serverless) con la regla solo-facturar y antiduplicación por constraint
-- [ ] Facturación AFIP/ARCA vía Afip SDK desde Edge Function (certificados en secrets), lectura dinámica de cuenta activa
-- [ ] Señas / pagos parciales en tickets de reparación
+### 🔶 Fase 2 — Dinero (código listo; falta cargar credenciales)
+- [x] Mercado Pago QR dinámico: `/api/mp/qr` + tabla `cobros_mp` + QR en pantalla del POS con espera de pago
+- [x] Mercado Pago Point: `/api/mp/point` (intención de pago en terminal)
+- [x] Webhook MP `/api/mp/webhook`: nunca crea ventas, solo registra pagos; antiduplicación por `UNIQUE (mp_payment_id)` en `pagos_mp` y en `ventas`
+- [x] Señas / pagos parciales en tickets (`ticket_pagos`, UI en detalle de reparación)
+- [x] Cola de facturación (`facturas`, botón 🧾 en Caja)
+- [ ] **Pendiente de credenciales**: cargar variables `MP_*` en Vercel (ver README) y probar con cuenta real
+- [ ] Emisión real AFIP/ARCA vía Afip SDK desde Edge Function (requiere CUIT + certificado), lectura dinámica de cuenta activa
 
 ### Fase 3 — Comunicación
 - [ ] Bot PACHE: WhatsApp Cloud API + Edge Function + Claude API (tablas `wa_conversaciones`, `wa_escalaciones`)

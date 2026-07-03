@@ -1,12 +1,158 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import {
   supabase,
   METODOS_PAGO,
   CATEGORIAS,
   formatMoney,
 } from '@/lib/supabase';
+
+// Cobro presencial con Mercado Pago (QR dinámico o Point):
+// 1. Se crea un cobro pendiente, 2. la API genera el QR / manda el monto al Point,
+// 3. el webhook confirma el pago, 4. recién ahí el POS registra la venta.
+function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
+  const [fase, setFase] = useState('creando'); // creando | esperando | registrando | error
+  const [error, setError] = useState(null);
+  const [qrData, setQrData] = useState(null);
+  const cobroRef = useRef(null);
+  const canvasRef = useRef(null);
+  const activoRef = useRef(true);
+
+  useEffect(() => {
+    activoRef.current = true;
+    (async () => {
+      try {
+        const { data: cobro, error: errIns } = await supabase
+          .from('cobros_mp')
+          .insert({
+            tipo,
+            monto: total,
+            creado_por: (await supabase.auth.getUser()).data.user?.id,
+          })
+          .select('id')
+          .single();
+        if (errIns) throw new Error(errIns.message);
+        cobroRef.current = cobro.id;
+
+        const res = await fetch(tipo === 'qr' ? '/api/mp/qr' : '/api/mp/point', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cobro_id: cobro.id,
+            monto: total,
+            descripcion: 'Venta en mostrador',
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error generando el cobro');
+        if (!activoRef.current) return;
+        if (tipo === 'qr') setQrData(data.qr_data);
+        setFase('esperando');
+      } catch (e) {
+        if (activoRef.current) {
+          setError(e.message);
+          setFase('error');
+        }
+      }
+    })();
+    return () => {
+      activoRef.current = false;
+    };
+  }, [tipo, total]);
+
+  useEffect(() => {
+    if (qrData && canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, qrData, { width: 240, margin: 1 });
+    }
+  }, [qrData]);
+
+  useEffect(() => {
+    if (fase !== 'esperando') return;
+    const timer = setInterval(async () => {
+      const { data } = await supabase
+        .from('cobros_mp')
+        .select('estado, mp_payment_id')
+        .eq('id', cobroRef.current)
+        .single();
+      if (!activoRef.current || !data) return;
+      if (data.estado === 'aprobado') {
+        clearInterval(timer);
+        setFase('registrando');
+        const { data: venta, error: errVenta } = await supabase.rpc(
+          'registrar_venta',
+          {
+            p_items: items,
+            p_metodo: tipo === 'qr' ? 'mercadopago_qr' : 'mercadopago_point',
+            p_cliente_id: clienteId || null,
+            p_mp_payment_id: data.mp_payment_id,
+          }
+        );
+        if (errVenta) {
+          setError(
+            `El pago se acreditó pero la venta falló: ${errVenta.message}`
+          );
+          setFase('error');
+          return;
+        }
+        onListo(venta);
+      } else if (data.estado === 'rechazado') {
+        clearInterval(timer);
+        setError('El pago fue rechazado o cancelado en Mercado Pago.');
+        setFase('error');
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [fase, items, clienteId, tipo, onListo]);
+
+  return (
+    <div className="card" style={{ maxWidth: 420, margin: '30px auto', textAlign: 'center' }}>
+      <h2>
+        {tipo === 'qr' ? '📱 Cobro con QR' : '💳 Cobro con Point'} —{' '}
+        {formatMoney(total)}
+      </h2>
+
+      {fase === 'creando' && (
+        <p style={{ padding: 20 }}>
+          <span className="spinner" />
+        </p>
+      )}
+
+      {fase === 'esperando' && tipo === 'qr' && (
+        <>
+          <canvas ref={canvasRef} style={{ background: '#fff', borderRadius: 12, padding: 8, margin: '10px auto' }} />
+          <p style={{ color: 'var(--text-dim)' }}>
+            El cliente escanea el QR desde la app de Mercado Pago.
+            <br />
+            Esperando el pago... <span className="spinner" style={{ verticalAlign: 'middle' }} />
+          </p>
+        </>
+      )}
+
+      {fase === 'esperando' && tipo === 'point' && (
+        <p style={{ color: 'var(--text-dim)', padding: 16 }}>
+          Monto enviado a la terminal Point. Cobrá en el dispositivo.
+          <br />
+          Esperando confirmación... <span className="spinner" style={{ verticalAlign: 'middle' }} />
+        </p>
+      )}
+
+      {fase === 'registrando' && (
+        <p style={{ padding: 20 }}>
+          ✅ Pago acreditado — registrando venta...{' '}
+          <span className="spinner" style={{ verticalAlign: 'middle' }} />
+        </p>
+      )}
+
+      {fase === 'error' && <div className="alert alert-error">{error}</div>}
+
+      <button className="btn btn-secondary" onClick={onCancelar}>
+        {fase === 'error' ? 'Volver al carrito' : 'Cancelar cobro'}
+      </button>
+    </div>
+  );
+}
 
 function AbrirTurno({ onAbierto }) {
   const [monto, setMonto] = useState('');
@@ -67,6 +213,7 @@ export default function PosPage() {
   const [cobrando, setCobrando] = useState(false);
   const [error, setError] = useState(null);
   const [ventaOk, setVentaOk] = useState(null);
+  const [cobroMP, setCobroMP] = useState(null); // null | 'qr' | 'point'
 
   async function cargar() {
     const [{ data: resumen }, { data: prods }, { data: clis }] =
@@ -128,6 +275,12 @@ export default function PosPage() {
 
   async function cobrar() {
     setError(null);
+
+    if (metodo === 'mercadopago_qr' || metodo === 'mercadopago_point') {
+      setCobroMP(metodo === 'mercadopago_qr' ? 'qr' : 'point');
+      return;
+    }
+
     setCobrando(true);
     const { data, error: err } = await supabase.rpc('registrar_venta', {
       p_items: items.map((i) => ({ producto_id: i.id, cantidad: i.cantidad })),
@@ -145,6 +298,14 @@ export default function PosPage() {
     cargar();
   }
 
+  function ventaMPLista(venta) {
+    setCobroMP(null);
+    setVentaOk(venta);
+    setCarrito({});
+    setClienteId('');
+    cargar();
+  }
+
   if (turno === undefined)
     return (
       <main style={{ textAlign: 'center', padding: 60 }}>
@@ -153,6 +314,24 @@ export default function PosPage() {
     );
 
   if (!turno) return <AbrirTurno onAbierto={cargar} />;
+
+  if (cobroMP) {
+    return (
+      <main>
+        <CobroMP
+          tipo={cobroMP}
+          total={total}
+          items={items.map((i) => ({
+            producto_id: i.id,
+            cantidad: i.cantidad,
+          }))}
+          clienteId={clienteId}
+          onListo={ventaMPLista}
+          onCancelar={() => setCobroMP(null)}
+        />
+      </main>
+    );
+  }
 
   if (ventaOk) {
     return (

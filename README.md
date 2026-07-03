@@ -29,7 +29,23 @@ Sistema de gestión del servicio técnico **Soporte Móvil**: tickets de reparac
 2. Deploy — Vercel detecta Next.js automáticamente, sin configuración extra
 3. A partir de ahí, cada push a `main` despliega solo
 
-No hace falta configurar variables de entorno: la app trae la URL y la clave publishable de Supabase como valores por defecto (podés sobreescribirlas con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+No hace falta configurar variables de entorno para el sistema base: la app trae la URL y la clave publishable de Supabase como valores por defecto (podés sobreescribirlas con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+
+## Mercado Pago (opcional — activa QR y Point en el POS)
+
+Cargá estas variables en Vercel → Settings → Environment Variables y redeployá:
+
+| Variable | Qué es |
+|---|---|
+| `MP_ACCESS_TOKEN` | Access token de producción de tu app en [Mercado Pago Developers](https://www.mercadopago.com.ar/developers) |
+| `MP_USER_ID` | Tu collector ID (número de usuario MP) |
+| `MP_POS_EXTERNAL_ID` | ID externo de la caja registrada en MP (QR dinámico) |
+| `MP_POINT_DEVICE_ID` | ID del dispositivo Point vinculado (para cobros con terminal) |
+| `MP_WEBHOOK_SECRET` | Secreto compartido con la base (pedímelo o miralo en `config_privada`) |
+
+Configurá el webhook en el panel de MP apuntando a `https://TU-DOMINIO/api/mp/webhook` (evento: pagos). Regla de diseño: **el webhook nunca crea ventas** — solo registra pagos (con antiduplicación por constraint); la venta la registra siempre el POS con sesión de staff.
+
+La facturación AFIP queda **encolada** (tabla `facturas`, botón 🧾 en Caja); la emisión real se activa en la Fase 2 al cargar CUIT + certificados.
 
 ## Desarrollo local
 

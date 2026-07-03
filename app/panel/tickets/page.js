@@ -1,7 +1,121 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { supabase, ESTADOS, PRIORIDADES, formatFecha } from '@/lib/supabase';
+import {
+  supabase,
+  ESTADOS,
+  PRIORIDADES,
+  METODOS_PAGO,
+  formatFecha,
+  formatMoney,
+} from '@/lib/supabase';
+
+function PagosTicket({ ticketId }) {
+  const [pagos, setPagos] = useState([]);
+  const [monto, setMonto] = useState('');
+  const [metodo, setMetodo] = useState('efectivo');
+  const [tipo, setTipo] = useState('sena');
+  const [error, setError] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  const cargar = useCallback(async () => {
+    const { data } = await supabase
+      .from('ticket_pagos')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: false });
+    setPagos(data || []);
+  }, [ticketId]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function agregar(e) {
+    e.preventDefault();
+    setError(null);
+    setOcupado(true);
+    const { error: err } = await supabase.from('ticket_pagos').insert({
+      ticket_id: ticketId,
+      tipo,
+      metodo,
+      monto: Number(monto),
+      registrado_por: (await supabase.auth.getUser()).data.user?.id,
+    });
+    setOcupado(false);
+    if (err) return setError(err.message);
+    setMonto('');
+    cargar();
+  }
+
+  const total = pagos.reduce((s, p) => s + Number(p.monto), 0);
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <h2 style={{ fontSize: '1rem' }}>
+        💰 Señas y pagos{' '}
+        {total > 0 && (
+          <span style={{ color: 'var(--accent)' }}>
+            — abonado {formatMoney(total)}
+          </span>
+        )}
+      </h2>
+      {error && (
+        <div className="alert alert-error" style={{ marginTop: 8 }}>
+          {error}
+        </div>
+      )}
+      {pagos.map((p) => (
+        <div className="carrito-item" key={p.id}>
+          <div className="info">
+            <div>
+              {p.tipo === 'sena' ? 'Seña' : 'Pago'} · {METODOS_PAGO[p.metodo]}
+            </div>
+            <div className="meta">{formatFecha(p.created_at)}</div>
+          </div>
+          <div className="subtotal">{formatMoney(p.monto)}</div>
+        </div>
+      ))}
+      <form onSubmit={agregar} style={{ marginTop: 10 }}>
+        <div className="grid-2">
+          <div className="field">
+            <label>Monto ($)</label>
+            <input
+              required
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>Tipo</label>
+            <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              <option value="sena">Seña</option>
+              <option value="pago">Pago</option>
+            </select>
+          </div>
+        </div>
+        <div className="field">
+          <label>Método</label>
+          <select value={metodo} onChange={(e) => setMetodo(e.target.value)}>
+            {Object.entries(METODOS_PAGO)
+              .filter(([k]) => !k.startsWith('mercadopago'))
+              .map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+          </select>
+        </div>
+        <button className="btn btn-secondary btn-sm" disabled={ocupado}>
+          Registrar {tipo === 'sena' ? 'seña' : 'pago'}
+        </button>
+      </form>
+    </div>
+  );
+}
 
 function BadgeEstado({ estado }) {
   const info = ESTADOS[estado] || { label: estado, color: '#64748b' };
@@ -185,6 +299,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       <button className="btn" onClick={guardar} disabled={guardando}>
         {guardando ? <span className="spinner" /> : 'Guardar cambios'}
       </button>
+
+      <PagosTicket ticketId={ticket.id} />
 
       {actualizaciones.length > 0 && (
         <>

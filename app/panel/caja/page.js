@@ -12,6 +12,7 @@ export default function CajaPage() {
   const [turno, setTurno] = useState(undefined);
   const [ventas, setVentas] = useState([]);
   const [retiros, setRetiros] = useState([]);
+  const [facturas, setFacturas] = useState({});
   const [historial, setHistorial] = useState([]);
   const [montoInicial, setMontoInicial] = useState('');
   const [retMonto, setRetMonto] = useState('');
@@ -40,6 +41,17 @@ export default function CajaPage() {
       ]);
       setVentas(vs || []);
       setRetiros(rs || []);
+      if (vs?.length) {
+        const { data: fs } = await supabase
+          .from('facturas')
+          .select('venta_id, estado')
+          .in('venta_id', vs.map((v) => v.id));
+        setFacturas(
+          Object.fromEntries((fs || []).map((f) => [f.venta_id, f.estado]))
+        );
+      } else {
+        setFacturas({});
+      }
     } else {
       const { data: hs } = await supabase
         .from('turnos_caja')
@@ -336,6 +348,31 @@ export default function CajaPage() {
                     </div>
                     <div className="meta">{formatFecha(v.created_at)}</div>
                   </div>
+                  {facturas[v.id] ? (
+                    <span
+                      className="badge"
+                      style={{
+                        background: '#22c55e22',
+                        color: facturas[v.id] === 'emitida' ? '#22c55e' : '#f59e0b',
+                        border: '1px solid #22c55e55',
+                      }}
+                    >
+                      🧾 {facturas[v.id]}
+                    </span>
+                  ) : (
+                    <button
+                      className="chip"
+                      onClick={async () => {
+                        const { error: err } = await supabase
+                          .from('facturas')
+                          .insert({ venta_id: v.id });
+                        if (err) setError(err.message);
+                        else cargar();
+                      }}
+                    >
+                      🧾 Facturar
+                    </button>
+                  )}
                   <div className="subtotal">{formatMoney(v.total)}</div>
                 </div>
               ))}
