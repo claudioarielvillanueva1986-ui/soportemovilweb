@@ -1010,3 +1010,35 @@ textarea {
   flex-wrap: wrap;
   gap: 4px;
 }
+
+/* ---------- Gráfico de barras (reportes) ---------- */
+.grafico-barras {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 150px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.barra-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1 0 26px;
+}
+
+.barra {
+  width: 100%;
+  max-width: 38px;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  opacity: 0.85;
+}
+
+.barra-lbl {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}

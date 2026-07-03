@@ -63,17 +63,21 @@ Precio configurable con la env var `SUSCRIPCION_PRECIO` (default $20.000/mes). P
 - [ ] **Pendiente de credenciales**: cargar variables `MP_*` en Vercel (ver README) y probar con cuenta real
 - [ ] Emisión real AFIP/ARCA vía Afip SDK desde Edge Function (requiere CUIT + certificado), lectura dinámica de cuenta activa
 
-### Fase 3 — Comunicación
+### 🔶 Fase 3 — Comunicación
+- [x] Web Push (VAPID + Service Worker): aviso automático de orden nueva al staff del negocio
+      (trigger en `tickets` → pg_net → `/api/push/nueva-orden`), upsert correcto por `UNIQUE(endpoint)`,
+      limpieza de suscripciones muertas (410)
+- [x] PWA instalable (manifest + íconos + service worker, "Agregar a pantalla de inicio")
 - [ ] Bot PACHE: WhatsApp Cloud API + Edge Function + Claude API (tablas `wa_conversaciones`, `wa_escalaciones`)
 - [ ] Escalamiento a humano (audio → silenciar bot 2h) y bandeja con Realtime
 - [ ] Reactivación de clientes: query builder + cola idempotente con lock TTL
-- [ ] Web Push (VAPID + Service Worker) con upsert correcto (`ON CONFLICT`)
-- [ ] PWA instalable para operadores
 
-### Fase 4 — Vidriera y gestión
-- [ ] Tienda online pública (`/tienda`) sobre el mismo inventario
-- [ ] Dashboard gerencial con Realtime (ventas en vivo, margen por costo, top productos)
-- [ ] Reportes por período y exportación
+### 🔶 Fase 4 — Vidriera y gestión
+- [x] Reportes por período (solo dueño): facturación, ticket promedio, margen bruto,
+      ventas por día (gráfico), por método y top productos
+- [ ] Tienda online pública (`/t/{slug}/tienda`) sobre el mismo inventario
+- [ ] Dashboard con Realtime (ventas en vivo)
+- [ ] Exportación de reportes
 
 ## Infraestructura
 

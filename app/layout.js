@@ -5,6 +5,12 @@ export const metadata = {
   title: 'Soporte Móvil — Sistema de Tickets',
   description:
     'Sistema de soporte técnico de Soporte Móvil: creá tu ticket de reparación y seguí el estado online.',
+  manifest: '/manifest.json',
+  icons: { icon: '/icons/icon-192.png', apple: '/icons/icon-192.png' },
+};
+
+export const viewport = {
+  themeColor: '#0b0d11',
 };
 
 export default function RootLayout({ children }) {

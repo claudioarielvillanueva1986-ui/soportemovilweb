@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, formatFecha } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
+import { pushSoportado, suscribirPush } from '@/lib/push';
 
 function TarjetaMercadoPago({ negocio, esDueno }) {
   const [estado, setEstado] = useState(null);
@@ -274,6 +275,85 @@ function TarjetaArca({ esDueno }) {
   );
 }
 
+function TarjetaNotificaciones() {
+  const [estado, setEstado] = useState('cargando'); // cargando | off | on | nosoporta
+  const [aviso, setAviso] = useState(null);
+
+  useEffect(() => {
+    if (!pushSoportado()) {
+      setEstado('nosoporta');
+      return;
+    }
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => setEstado(sub ? 'on' : 'off'))
+      .catch(() => setEstado('off'));
+  }, []);
+
+  async function activar() {
+    setAviso(null);
+    try {
+      const sub = await suscribirPush();
+      const { data: u } = await supabase.auth.getUser();
+      const { data: neg } = await supabase
+        .from('negocios')
+        .select('id')
+        .maybeSingle();
+      const { error } = await supabase.from('push_suscripciones').upsert(
+        {
+          negocio_id: neg.id,
+          user_id: u.user.id,
+          endpoint: sub.endpoint,
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+        },
+        { onConflict: 'endpoint' }
+      );
+      if (error) throw new Error(error.message);
+      setEstado('on');
+      setAviso({ tipo: 'ok', texto: 'Notificaciones activadas en este dispositivo.' });
+    } catch (e) {
+      setAviso({ tipo: 'error', texto: e.message });
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h2>Notificaciones</h2>
+      {aviso && (
+        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>
+          {aviso.texto}
+        </div>
+      )}
+      {estado === 'nosoporta' ? (
+        <p style={{ color: 'var(--text-dim)' }}>
+          Este navegador no soporta notificaciones push.
+        </p>
+      ) : estado === 'on' ? (
+        <p style={{ color: 'var(--accent)', fontWeight: 600 }}>
+          Activadas: vas a recibir un aviso en este dispositivo cada vez que
+          entre una orden nueva.
+        </p>
+      ) : (
+        <>
+          <p style={{ color: 'var(--text-dim)', marginBottom: 14 }}>
+            Recibí un aviso en este dispositivo cada vez que un cliente cree
+            una orden nueva, aunque tengas la app cerrada. Consejo: en el
+            celular, primero instalá la app ("Agregar a pantalla de inicio").
+          </p>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={activar}
+            disabled={estado === 'cargando'}
+          >
+            Activar notificaciones
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ConfigPage() {
   const { esDueno } = usePerfil();
   const [negocio, setNegocio] = useState(null);
@@ -293,6 +373,7 @@ export default function ConfigPage() {
         <TarjetaMercadoPago negocio={negocio} esDueno={esDueno} />
         <TarjetaArca esDueno={esDueno} />
       </div>
+      <TarjetaNotificaciones />
     </main>
   );
 }

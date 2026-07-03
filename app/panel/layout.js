@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { PerfilContext } from '@/lib/panel-context';
+import { registrarSW } from '@/lib/push';
 
 const GRUPOS = [
   {
@@ -20,6 +21,11 @@ const GRUPOS = [
   {
     titulo: 'Catálogo',
     links: [['/panel/inventario', 'Inventario']],
+  },
+  {
+    titulo: 'Análisis',
+    soloDueno: true,
+    links: [['/panel/reportes', 'Reportes']],
   },
   {
     titulo: 'Cuenta',
@@ -98,6 +104,7 @@ export default function PanelLayout({ children }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_ev, s) =>
       setSesion(s)
     );
+    registrarSW().catch(() => {});
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -163,7 +170,9 @@ export default function PanelLayout({ children }) {
             )}
           </div>
 
-          {GRUPOS.map((g) => (
+          {GRUPOS.filter(
+            (g) => !g.soloDueno || perfil?.rol === 'dueno'
+          ).map((g) => (
             <div className="sidebar-group" key={g.titulo}>
               <div className="sidebar-titulo">{g.titulo}</div>
               {g.links.map(([href, label]) => (
