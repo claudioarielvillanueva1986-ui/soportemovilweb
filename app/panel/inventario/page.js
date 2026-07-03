@@ -108,7 +108,7 @@ export default function InventarioPage() {
         }}
       >
         <h1 style={{ fontSize: '1.5rem' }}>
-          📦 Inventario{' '}
+          Inventario{' '}
           {criticos > 0 && (
             <span
               className="badge"
@@ -119,7 +119,7 @@ export default function InventarioPage() {
                 verticalAlign: 'middle',
               }}
             >
-              ⚠ {criticos} en stock crítico
+              {criticos} en stock crítico
             </span>
           )}
         </h1>
@@ -235,7 +235,7 @@ export default function InventarioPage() {
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="🔍 Buscar por nombre o SKU..."
+          placeholder="Buscar por nombre o SKU..."
         />
       </div>
       <div className="filters">
@@ -279,9 +279,14 @@ export default function InventarioPage() {
                   <td>{formatMoney(p.precio)}</td>
                   <td>
                     {p.maneja_stock ? (
-                      <span style={{ color: critico ? '#f59e0b' : 'inherit' }}>
-                        {critico ? '⚠ ' : ''}
+                      <span
+                        style={{
+                          color: critico ? 'var(--warn)' : 'inherit',
+                          fontWeight: critico ? 600 : 400,
+                        }}
+                      >
                         {p.stock}
+                        {critico ? ' · Bajo' : ''}
                       </span>
                     ) : (
                       '—'

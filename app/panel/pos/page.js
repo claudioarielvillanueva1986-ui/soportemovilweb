@@ -109,7 +109,7 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
   return (
     <div className="card" style={{ maxWidth: 420, margin: '30px auto', textAlign: 'center' }}>
       <h2>
-        {tipo === 'qr' ? '📱 Cobro con QR' : '💳 Cobro con Point'} —{' '}
+        {tipo === 'qr' ? 'Cobro con QR' : 'Cobro con Point'} —{' '}
         {formatMoney(total)}
       </h2>
 
@@ -140,7 +140,7 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
 
       {fase === 'registrando' && (
         <p style={{ padding: 20 }}>
-          ✅ Pago acreditado — registrando venta...{' '}
+          Pago acreditado — registrando venta...{' '}
           <span className="spinner" style={{ verticalAlign: 'middle' }} />
         </p>
       )}
@@ -176,7 +176,7 @@ function AbrirTurno({ onAbierto }) {
 
   return (
     <div className="card" style={{ maxWidth: 460, margin: '30px auto' }}>
-      <h2>💵 Abrir turno de caja</h2>
+      <h2>Abrir turno de caja</h2>
       <p style={{ color: 'var(--text-dim)', marginBottom: 14 }}>
         Para vender primero abrí la caja indicando con cuánto efectivo arranca.
       </p>
@@ -337,7 +337,6 @@ export default function PosPage() {
     return (
       <main>
         <div className="card" style={{ maxWidth: 460, margin: '30px auto', textAlign: 'center' }}>
-          <div style={{ fontSize: '2.4rem' }}>✅</div>
           <h2 style={{ margin: '8px 0' }}>Venta #{ventaOk.numero} registrada</h2>
           <div className="ticket-numero">{formatMoney(ventaOk.total)}</div>
           <p style={{ color: 'var(--text-dim)', margin: '10px 0 20px' }}>
@@ -354,7 +353,7 @@ export default function PosPage() {
   return (
     <main>
       <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>
-        🛒 Punto de venta
+        Punto de venta
       </h1>
 
       <div className="pos-grid">
@@ -363,7 +362,7 @@ export default function PosPage() {
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="🔍 Buscar producto o SKU..."
+              placeholder="Buscar producto o SKU..."
             />
           </div>
           <div className="pos-productos">

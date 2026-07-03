@@ -7,12 +7,12 @@ import { supabase } from '@/lib/supabase';
 import { PerfilContext } from '@/lib/panel-context';
 
 const SECCIONES = [
-  ['/panel', '📊 Resumen'],
-  ['/panel/pos', '🛒 POS'],
-  ['/panel/caja', '💵 Caja'],
-  ['/panel/inventario', '📦 Inventario'],
-  ['/panel/clientes', '👥 Clientes'],
-  ['/panel/tickets', '🔧 Reparaciones'],
+  ['/panel', 'Resumen'],
+  ['/panel/pos', 'POS'],
+  ['/panel/caja', 'Caja'],
+  ['/panel/inventario', 'Inventario'],
+  ['/panel/clientes', 'Clientes'],
+  ['/panel/tickets', 'Reparaciones'],
 ];
 
 function Login() {
@@ -126,7 +126,15 @@ export default function PanelLayout({ children }) {
         </nav>
         <div className="panel-user">
           <span className="panel-rol">
-            {perfil ? (perfil.rol === 'dueno' ? '👑 ' : '🧑‍🔧 ') + perfil.nombre : '...'}
+            {perfil ? (
+              <>
+                <strong>{perfil.nombre}</strong>
+                {' · '}
+                {perfil.rol === 'dueno' ? 'Dueño' : 'Operador'}
+              </>
+            ) : (
+              '...'
+            )}
           </span>
           <button
             className="btn btn-danger btn-sm"

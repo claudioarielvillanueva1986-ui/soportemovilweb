@@ -80,7 +80,7 @@ export default function ClientesPage() {
           margin: '6px 0 18px',
         }}
       >
-        <h1 style={{ fontSize: '1.5rem' }}>👥 Clientes ({clientes.length})</h1>
+        <h1 style={{ fontSize: '1.5rem' }}>Clientes ({clientes.length})</h1>
         <button className="btn btn-sm" onClick={() => setForm({ ...VACIO })}>
           + Nuevo cliente
         </button>
@@ -138,7 +138,7 @@ export default function ClientesPage() {
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="🔍 Buscar por nombre, teléfono o email..."
+          placeholder="Buscar por nombre, teléfono o email..."
         />
       </div>
 

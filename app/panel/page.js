@@ -62,17 +62,14 @@ export default function ResumenPage() {
 
       <div className="features" style={{ marginTop: 10 }}>
         <Link href="/panel/pos" className="feature feature-link">
-          <div className="icon">🛒</div>
           <h3>Vender</h3>
           <p>Registrar una venta con descuento automático de stock.</p>
         </Link>
         <Link href="/panel/tickets" className="feature feature-link">
-          <div className="icon">🔧</div>
           <h3>Reparaciones</h3>
           <p>Gestionar los tickets de soporte técnico.</p>
         </Link>
         <Link href="/panel/caja" className="feature feature-link">
-          <div className="icon">💵</div>
           <h3>Caja</h3>
           <p>Turnos, retiros y arqueo con diferencia.</p>
         </Link>

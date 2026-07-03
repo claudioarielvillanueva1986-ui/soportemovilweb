@@ -52,7 +52,7 @@ export default function HomePage() {
       <main>
         <div className="hero">
           <h1>
-            ✅ ¡Ticket <em>creado</em>!
+            ¡Ticket <em>creado</em>!
           </h1>
         </div>
         <div className="card" style={{ textAlign: 'center' }}>
@@ -104,24 +104,21 @@ export default function HomePage() {
 
       <div className="features">
         <div className="feature">
-          <div className="icon">🎫</div>
           <h3>Ticket inmediato</h3>
           <p>Completás el formulario y obtenés tu número de seguimiento al toque.</p>
         </div>
         <div className="feature">
-          <div className="icon">🔍</div>
           <h3>Seguimiento online</h3>
           <p>Mirá en qué etapa está tu reparación con tu número y email.</p>
         </div>
         <div className="feature">
-          <div className="icon">🔧</div>
           <h3>Todo tipo de equipos</h3>
           <p>Celulares, tablets, notebooks, PCs y consolas.</p>
         </div>
       </div>
 
       <div className="card">
-        <h2>🎫 Crear ticket de soporte</h2>
+        <h2>Crear ticket de soporte</h2>
         {error && <div className="alert alert-error">{error}</div>}
         <form onSubmit={enviar}>
           <div className="grid-2">

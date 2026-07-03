@@ -14,7 +14,7 @@ export default function RootLayout({ children }) {
         <div className="container">
           <header className="header">
             <Link href="/" className="logo">
-              📱 Soporte <span>Móvil</span>
+              Soporte <span>Móvil</span>
             </Link>
             <nav className="nav">
               <Link href="/">Nuevo ticket</Link>

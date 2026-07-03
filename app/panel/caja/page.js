@@ -132,12 +132,12 @@ export default function CajaPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>💵 Caja</h1>
+      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Caja</h1>
       {error && <div className="alert alert-error">{error}</div>}
 
       {cierre && (
         <div className="card" style={{ marginBottom: 18 }}>
-          <h2>🧾 Arqueo del turno cerrado</h2>
+          <h2>Arqueo del turno cerrado</h2>
           <dl className="detalle-grid">
             <div>
               <dt>Total ventas</dt>
@@ -357,7 +357,7 @@ export default function CajaPage() {
                         border: '1px solid #22c55e55',
                       }}
                     >
-                      🧾 {facturas[v.id]}
+                      {facturas[v.id]}
                     </span>
                   ) : (
                     <button
@@ -370,7 +370,7 @@ export default function CajaPage() {
                         else cargar();
                       }}
                     >
-                      🧾 Facturar
+                      Facturar
                     </button>
                   )}
                   <div className="subtotal">{formatMoney(v.total)}</div>

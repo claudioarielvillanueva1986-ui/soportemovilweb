@@ -151,7 +151,7 @@ export default function ConsultaPage() {
           {ticket.actualizaciones?.length > 0 && (
             <>
               <h2 style={{ marginTop: 24, fontSize: '1.05rem' }}>
-                📋 Historial
+                Historial
               </h2>
               <div className="timeline">
                 {ticket.actualizaciones.map((a, i) => (

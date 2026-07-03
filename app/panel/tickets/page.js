@@ -53,7 +53,7 @@ function PagosTicket({ ticketId }) {
   return (
     <div style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: '1rem' }}>
-        💰 Señas y pagos{' '}
+        Señas y pagos{' '}
         {total > 0 && (
           <span style={{ color: 'var(--accent)' }}>
             — abonado {formatMoney(total)}
@@ -201,7 +201,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           {ticket.numero}
         </span>
         <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
-          ✕ Cerrar
+          Cerrar
         </button>
       </div>
 
@@ -304,7 +304,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
 
       {actualizaciones.length > 0 && (
         <>
-          <h2 style={{ marginTop: 24, fontSize: '1rem' }}>📋 Historial</h2>
+          <h2 style={{ marginTop: 24, fontSize: '1rem' }}>Historial</h2>
           <div className="timeline">
             {actualizaciones.map((a) => (
               <div className="timeline-item" key={a.id}>
@@ -375,9 +375,9 @@ export default function TicketsPage() {
           gap: 10,
         }}
       >
-        <h1 style={{ fontSize: '1.5rem' }}>🔧 Reparaciones</h1>
+        <h1 style={{ fontSize: '1.5rem' }}>Reparaciones</h1>
         <button className="btn btn-secondary btn-sm" onClick={cargar}>
-          ↻ Actualizar
+          Actualizar
         </button>
       </div>
 
@@ -424,7 +424,7 @@ export default function TicketsPage() {
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="🔍 Buscar por número, nombre, email o equipo..."
+          placeholder="Buscar por número, nombre, email o equipo..."
         />
       </div>
 
@@ -465,7 +465,7 @@ export default function TicketsPage() {
                 {t.numero}
                 {t.prioridad === 'alta' || t.prioridad === 'urgente' ? (
                   <span style={{ color: '#ef4444', marginLeft: 8 }}>
-                    ⚠ {PRIORIDADES[t.prioridad]}
+                    {PRIORIDADES[t.prioridad]}
                   </span>
                 ) : null}
               </div>
