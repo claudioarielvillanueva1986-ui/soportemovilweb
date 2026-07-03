@@ -1,28 +1,32 @@
-import { mpConfigurado, mpFetch, rpcConSecreto } from '@/lib/mp-server';
+import {
+  mpConfigurado,
+  mpFetch,
+  mpFetchConToken,
+  rpcConSecreto,
+} from '@/lib/mp-server';
 
-// Webhook de Mercado Pago.
-// Regla heredada de v1: el webhook NUNCA inserta ventas — solo registra el pago
-// y marca el cobro; el POS (con sesión de staff) es el único que crea la venta.
-// Antiduplicación garantizada por UNIQUE en pagos_mp.mp_payment_id.
+// Webhook de Mercado Pago (pagos de los talleres vía OAuth + suscripciones del SaaS).
+// Regla: el webhook NUNCA inserta ventas — solo registra pagos y estados;
+// la venta la crea siempre el POS con sesión de staff.
+// Antiduplicación por UNIQUE en pagos_mp.mp_payment_id.
 export async function POST(request) {
-  if (!mpConfigurado()) return Response.json({ ok: true });
-
-  let paymentId = null;
+  let dataId = null;
   try {
     const url = new URL(request.url);
     const body = await request.json().catch(() => ({}));
-    const topic = url.searchParams.get('topic') || url.searchParams.get('type') || body?.type;
-    paymentId =
+    const topic =
+      url.searchParams.get('topic') || url.searchParams.get('type') || body?.type;
+    dataId =
       url.searchParams.get('data.id') ||
       url.searchParams.get('id') ||
       body?.data?.id ||
       null;
+    if (!dataId) return Response.json({ ok: true });
 
-    if (!paymentId) return Response.json({ ok: true });
-
-    // Suscripciones del SaaS (preapproval)
+    // Suscripciones del SaaS (cobradas por la cuenta del dueño del producto)
     if (topic && String(topic).includes('preapproval')) {
-      const pre = await mpFetch(`/preapproval/${paymentId}`);
+      if (!mpConfigurado()) return Response.json({ ok: true });
+      const pre = await mpFetch(`/preapproval/${dataId}`);
       if (pre.external_reference) {
         await rpcConSecreto('saas_actualizar_suscripcion', {
           p_negocio_id: pre.external_reference,
@@ -39,7 +43,22 @@ export async function POST(request) {
       return Response.json({ ok: true });
     }
 
-    const pago = await mpFetch(`/v1/payments/${paymentId}`);
+    // Pagos de un taller: la notificación trae el user_id del vendedor;
+    // buscamos su token OAuth para consultar el pago.
+    const sellerId = body?.user_id ? String(body.user_id) : null;
+    let pago = null;
+    if (sellerId) {
+      const cuenta = await rpcConSecreto('mp_cuenta_por_user', {
+        p_mp_user_id: sellerId,
+      });
+      if (cuenta?.access_token) {
+        pago = await mpFetchConToken(cuenta.access_token, `/v1/payments/${dataId}`);
+      }
+    }
+    if (!pago && mpConfigurado()) {
+      pago = await mpFetch(`/v1/payments/${dataId}`);
+    }
+    if (!pago) return Response.json({ ok: true });
 
     await rpcConSecreto('mp_confirmar_pago', {
       p_cobro_id: pago.external_reference || null,
@@ -55,7 +74,7 @@ export async function POST(request) {
     });
   } catch (e) {
     // Siempre 200: si devolvemos error, MP reintenta en loop.
-    console.error('webhook mp:', e.message, paymentId);
+    console.error('webhook mp:', e.message, dataId);
   }
   return Response.json({ ok: true });
 }

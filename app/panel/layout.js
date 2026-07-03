@@ -23,7 +23,10 @@ const GRUPOS = [
   },
   {
     titulo: 'Cuenta',
-    links: [['/panel/plan', 'Mi plan']],
+    links: [
+      ['/panel/config', 'Configuración'],
+      ['/panel/plan', 'Mi plan'],
+    ],
   },
 ];
 

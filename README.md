@@ -31,21 +31,30 @@ Sistema de gestión del servicio técnico **Soporte Móvil**: tickets de reparac
 
 No hace falta configurar variables de entorno para el sistema base: la app trae la URL y la clave publishable de Supabase como valores por defecto (podés sobreescribirlas con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 
-## Mercado Pago (opcional — activa QR y Point en el POS)
+## Mercado Pago — modelo OAuth (cada taller conecta su cuenta)
 
-Cargá estas variables en Vercel → Settings → Environment Variables y redeployá:
+Los cobros del POS (QR/Point) van a la cuenta de MP **de cada taller**, conectada con 2 clics desde
+Panel → Configuración → "Conectar con Mercado Pago" (OAuth). El sistema crea la caja para QR automáticamente
+al conectar, renueva tokens solos, y el Point se elige pegando el ID del dispositivo.
+
+Setup por única vez del **dueño del producto** (variables de entorno en Netlify):
 
 | Variable | Qué es |
 |---|---|
-| `MP_ACCESS_TOKEN` | Access token de producción de tu app en [Mercado Pago Developers](https://www.mercadopago.com.ar/developers) |
-| `MP_USER_ID` | Tu collector ID (número de usuario MP) |
-| `MP_POS_EXTERNAL_ID` | ID externo de la caja registrada en MP (QR dinámico) |
-| `MP_POINT_DEVICE_ID` | ID del dispositivo Point vinculado (para cobros con terminal) |
-| `MP_WEBHOOK_SECRET` | Secreto compartido con la base (pedímelo o miralo en `config_privada`) |
+| `MP_CLIENT_ID` / `MP_CLIENT_SECRET` | Credenciales de tu aplicación en [MP Developers](https://www.mercadopago.com.ar/developers) (activar OAuth y poner Redirect URL: `https://TU-DOMINIO/api/mp/oauth/callback`) |
+| `MP_ACCESS_TOKEN` | Access token de TU cuenta — cobra las suscripciones del SaaS (preapproval) |
+| `MP_WEBHOOK_SECRET` | Secreto compartido con la base (tabla `config_privada`) |
+| `SUSCRIPCION_PRECIO` | Precio mensual del Plan Pro (default 20000) |
 
-Configurá el webhook en el panel de MP apuntando a `https://TU-DOMINIO/api/mp/webhook` (evento: pagos). Regla de diseño: **el webhook nunca crea ventas** — solo registra pagos (con antiduplicación por constraint); la venta la registra siempre el POS con sesión de staff.
+Webhook en el panel de MP: `https://TU-DOMINIO/api/mp/webhook` (eventos: pagos y suscripciones). Regla de diseño:
+**el webhook nunca crea ventas** — solo registra pagos (antiduplicación por constraint); la venta la registra el POS.
 
-La facturación AFIP queda **encolada** (tabla `facturas`, botón 🧾 en Caja); la emisión real se activa en la Fase 2 al cargar CUIT + certificados.
+## Facturación ARCA (por negocio)
+
+Cada taller carga sus datos fiscales en Panel → Configuración → Facturación: CUIT, razón social, condición IVA,
+punto de venta y certificado digital (se genera gratis con clave fiscal en el sitio de ARCA). Modo homologación →
+producción. Los comprobantes se encolan en la tabla `facturas` (botón Facturar en Caja); la emisión con webservice
+se activa por negocio cuando su configuración está completa.
 
 ## Desarrollo local
 

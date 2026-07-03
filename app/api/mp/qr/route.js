@@ -1,22 +1,13 @@
 import {
-  mpConfigurado,
-  mpFetch,
   rpcConSecreto,
+  mpFetchConToken,
+  tokenVigente,
   errorJson,
-  NO_CONFIG_MSG,
+  NO_CONECTADO_MSG,
 } from '@/lib/mp-server';
 
-// Genera un QR dinámico de Mercado Pago para un cobro pendiente.
-// Requiere en Vercel: MP_ACCESS_TOKEN, MP_USER_ID, MP_POS_EXTERNAL_ID, MP_WEBHOOK_SECRET
+// Genera un QR dinámico usando la cuenta de Mercado Pago DEL NEGOCIO (OAuth).
 export async function POST(request) {
-  if (!mpConfigurado()) return errorJson(NO_CONFIG_MSG, 501);
-  if (!process.env.MP_USER_ID || !process.env.MP_POS_EXTERNAL_ID) {
-    return errorJson(
-      'Faltan MP_USER_ID y/o MP_POS_EXTERNAL_ID (caja registrada en Mercado Pago).',
-      501
-    );
-  }
-
   let body;
   try {
     body = await request.json();
@@ -29,14 +20,26 @@ export async function POST(request) {
   }
 
   try {
+    const ctx = await rpcConSecreto('mp_contexto_cobro', { p_cobro_id: cobro_id });
+    if (!ctx) return errorJson('Cobro inexistente', 404);
+    if (!ctx.conectado) return errorJson(NO_CONECTADO_MSG, 501);
+    if (!ctx.pos_external_id) {
+      return errorJson(
+        'Tu cuenta de Mercado Pago no tiene una caja para QR. Desconectá y volvé a conectar desde Configuración.',
+        501
+      );
+    }
+
+    const token = await tokenVigente(ctx);
     const origin = new URL(request.url).origin;
-    const orden = await mpFetch(
-      `/instore/orders/qr/seller/collectors/${process.env.MP_USER_ID}/pos/${process.env.MP_POS_EXTERNAL_ID}/qrs`,
+    const orden = await mpFetchConToken(
+      token,
+      `/instore/orders/qr/seller/collectors/${ctx.mp_user_id}/pos/${ctx.pos_external_id}/qrs`,
       {
         method: 'POST',
         body: {
           external_reference: cobro_id,
-          title: descripcion || 'Venta Soporte Móvil',
+          title: descripcion || 'Venta en mostrador',
           description: descripcion || 'Venta en mostrador',
           total_amount: Number(monto),
           items: [

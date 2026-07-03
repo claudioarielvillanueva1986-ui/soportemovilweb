@@ -1,22 +1,13 @@
 import {
-  mpConfigurado,
-  mpFetch,
   rpcConSecreto,
+  mpFetchConToken,
+  tokenVigente,
   errorJson,
-  NO_CONFIG_MSG,
+  NO_CONECTADO_MSG,
 } from '@/lib/mp-server';
 
-// Crea una intención de pago en la terminal Point (ej. Newland N950).
-// Requiere en Vercel: MP_ACCESS_TOKEN, MP_POINT_DEVICE_ID, MP_WEBHOOK_SECRET
+// Intención de pago en la terminal Point DEL NEGOCIO (OAuth).
 export async function POST(request) {
-  if (!mpConfigurado()) return errorJson(NO_CONFIG_MSG, 501);
-  if (!process.env.MP_POINT_DEVICE_ID) {
-    return errorJson(
-      'Falta MP_POINT_DEVICE_ID (ID del dispositivo Point vinculado a tu cuenta).',
-      501
-    );
-  }
-
   let body;
   try {
     body = await request.json();
@@ -29,9 +20,20 @@ export async function POST(request) {
   }
 
   try {
-    // La API de Point espera el monto en centavos (entero)
-    const intent = await mpFetch(
-      `/point/integration-api/devices/${process.env.MP_POINT_DEVICE_ID}/payment-intents`,
+    const ctx = await rpcConSecreto('mp_contexto_cobro', { p_cobro_id: cobro_id });
+    if (!ctx) return errorJson('Cobro inexistente', 404);
+    if (!ctx.conectado) return errorJson(NO_CONECTADO_MSG, 501);
+    if (!ctx.point_device_id) {
+      return errorJson(
+        'Este negocio no tiene una terminal Point configurada. El dueño puede elegirla en Configuración.',
+        501
+      );
+    }
+
+    const token = await tokenVigente(ctx);
+    const intent = await mpFetchConToken(
+      token,
+      `/point/integration-api/devices/${ctx.point_device_id}/payment-intents`,
       {
         method: 'POST',
         body: {
