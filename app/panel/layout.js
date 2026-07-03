@@ -83,6 +83,7 @@ function Login() {
 export default function PanelLayout({ children }) {
   const [sesion, setSesion] = useState(undefined);
   const [perfil, setPerfil] = useState(null);
+  const [negocio, setNegocio] = useState(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function PanelLayout({ children }) {
   useEffect(() => {
     if (!sesion) {
       setPerfil(null);
+      setNegocio(null);
       return;
     }
     supabase
@@ -104,7 +106,22 @@ export default function PanelLayout({ children }) {
       .eq('user_id', sesion.user.id)
       .maybeSingle()
       .then(({ data }) => setPerfil(data));
+    supabase
+      .from('negocios')
+      .select('*')
+      .maybeSingle()
+      .then(({ data }) => setNegocio(data));
   }, [sesion]);
+
+  const diasTrial =
+    negocio?.plan === 'trial'
+      ? Math.max(
+          0,
+          Math.ceil(
+            (new Date(negocio.trial_hasta) - Date.now()) / 86400000
+          )
+        )
+      : null;
 
   if (sesion === undefined) {
     return (
@@ -127,6 +144,16 @@ export default function PanelLayout({ children }) {
               Soporte <span>Móvil</span>
             </div>
             <div className="brand-sub">Sistema de gestión</div>
+            {negocio && (
+              <div className="brand-negocio">
+                {negocio.nombre}
+                {diasTrial !== null && (
+                  <span className="pill" style={{ color: 'var(--warn)', borderColor: 'var(--warn)', marginLeft: 8 }}>
+                    Prueba: {diasTrial} días
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {GRUPOS.map((g) => (

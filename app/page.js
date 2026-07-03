@@ -1,186 +1,151 @@
-'use client';
+import Link from 'next/link';
 
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+export const metadata = {
+  title: 'Soporte Móvil — Software de gestión para servicios técnicos',
+  description:
+    'Sistema de gestión para talleres y servicios técnicos: órdenes de reparación con seguimiento online para tus clientes, POS, caja con arqueo, inventario y cobros con Mercado Pago. Prueba gratis 14 días.',
+};
 
-const DISPOSITIVOS = [
-  'Celular',
-  'Tablet',
-  'Notebook',
-  'PC de escritorio',
-  'Consola',
-  'Otro',
+const DIFERENCIALES = [
+  {
+    t: 'Tus clientes siguen la reparación online',
+    d: 'Cada orden genera un número de seguimiento. El cliente consulta el estado desde su celular sin llamarte: menos interrupciones, imagen más profesional.',
+  },
+  {
+    t: 'Caja que cierra de verdad',
+    d: 'Turnos con efectivo inicial, retiros con motivo y arqueo automático que descuenta todo. Sabés al peso cuánto tiene que haber en caja, siempre.',
+  },
+  {
+    t: 'Stock que nunca queda negativo',
+    d: 'El POS descuenta stock en la misma operación de la venta. Si no hay stock, la venta no sale — sin sorpresas en el inventario.',
+  },
+  {
+    t: 'Cobrás con Mercado Pago integrado',
+    d: 'QR dinámico en pantalla o terminal Point. El sistema espera la acreditación real del pago antes de registrar la venta. Sin duplicados, garantizado.',
+  },
+  {
+    t: 'Roles para tu equipo',
+    d: 'Dueño y operadores con permisos distintos aplicados en la base de datos: un empleado no puede borrar productos ni ver lo que no debe.',
+  },
+  {
+    t: 'Cero instalación, 100% móvil',
+    d: 'Funciona en cualquier celular, tablet o PC desde el navegador. Sin servidores propios, sin backups manuales, sin actualizaciones.',
+  },
 ];
 
-export default function HomePage() {
-  const [form, setForm] = useState({
-    nombre: '',
-    email: '',
-    telefono: '',
-    dispositivo: 'Celular',
-    marca_modelo: '',
-    descripcion: '',
-  });
-  const [enviando, setEnviando] = useState(false);
-  const [numeroCreado, setNumeroCreado] = useState(null);
-  const [error, setError] = useState(null);
-
-  const set = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
-
-  async function enviar(e) {
-    e.preventDefault();
-    setError(null);
-    setEnviando(true);
-    const { data, error: err } = await supabase.rpc('crear_ticket', {
-      p_nombre: form.nombre,
-      p_email: form.email,
-      p_telefono: form.telefono,
-      p_dispositivo: form.dispositivo,
-      p_marca_modelo: form.marca_modelo,
-      p_descripcion: form.descripcion,
-    });
-    setEnviando(false);
-    if (err) {
-      setError(err.message || 'No se pudo crear el ticket. Probá de nuevo.');
-      return;
-    }
-    setNumeroCreado(data.numero);
-  }
-
-  if (numeroCreado) {
-    return (
-      <main>
-        <div className="hero">
-          <h1>
-            ¡Ticket <em>creado</em>!
-          </h1>
-        </div>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-dim)', marginBottom: 10 }}>
-            Tu número de ticket es
-          </p>
-          <div className="ticket-numero">{numeroCreado}</div>
-          <p style={{ color: 'var(--text-dim)', margin: '16px 0 22px' }}>
-            Guardalo: con este número y tu email podés consultar el estado de la
-            reparación en cualquier momento.
-          </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <a className="btn" href="/consulta">
-              Consultar estado
-            </a>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setNumeroCreado(null);
-                setForm({
-                  nombre: '',
-                  email: '',
-                  telefono: '',
-                  dispositivo: 'Celular',
-                  marca_modelo: '',
-                  descripcion: '',
-                });
-              }}
-            >
-              Crear otro ticket
-            </button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
+export default function LandingPage() {
   return (
     <main>
-      <div className="hero">
+      <div className="hero" style={{ paddingBottom: 24 }}>
         <h1>
-          Soporte técnico <em>sin vueltas</em>
+          El sistema de gestión para tu <em>servicio técnico</em>
         </h1>
         <p>
-          Contanos qué le pasa a tu equipo y te generamos un ticket de
-          seguimiento al instante. Consultá el estado online cuando quieras.
+          Órdenes de reparación con seguimiento online, punto de venta, caja
+          con arqueo, inventario y cobros con Mercado Pago. Todo en un solo
+          lugar, listo en 5 minutos.
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            justifyContent: 'center',
+            marginTop: 26,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Link className="btn" href="/registro">
+            Empezar gratis — 14 días
+          </Link>
+          <Link className="btn btn-secondary" href="/t/soporte-movil">
+            Ver una demo
+          </Link>
+        </div>
+        <p style={{ fontSize: '0.8rem', marginTop: 14, color: 'var(--text-dim)' }}>
+          Sin tarjeta de crédito. Creás tu cuenta y empezás a cargar órdenes.
         </p>
       </div>
 
       <div className="features">
-        <div className="feature">
-          <h3>Ticket inmediato</h3>
-          <p>Completás el formulario y obtenés tu número de seguimiento al toque.</p>
-        </div>
-        <div className="feature">
-          <h3>Seguimiento online</h3>
-          <p>Mirá en qué etapa está tu reparación con tu número y email.</p>
-        </div>
-        <div className="feature">
-          <h3>Todo tipo de equipos</h3>
-          <p>Celulares, tablets, notebooks, PCs y consolas.</p>
-        </div>
+        {DIFERENCIALES.map((f) => (
+          <div className="feature" key={f.t}>
+            <h3>{f.t}</h3>
+            <p>{f.d}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="card">
-        <h2>Crear ticket de soporte</h2>
-        {error && <div className="alert alert-error">{error}</div>}
-        <form onSubmit={enviar}>
-          <div className="grid-2">
-            <div className="field">
-              <label>Nombre y apellido *</label>
-              <input
-                required
-                value={form.nombre}
-                onChange={set('nombre')}
-                placeholder="Juan Pérez"
-              />
-            </div>
-            <div className="field">
-              <label>Email *</label>
-              <input
-                required
-                type="email"
-                value={form.email}
-                onChange={set('email')}
-                placeholder="juan@email.com"
-              />
-            </div>
-            <div className="field">
-              <label>Teléfono</label>
-              <input
-                value={form.telefono}
-                onChange={set('telefono')}
-                placeholder="+54 9 11 ..."
-              />
-            </div>
-            <div className="field">
-              <label>Tipo de equipo *</label>
-              <select value={form.dispositivo} onChange={set('dispositivo')}>
-                {DISPOSITIVOS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="card" style={{ textAlign: 'center', marginTop: 10 }}>
+        <h2 style={{ marginBottom: 8 }}>Precio simple</h2>
+        <p style={{ color: 'var(--text-dim)', marginBottom: 18 }}>
+          Un solo plan con todo incluido. Sin límites de órdenes, ventas ni
+          usuarios.
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            gap: 16,
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            alignItems: 'stretch',
+          }}
+        >
+          <div
+            className="feature"
+            style={{ maxWidth: 300, textAlign: 'left', flex: '1 1 260px' }}
+          >
+            <h3>Prueba gratis</h3>
+            <p style={{ margin: '10px 0' }}>
+              <span
+                style={{
+                  fontSize: '1.8rem',
+                  fontWeight: 700,
+                  color: 'var(--text)',
+                  fontFamily: 'var(--mono)',
+                }}
+              >
+                $0
+              </span>{' '}
+              <span style={{ color: 'var(--text-dim)' }}>/ 14 días</span>
+            </p>
+            <p>
+              Todas las funciones, sin tarjeta. Para que lo pruebes con tu
+              taller real.
+            </p>
           </div>
-          <div className="field">
-            <label>Marca y modelo</label>
-            <input
-              value={form.marca_modelo}
-              onChange={set('marca_modelo')}
-              placeholder="Samsung Galaxy A54, Lenovo IdeaPad 3..."
-            />
+          <div
+            className="feature"
+            style={{
+              maxWidth: 300,
+              textAlign: 'left',
+              flex: '1 1 260px',
+              borderColor: 'var(--accent)',
+            }}
+          >
+            <h3>Plan Pro</h3>
+            <p style={{ margin: '10px 0' }}>
+              <span
+                style={{
+                  fontSize: '1.35rem',
+                  fontWeight: 700,
+                  color: 'var(--text)',
+                  fontFamily: 'var(--mono)',
+                }}
+              >
+                Suscripción mensual
+              </span>
+            </p>
+            <p>
+              Órdenes, ventas y usuarios ilimitados, portal de seguimiento para
+              tus clientes, Mercado Pago integrado y soporte por WhatsApp.
+            </p>
           </div>
-          <div className="field">
-            <label>¿Qué problema tiene? *</label>
-            <textarea
-              required
-              value={form.descripcion}
-              onChange={set('descripcion')}
-              placeholder="Describí el problema: qué pasa, desde cuándo, si se golpeó o mojó, etc."
-            />
-          </div>
-          <button className="btn" disabled={enviando}>
-            {enviando ? <span className="spinner" /> : 'Crear ticket'}
-          </button>
-        </form>
+        </div>
+        <div style={{ marginTop: 22 }}>
+          <Link className="btn" href="/registro">
+            Crear mi cuenta
+          </Link>
+        </div>
       </div>
     </main>
   );

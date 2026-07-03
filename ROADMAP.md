@@ -22,6 +22,21 @@ Recreación del sistema "Soporte Móvil v1" (Flask + SQLite + Alpine.js en Pytho
 - Deploy por push (Vercel) en lugar de `touch` al WSGI; backups automáticos de Supabase en lugar de copias manuales.
 - Secretos en variables de entorno, nunca en código.
 
+## Modelo de negocio: SaaS por suscripción
+
+El producto se vende a talleres/servicios técnicos bajo suscripción mensual (plan `trial` de 14 días → `pro`).
+**Multi-tenant desde la base**: tabla `negocios`, columna `negocio_id` en todas las tablas operativas y RLS que
+aísla cada negocio a nivel de base de datos (verificado con tests de aislamiento bidireccional). Registro
+self-service en `/registro` (el trigger de Auth crea negocio + perfil dueño desde metadata). Cada negocio tiene
+su portal público de órdenes en `/t/{slug}`.
+
+Diferenciales frente a la competencia: portal de seguimiento online para los clientes del taller, arqueo de caja
+real (con retiros), stock atómico, Mercado Pago integrado (QR + Point) con antiduplicación por constraint,
+roles aplicados por RLS, y próximamente bot de WhatsApp con IA.
+
+Pendiente de monetización: suscripciones vía Mercado Pago (preapproval), enforcement de `trial_hasta`/plan al
+loguear, y página de facturación del negocio.
+
 ## Fases
 
 ### ✅ Fase 0 — Tickets de reparación

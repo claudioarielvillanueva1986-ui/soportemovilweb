@@ -17,9 +17,11 @@ export default function RootLayout({ children }) {
               Soporte <span>Móvil</span>
             </Link>
             <nav className="nav">
-              <Link href="/">Nuevo ticket</Link>
-              <Link href="/consulta">Consultar estado</Link>
-              <Link href="/panel">Panel</Link>
+              <Link href="/consulta">Consultar orden</Link>
+              <Link href="/panel">Ingresar</Link>
+              <Link href="/registro" style={{ color: 'var(--accent)' }}>
+                Prueba gratis
+              </Link>
             </nav>
           </header>
           {children}

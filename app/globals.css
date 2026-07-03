@@ -999,3 +999,14 @@ textarea {
   color: var(--text-dim);
   font-size: 0.78rem;
 }
+
+.brand-negocio {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
