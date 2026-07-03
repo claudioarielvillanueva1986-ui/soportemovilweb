@@ -34,8 +34,11 @@ Diferenciales frente a la competencia: portal de seguimiento online para los cli
 real (con retiros), stock atómico, Mercado Pago integrado (QR + Point) con antiduplicación por constraint,
 roles aplicados por RLS, y próximamente bot de WhatsApp con IA.
 
-Pendiente de monetización: suscripciones vía Mercado Pago (preapproval), enforcement de `trial_hasta`/plan al
-loguear, y página de facturación del negocio.
+Monetización implementada: suscripción mensual vía Mercado Pago preapproval (`/api/mp/suscribir` + webhook
+`subscription_preapproval` → RPC `saas_actualizar_suscripcion`), enforcement del trial en las RPCs operativas
+(`abrir_turno` rechaza con prueba vencida), pantalla de bloqueo en el panel y página `/panel/plan` con historial.
+Precio configurable con la env var `SUSCRIPCION_PRECIO` (default $20.000/mes). Pendiente: probar con el
+`MP_ACCESS_TOKEN` real del dueño del producto.
 
 ## Fases
 

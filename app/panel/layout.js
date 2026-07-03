@@ -21,6 +21,10 @@ const GRUPOS = [
     titulo: 'Catálogo',
     links: [['/panel/inventario', 'Inventario']],
   },
+  {
+    titulo: 'Cuenta',
+    links: [['/panel/plan', 'Mi plan']],
+  },
 ];
 
 function Login() {
@@ -191,7 +195,27 @@ export default function PanelLayout({ children }) {
           </div>
         </aside>
 
-        <div className="panel-main">{children}</div>
+        <div className="panel-main">
+          {negocio &&
+          negocio.plan === 'trial' &&
+          new Date(negocio.trial_hasta) < Date.now() &&
+          pathname !== '/panel/plan' ? (
+            <main>
+              <div className="card" style={{ maxWidth: 520, margin: '40px auto', textAlign: 'center' }}>
+                <h2>Tu prueba gratis terminó</h2>
+                <p style={{ color: 'var(--text-dim)', marginBottom: 18 }}>
+                  Tus datos están intactos. Suscribite al Plan Pro para seguir
+                  operando: órdenes, ventas y usuarios ilimitados.
+                </p>
+                <Link className="btn" href="/panel/plan">
+                  Ver planes y suscribirme
+                </Link>
+              </div>
+            </main>
+          ) : (
+            children
+          )}
+        </div>
       </div>
     </PerfilContext.Provider>
   );

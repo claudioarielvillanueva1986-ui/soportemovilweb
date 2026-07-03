@@ -18,7 +18,24 @@ export async function POST(request) {
       body?.data?.id ||
       null;
 
-    if (!paymentId || (topic && !String(topic).includes('payment'))) {
+    if (!paymentId) return Response.json({ ok: true });
+
+    // Suscripciones del SaaS (preapproval)
+    if (topic && String(topic).includes('preapproval')) {
+      const pre = await mpFetch(`/preapproval/${paymentId}`);
+      if (pre.external_reference) {
+        await rpcConSecreto('saas_actualizar_suscripcion', {
+          p_negocio_id: pre.external_reference,
+          p_preapproval_id: String(pre.id),
+          p_estado: pre.status,
+          p_monto: pre.auto_recurring?.transaction_amount ?? null,
+          p_raw: { status: pre.status, next_payment_date: pre.next_payment_date },
+        });
+      }
+      return Response.json({ ok: true });
+    }
+
+    if (topic && !String(topic).includes('payment')) {
       return Response.json({ ok: true });
     }
 
