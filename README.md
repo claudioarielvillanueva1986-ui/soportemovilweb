@@ -1,6 +1,6 @@
-# Soporte Móvil — Sistema de Tickets 🎫
+# Soporte Móvil v2 — Sistema de Gestión 🎫
 
-Sistema web de soporte técnico de **Soporte Móvil**: los clientes crean tickets de reparación y siguen el estado online; el staff los gestiona desde un panel de administración.
+Sistema de gestión del servicio técnico **Soporte Móvil**: tickets de reparación con seguimiento online, POS con control de stock, caja con arqueo, inventario y clientes. Roadmap completo en [ROADMAP.md](ROADMAP.md).
 
 - **Frontend**: Next.js 15 (App Router) desplegado en **Vercel**
 - **Backend**: **Supabase** (Postgres + RLS + Auth) — proyecto `soporte-movil` (`fzgvilcqkmdirxgtsilh`, región `sa-east-1`)
@@ -11,7 +11,11 @@ Sistema web de soporte técnico de **Soporte Móvil**: los clientes crean ticket
 |---|---|
 | `/` | Landing + formulario público para crear ticket (devuelve número `SM-XXXXXX`) |
 | `/consulta` | Consulta pública de estado por número de ticket + email |
-| `/admin` | Panel de gestión (login con Supabase Auth): estados, prioridades, notas internas y actualizaciones públicas |
+| `/panel` | Panel del staff (login con Supabase Auth): Resumen, POS, Caja, Inventario, Clientes y Reparaciones |
+| `/panel/pos` | Punto de venta: carrito, métodos de pago, descuento de stock atómico |
+| `/panel/caja` | Turnos de caja: apertura, retiros con motivo, cierre con arqueo y diferencia |
+| `/panel/inventario` | Productos con SKU, precio/costo, stock y alerta de stock crítico |
+| `/panel/tickets` | Gestión de reparaciones: estados, prioridades, notas internas y actualizaciones públicas |
 
 ## Arquitectura de seguridad
 

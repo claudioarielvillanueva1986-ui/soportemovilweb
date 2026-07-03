@@ -19,7 +19,7 @@ export default function RootLayout({ children }) {
             <nav className="nav">
               <Link href="/">Nuevo ticket</Link>
               <Link href="/consulta">Consultar estado</Link>
-              <Link href="/admin">Admin</Link>
+              <Link href="/panel">Panel</Link>
             </nav>
           </header>
           {children}
