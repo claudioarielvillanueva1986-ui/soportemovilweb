@@ -6,13 +6,21 @@ import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { PerfilContext } from '@/lib/panel-context';
 
-const SECCIONES = [
-  ['/panel', 'Resumen'],
-  ['/panel/pos', 'POS'],
-  ['/panel/caja', 'Caja'],
-  ['/panel/inventario', 'Inventario'],
-  ['/panel/clientes', 'Clientes'],
-  ['/panel/tickets', 'Reparaciones'],
+const GRUPOS = [
+  {
+    titulo: 'Operación',
+    links: [
+      ['/panel', 'Dashboard'],
+      ['/panel/pos', 'POS'],
+      ['/panel/tickets', 'Órdenes'],
+      ['/panel/caja', 'Caja'],
+      ['/panel/clientes', 'Clientes'],
+    ],
+  },
+  {
+    titulo: 'Catálogo',
+    links: [['/panel/inventario', 'Inventario']],
+  },
 ];
 
 function Login() {
@@ -51,7 +59,7 @@ function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@soportemovil.com.ar"
+              placeholder="usuario@soportemovil.com.ar"
             />
           </div>
           <div className="field">
@@ -112,39 +120,52 @@ export default function PanelLayout({ children }) {
     <PerfilContext.Provider
       value={{ perfil, esDueno: perfil?.rol === 'dueno' }}
     >
-      <div className="panel-top">
-        <nav className="panel-nav">
-          {SECCIONES.map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              className={`panel-tab ${pathname === href ? 'active' : ''}`}
-            >
-              {label}
-            </Link>
+      <div className="panel-shell">
+        <aside className="sidebar">
+          <div className="sidebar-brand">
+            <div className="brand-name">
+              Soporte <span>Móvil</span>
+            </div>
+            <div className="brand-sub">Sistema de gestión</div>
+          </div>
+
+          {GRUPOS.map((g) => (
+            <div className="sidebar-group" key={g.titulo}>
+              <div className="sidebar-titulo">{g.titulo}</div>
+              {g.links.map(([href, label]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`side-link ${pathname === href ? 'active' : ''}`}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
           ))}
-        </nav>
-        <div className="panel-user">
-          <span className="panel-rol">
-            {perfil ? (
-              <>
-                <strong>{perfil.nombre}</strong>
-                {' · '}
-                {perfil.rol === 'dueno' ? 'Dueño' : 'Operador'}
-              </>
-            ) : (
-              '...'
-            )}
-          </span>
-          <button
-            className="btn btn-danger btn-sm"
-            onClick={() => supabase.auth.signOut()}
-          >
-            Salir
-          </button>
-        </div>
+
+          <div className="sidebar-user">
+            <div className="user-chip">
+              <span className="user-avatar">
+                {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
+              </span>
+              <span>
+                <strong>{perfil?.nombre || '...'}</strong>
+                <small>{perfil?.rol === 'dueno' ? 'Dueño' : 'Operador'}</small>
+              </span>
+            </div>
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ width: '100%' }}
+              onClick={() => supabase.auth.signOut()}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </aside>
+
+        <div className="panel-main">{children}</div>
       </div>
-      {children}
     </PerfilContext.Provider>
   );
 }
