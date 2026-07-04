@@ -31,9 +31,14 @@ export default function PortalNegocioPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    supabase
-      .rpc('info_negocio', { p_slug: String(slug) })
-      .then(({ data }) => setNegocio(data || null));
+    supabase.rpc('info_negocio', { p_slug: String(slug) }).then(({ data, error: err }) => {
+      if (err) {
+        setError('No pudimos conectar con el servidor. Recargá la página.');
+        setNegocio(null);
+        return;
+      }
+      setNegocio(data || null);
+    });
   }, [slug]);
 
   const set = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });

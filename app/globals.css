@@ -59,6 +59,7 @@ a {
 }
 
 .logo {
+  white-space: nowrap;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -825,9 +826,19 @@ textarea {
   .side-link.active {
     border-color: var(--accent);
   }
-  .sidebar-brand,
-  .sidebar-user {
+  .sidebar-brand {
     display: none;
+  }
+  .sidebar-user {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+    border-top: none;
+    padding-top: 4px;
+  }
+  .sidebar-user .btn {
+    width: auto !important;
   }
 }
 
@@ -1041,4 +1052,88 @@ textarea {
   font-size: 0.66rem;
   color: var(--text-dim);
   font-family: var(--mono);
+}
+
+/* ---------- Ajustes móviles ---------- */
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px 48px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 0;
+    margin-bottom: 24px;
+  }
+
+  .nav {
+    gap: 18px;
+    font-size: 0.86rem;
+  }
+
+  .nav a {
+    white-space: nowrap;
+  }
+
+  .hero {
+    padding: 22px 0 28px;
+  }
+
+  .card {
+    padding: 20px 16px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat {
+    padding: 12px 14px;
+  }
+
+  .kpis .stat .num.kpi-num {
+    font-size: 1.15rem;
+  }
+
+  .stat .num {
+    font-size: 1.25rem;
+  }
+
+  .saludo h1 {
+    font-size: 1.4rem;
+  }
+
+  .features {
+    margin: 26px 0;
+  }
+
+  .panel-shell {
+    padding-top: 12px;
+  }
+
+  .ticket-row {
+    padding: 13px 14px;
+    flex-wrap: wrap;
+  }
+
+  .detalle-grid {
+    gap: 10px 16px;
+  }
+
+  .pos-productos {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .carrito-total {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 800px) {
+  .pos-carrito {
+    position: static;
+  }
 }
