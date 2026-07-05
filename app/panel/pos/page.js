@@ -208,6 +208,7 @@ export default function PosPage() {
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
+  const [cat, setCat] = useState('todas');
   const [carrito, setCarrito] = useState({}); // producto_id -> cantidad
   const [metodo, setMetodo] = useState('efectivo');
   const [clienteId, setClienteId] = useState('');
@@ -238,13 +239,16 @@ export default function PosPage() {
 
   const visibles = useMemo(() => {
     const q = busqueda.toLowerCase();
-    return productos.filter(
-      (p) =>
-        !q ||
-        p.nombre.toLowerCase().includes(q) ||
-        (p.sku || '').toLowerCase().includes(q)
-    );
-  }, [productos, busqueda]);
+    return productos
+      .filter((p) => cat === 'todas' || p.categoria === cat)
+      .filter(
+        (p) =>
+          !q ||
+          p.nombre.toLowerCase().includes(q) ||
+          (p.sku || '').toLowerCase().includes(q)
+      )
+      .slice(0, 60);
+  }, [productos, busqueda, cat]);
 
   const items = Object.entries(carrito)
     .map(([id, cant]) => {
@@ -266,7 +270,10 @@ export default function PosPage() {
 
   function cambiar(id, delta) {
     setCarrito((c) => {
-      const nuevo = (c[id] || 0) + delta;
+      const p = productos.find((x) => x.id === id);
+      let nuevo = (c[id] || 0) + delta;
+      // tope duro por stock (la base además lo rechaza al cobrar)
+      if (p?.maneja_stock && nuevo > p.stock) nuevo = p.stock;
       const copia = { ...c };
       if (nuevo <= 0) delete copia[id];
       else copia[id] = nuevo;
@@ -274,18 +281,44 @@ export default function PosPage() {
     });
   }
 
-  async function cobrar() {
-    setError(null);
+  function fijarCantidad(id, valor) {
+    setCarrito((c) => {
+      const p = productos.find((x) => x.id === id);
+      let n = Math.max(0, Math.floor(Number(valor) || 0));
+      if (p?.maneja_stock && n > p.stock) n = p.stock;
+      const copia = { ...c };
+      if (n <= 0) delete copia[id];
+      else copia[id] = n;
+      return copia;
+    });
+  }
 
-    if (metodo === 'mercadopago_qr' || metodo === 'mercadopago_point') {
-      setCobroMP(metodo === 'mercadopago_qr' ? 'qr' : 'point');
+  // Lector de código de barras / SKU: Enter agrega directo
+  function escanear(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const t = busqueda.trim().toLowerCase();
+    if (!t) return;
+    const p = productos.find((x) => (x.sku || '').toLowerCase() === t);
+    if (p) {
+      agregar(p);
+      setBusqueda('');
+    }
+  }
+
+  async function cobrar(met) {
+    setError(null);
+    setMetodo(met);
+
+    if (met === 'mercadopago_qr' || met === 'mercadopago_point') {
+      setCobroMP(met === 'mercadopago_qr' ? 'qr' : 'point');
       return;
     }
 
     setCobrando(true);
     const { data, error: err } = await supabase.rpc('registrar_venta', {
       p_items: items.map((i) => ({ producto_id: i.id, cantidad: i.cantidad })),
-      p_metodo: metodo,
+      p_metodo: met,
       p_cliente_id: clienteId || null,
     });
     setCobrando(false);
@@ -357,10 +390,23 @@ export default function PosPage() {
         <div>
           <div className="field">
             <input
+              autoFocus
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar producto o SKU..."
+              onKeyDown={escanear}
+              placeholder="Escaneá el código de barras o buscá por nombre (Enter agrega)..."
             />
+          </div>
+          <div className="filters" style={{ marginBottom: 12 }}>
+            {[['todas', 'Todas'], ...Object.entries(CATEGORIAS)].map(([k, v]) => (
+              <button
+                key={k}
+                className={`chip ${cat === k ? 'active' : ''}`}
+                onClick={() => setCat(k)}
+              >
+                {v}
+              </button>
+            ))}
           </div>
           <div className="pos-productos">
             {visibles.map((p) => {
@@ -399,16 +445,30 @@ export default function PosPage() {
                 <div className="info">
                   <div>{i.nombre}</div>
                   <div className="meta">
-                    {i.cantidad} × {formatMoney(i.precio)}
+                    {formatMoney(i.precio)} c/u
+                    {i.maneja_stock ? ` · stock ${i.stock}` : ''}
                   </div>
                 </div>
                 <div className="acciones">
                   <button className="chip" onClick={() => cambiar(i.id, -1)}>
                     −
                   </button>
-                  <span>{i.cantidad}</span>
+                  <input
+                    className="qty"
+                    type="number"
+                    min="0"
+                    value={i.cantidad}
+                    onChange={(e) => fijarCantidad(i.id, e.target.value)}
+                  />
                   <button className="chip" onClick={() => cambiar(i.id, 1)}>
                     +
+                  </button>
+                  <button
+                    className="chip"
+                    style={{ color: '#dc2626' }}
+                    onClick={() => fijarCantidad(i.id, 0)}
+                  >
+                    ×
                   </button>
                 </div>
                 <div className="subtotal">{formatMoney(i.subtotal)}</div>
@@ -419,17 +479,6 @@ export default function PosPage() {
           <div className="carrito-total">
             <span>Total</span>
             <span>{formatMoney(total)}</span>
-          </div>
-
-          <div className="field">
-            <label>Método de pago</label>
-            <select value={metodo} onChange={(e) => setMetodo(e.target.value)}>
-              {Object.entries(METODOS_PAGO).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="field">
@@ -449,18 +498,27 @@ export default function PosPage() {
 
           {error && <div className="alert alert-error">{error}</div>}
 
-          <button
-            className="btn"
-            style={{ width: '100%' }}
-            disabled={items.length === 0 || cobrando}
-            onClick={cobrar}
-          >
-            {cobrando ? (
-              <span className="spinner" />
-            ) : (
-              `Cobrar ${formatMoney(total)}`
-            )}
-          </button>
+          <label className="lbl2" style={{ display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            Cobrar con
+          </label>
+          <div className="pagos-grid">
+            {[
+              ['efectivo', 'Efectivo'],
+              ['tarjeta', 'Tarjeta'],
+              ['transferencia', 'Transferencia'],
+              ['mercadopago_qr', 'QR Mercado Pago'],
+              ['mercadopago_point', 'Point'],
+            ].map(([k, v]) => (
+              <button
+                key={k}
+                className={k === 'efectivo' ? 'btn btn-pago' : 'btn btn-secondary btn-pago'}
+                disabled={items.length === 0 || cobrando}
+                onClick={() => cobrar(k)}
+              >
+                {cobrando && metodo === k ? <span className="spinner" /> : v}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </main>
