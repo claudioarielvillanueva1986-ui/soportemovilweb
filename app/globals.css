@@ -841,22 +841,42 @@ textarea {
 }
 
 @media (max-width: 860px) {
+  /* Navegación móvil: una sola línea deslizable, estilo app */
+  .sidebar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sidebar-nav-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .sidebar-nav-scroll::-webkit-scrollbar {
+    display: none;
+  }
   .sidebar-group {
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
+    flex: none;
   }
   .sidebar-titulo {
-    width: 100%;
+    display: none;
   }
   .side-link {
     border: 1px solid var(--border-strong);
-    border-radius: 7px;
-    padding: 6px 12px;
+    border-radius: 999px;
+    padding: 7px 14px;
     font-size: 0.84rem;
+    white-space: nowrap;
+    flex: none;
   }
   .side-link.active {
     border-color: var(--accent);
+    box-shadow: none;
   }
   .sidebar-brand {
     display: none;
@@ -865,12 +885,15 @@ textarea {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    margin-top: 2px;
+    margin-top: 0;
     border-top: none;
-    padding-top: 4px;
+    padding-top: 0;
   }
   .sidebar-user .btn {
     width: auto !important;
+  }
+  .buscador input {
+    font-size: 16px; /* evita el zoom automático de iOS */
   }
 }
 
@@ -1540,4 +1563,15 @@ main {
 .etiqueta-izq {
   flex: 1;
   min-width: 0;
+}
+
+/* En escritorio el contenedor de navegación no altera el layout en columna */
+.sidebar-nav-scroll {
+  display: contents;
+}
+
+@media (max-width: 860px) {
+  .sidebar-nav-scroll {
+    display: flex;
+  }
 }

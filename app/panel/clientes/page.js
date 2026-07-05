@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, ESTADOS, formatFecha, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 
@@ -77,30 +77,37 @@ export default function ClientesPage() {
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
 
+  const [limite, setLimite] = useState(100);
+  const [totalServer, setTotalServer] = useState(0);
+  const timerRef = useRef(null);
+
   const cargar = useCallback(async () => {
-    const { data } = await supabase
+    let q = supabase
       .from('clientes')
-      .select('*')
-      .order('nombre');
+      .select('*', { count: 'exact' })
+      .order('nombre')
+      .range(0, limite - 1);
+    if (busqueda.trim()) {
+      const t = busqueda.trim().replace(/[%,()]/g, '');
+      q = q.or(`nombre.ilike.%${t}%,telefono.ilike.%${t}%,email.ilike.%${t}%`);
+    }
+    const { data, count } = await q;
     setClientes(data || []);
-  }, []);
+    setTotalServer(count || 0);
+  }, [busqueda, limite]);
 
   useEffect(() => {
-    cargar();
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(cargar, busqueda ? 300 : 0);
+    return () => clearTimeout(timerRef.current);
+  }, [cargar, busqueda]);
+
+  useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('buscar');
     if (q) setBusqueda(q);
-  }, [cargar]);
+  }, []);
 
-  const visibles = useMemo(() => {
-    const q = busqueda.toLowerCase();
-    return clientes.filter(
-      (c) =>
-        !q ||
-        c.nombre.toLowerCase().includes(q) ||
-        (c.telefono || '').toLowerCase().includes(q) ||
-        (c.email || '').toLowerCase().includes(q)
-    );
-  }, [clientes, busqueda]);
+  const visibles = clientes;
 
   const set = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
 
@@ -145,7 +152,7 @@ export default function ClientesPage() {
           margin: '6px 0 18px',
         }}
       >
-        <h1 style={{ fontSize: '1.5rem' }}>Clientes ({clientes.length})</h1>
+        <h1 style={{ fontSize: '1.5rem' }}>Clientes ({totalServer})</h1>
         <button className="btn btn-sm" onClick={() => setForm({ ...VACIO })}>
           + Nuevo cliente
         </button>
@@ -235,6 +242,13 @@ export default function ClientesPage() {
       ))}
       {visibles.length === 0 && (
         <p style={{ color: 'var(--text-dim)' }}>No hay clientes.</p>
+      )}
+      {clientes.length < totalServer && (
+        <div style={{ textAlign: 'center', marginTop: 14 }}>
+          <button className="btn btn-secondary" onClick={() => setLimite(limite + 100)}>
+            Cargar más ({totalServer - clientes.length} restantes)
+          </button>
+        </div>
       )}
     </main>
   );

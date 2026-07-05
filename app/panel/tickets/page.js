@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   supabase,
   ESTADOS,
@@ -373,6 +373,18 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           <dt>Ingresado</dt>
           <dd>{formatFecha(ticket.created_at)}</dd>
         </div>
+        {ticket.equipo_password && (
+          <div>
+            <dt>Clave / patrón del equipo</dt>
+            <dd style={{ fontFamily: 'var(--mono)' }}>{ticket.equipo_password}</dd>
+          </div>
+        )}
+        {ticket.v1_id && (
+          <div>
+            <dt>Origen</dt>
+            <dd>Migrada del sistema anterior (#{ticket.v1_id})</dd>
+          </div>
+        )}
       </dl>
 
       <p
@@ -484,46 +496,63 @@ export default function TicketsPage() {
   const [busqueda, setBusqueda] = useState('');
   const [seleccionado, setSeleccionado] = useState(null);
 
+  const [limite, setLimite] = useState(100);
+  const [totalServer, setTotalServer] = useState(0);
+  const [stats, setStats] = useState({ total: 0, abiertos: 0, nuevo: 0, en_reparacion: 0, listo: 0 });
+  const timerRef = useRef(null);
+
   const cargar = useCallback(async () => {
     setCargando(true);
-    const { data } = await supabase
+    let q = supabase
       .from('tickets')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(0, limite - 1);
+    if (filtro === 'abiertos') q = q.not('estado', 'in', '(entregado,cancelado)');
+    else if (filtro !== 'todos') q = q.eq('estado', filtro);
+    if (busqueda.trim()) {
+      const t = busqueda.trim().replace(/[%,()]/g, '');
+      q = q.or(
+        `numero.ilike.%${t}%,nombre.ilike.%${t}%,email.ilike.%${t}%,telefono.ilike.%${t}%,marca_modelo.ilike.%${t}%`
+      );
+    }
+    const { data, count } = await q;
     setTickets(data || []);
+    setTotalServer(count || 0);
     setCargando(false);
+  }, [filtro, busqueda, limite]);
+
+  const cargarStats = useCallback(async () => {
+    const contar = (mod) => {
+      let q = supabase.from('tickets').select('id', { count: 'exact', head: true });
+      return mod(q).then(({ count }) => count || 0);
+    };
+    const [total, abiertos, nuevo, en_reparacion, listo] = await Promise.all([
+      contar((q) => q),
+      contar((q) => q.not('estado', 'in', '(entregado,cancelado)')),
+      contar((q) => q.eq('estado', 'nuevo')),
+      contar((q) => q.eq('estado', 'en_reparacion')),
+      contar((q) => q.eq('estado', 'listo')),
+    ]);
+    setStats({ total, abiertos, nuevo, en_reparacion, listo });
   }, []);
 
   useEffect(() => {
-    cargar();
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(cargar, busqueda ? 300 : 0);
+    return () => clearTimeout(timerRef.current);
+  }, [cargar, busqueda]);
+
+  useEffect(() => {
+    cargarStats();
     const q = new URLSearchParams(window.location.search).get('buscar');
     if (q) {
       setBusqueda(q);
       setFiltro('todos');
     }
-  }, [cargar]);
+  }, [cargarStats]);
 
-  const visibles = tickets.filter((t) => {
-    if (filtro === 'abiertos' && ['entregado', 'cancelado'].includes(t.estado))
-      return false;
-    if (filtro !== 'todos' && filtro !== 'abiertos' && t.estado !== filtro)
-      return false;
-    if (busqueda) {
-      const q = busqueda.toLowerCase();
-      return (
-        t.numero.toLowerCase().includes(q) ||
-        t.nombre.toLowerCase().includes(q) ||
-        t.email.toLowerCase().includes(q) ||
-        (t.marca_modelo || '').toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
-
-  const contar = (estado) => tickets.filter((t) => t.estado === estado).length;
-  const abiertos = tickets.filter(
-    (t) => !['entregado', 'cancelado'].includes(t.estado)
-  ).length;
+  const visibles = tickets;
 
   return (
     <main>
@@ -550,30 +579,30 @@ export default function TicketsPage() {
 
       <div className="stats">
         <div className="stat">
-          <div className="num">{tickets.length}</div>
+          <div className="num">{stats.total}</div>
           <div className="lbl">Total</div>
         </div>
         <div className="stat">
           <div className="num" style={{ color: 'var(--accent)' }}>
-            {abiertos}
+            {stats.abiertos}
           </div>
           <div className="lbl">Abiertos</div>
         </div>
         <div className="stat">
           <div className="num" style={{ color: '#3b82f6' }}>
-            {contar('nuevo')}
+            {stats.nuevo}
           </div>
           <div className="lbl">Nuevos</div>
         </div>
         <div className="stat">
           <div className="num" style={{ color: '#f59e0b' }}>
-            {contar('en_reparacion')}
+            {stats.en_reparacion}
           </div>
           <div className="lbl">En reparación</div>
         </div>
         <div className="stat">
           <div className="num" style={{ color: '#22c55e' }}>
-            {contar('listo')}
+            {stats.listo}
           </div>
           <div className="lbl">Listos</div>
         </div>
@@ -604,7 +633,10 @@ export default function TicketsPage() {
           <button
             key={k}
             className={`chip ${filtro === k ? 'active' : ''}`}
-            onClick={() => setFiltro(k)}
+            onClick={() => {
+              setFiltro(k);
+              setLimite(100);
+            }}
           >
             {label}
           </button>
@@ -645,6 +677,14 @@ export default function TicketsPage() {
             <BadgeEstado estado={t.estado} />
           </div>
         ))
+      )}
+
+      {tickets.length < totalServer && (
+        <div style={{ textAlign: 'center', marginTop: 14 }}>
+          <button className="btn btn-secondary" onClick={() => setLimite(limite + 100)}>
+            Cargar más ({totalServer - tickets.length} restantes)
+          </button>
+        </div>
       )}
     </main>
   );

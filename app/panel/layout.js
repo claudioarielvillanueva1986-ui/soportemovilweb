@@ -15,6 +15,7 @@ const GRUPOS = [
     links: [
       ['/panel', 'Dashboard'],
       ['/panel/pos', 'POS'],
+      ['/panel/ventas', 'Ventas'],
       ['/panel/tickets', 'Órdenes'],
       ['/panel/caja', 'Caja'],
       ['/panel/clientes', 'Clientes'],
@@ -171,22 +172,24 @@ export default function PanelLayout({ children }) {
 
           <BuscadorGlobal />
 
-          {GRUPOS.filter(
-            (g) => !g.soloDueno || perfil?.rol === 'dueno'
-          ).map((g) => (
-            <div className="sidebar-group" key={g.titulo}>
-              <div className="sidebar-titulo">{g.titulo}</div>
-              {g.links.map(([href, label]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`side-link ${pathname === href ? 'active' : ''}`}
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
-          ))}
+          <div className="sidebar-nav-scroll">
+            {GRUPOS.filter(
+              (g) => !g.soloDueno || perfil?.rol === 'dueno'
+            ).map((g) => (
+              <div className="sidebar-group" key={g.titulo}>
+                <div className="sidebar-titulo">{g.titulo}</div>
+                {g.links.map(([href, label]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`side-link ${pathname === href ? 'active' : ''}`}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
 
           <div className="sidebar-user">
             <div className="user-chip">
