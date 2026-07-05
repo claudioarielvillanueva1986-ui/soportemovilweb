@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase, formatFecha } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 import { pushSoportado, suscribirPush } from '@/lib/push';
+import { CargaTarjeta } from '@/components/cargando';
 
 function TarjetaMercadoPago({ negocio, esDueno }) {
   const [estado, setEstado] = useState(null);
@@ -46,7 +47,7 @@ function TarjetaMercadoPago({ negocio, esDueno }) {
     else cargar();
   }
 
-  if (!estado) return <div className="card"><span className="spinner" /></div>;
+  if (!estado) return <CargaTarjeta />;
 
   return (
     <div className="card">
@@ -173,7 +174,7 @@ function TarjetaArca({ esDueno }) {
     }
   }
 
-  if (!estado || !form) return <div className="card"><span className="spinner" /></div>;
+  if (!estado || !form) return <CargaTarjeta lineas={5} />;
 
   return (
     <div className="card">

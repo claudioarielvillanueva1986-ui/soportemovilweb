@@ -7,6 +7,7 @@ import {
   formatMoney,
   formatFecha,
 } from '@/lib/supabase';
+import { PantallaCarga } from '@/components/cargando';
 
 export default function CajaPage() {
   const [turno, setTurno] = useState(undefined);
@@ -111,11 +112,7 @@ export default function CajaPage() {
   }
 
   if (turno === undefined)
-    return (
-      <main style={{ textAlign: 'center', padding: 60 }}>
-        <span className="spinner" />
-      </main>
-    );
+    return <PantallaCarga />;
 
   const porMetodo = {};
   let totalVentas = 0;

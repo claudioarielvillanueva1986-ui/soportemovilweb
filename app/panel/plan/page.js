@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, formatMoney, formatFecha } from '@/lib/supabase';
+import { PantallaCarga } from '@/components/cargando';
 
 export default function PlanPage() {
   const [negocio, setNegocio] = useState(null);
@@ -47,11 +48,7 @@ export default function PlanPage() {
   }
 
   if (!negocio)
-    return (
-      <main style={{ textAlign: 'center', padding: 60 }}>
-        <span className="spinner" />
-      </main>
-    );
+    return <PantallaCarga />;
 
   const esTrial = negocio.plan === 'trial';
   const trialVencido = esTrial && new Date(negocio.trial_hasta) < Date.now();

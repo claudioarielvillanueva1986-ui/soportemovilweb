@@ -8,6 +8,7 @@ import {
   CATEGORIAS,
   formatMoney,
 } from '@/lib/supabase';
+import { PantallaCarga } from '@/components/cargando';
 
 // Cobro presencial con Mercado Pago (QR dinámico o Point):
 // 1. Se crea un cobro pendiente, 2. la API genera el QR / manda el monto al Point,
@@ -307,11 +308,7 @@ export default function PosPage() {
   }
 
   if (turno === undefined)
-    return (
-      <main style={{ textAlign: 'center', padding: 60 }}>
-        <span className="spinner" />
-      </main>
-    );
+    return <PantallaCarga />;
 
   if (!turno) return <AbrirTurno onAbierto={cargar} />;
 

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { PerfilContext } from '@/lib/panel-context';
 import { registrarSW } from '@/lib/push';
+import { PantallaCarga } from '@/components/cargando';
 
 const GRUPOS = [
   {
@@ -138,11 +139,7 @@ export default function PanelLayout({ children }) {
       : null;
 
   if (sesion === undefined) {
-    return (
-      <main style={{ textAlign: 'center', padding: 60 }}>
-        <span className="spinner" />
-      </main>
-    );
+    return <PantallaCarga />;
   }
 
   if (!sesion) return <Login />;

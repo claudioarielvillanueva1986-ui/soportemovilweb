@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { PantallaCarga } from '@/components/cargando';
 
 const DISPOSITIVOS = [
   'Celular',
@@ -65,11 +66,7 @@ export default function PortalNegocioPage() {
   }
 
   if (negocio === undefined) {
-    return (
-      <main style={{ textAlign: 'center', padding: 60 }}>
-        <span className="spinner" />
-      </main>
-    );
+    return <PantallaCarga />;
   }
 
   if (!negocio) {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase, ESTADOS, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
+import { PantallaCarga } from '@/components/cargando';
 
 const AVATAR_COLORES = ['#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#10b981', '#8b5cf6'];
 
@@ -53,11 +54,7 @@ export default function DashboardPage() {
 
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!datos)
-    return (
-      <main style={{ textAlign: 'center', padding: 60 }}>
-        <span className="spinner" />
-      </main>
-    );
+    return <PantallaCarga />;
 
   const fecha = new Date().toLocaleDateString('es-AR', {
     weekday: 'long',

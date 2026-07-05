@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase, METODOS_PAGO, formatMoney } from '@/lib/supabase';
+import { CargaTarjeta } from '@/components/cargando';
 
 function fechaISO(d) {
   return d.toISOString().slice(0, 10);
@@ -59,9 +60,17 @@ export default function ReportesPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
       {!datos && !error && (
-        <p style={{ padding: 30, textAlign: 'center' }}>
-          <span className="spinner" />
-        </p>
+        <>
+          <div className="stats">
+            {[0, 1, 2].map((i) => (
+              <div className="stat" key={i}>
+                <div className="sk-line" style={{ width: '55%' }} />
+                <div className="sk-line" style={{ width: '75%', height: 20, marginTop: 10 }} />
+              </div>
+            ))}
+          </div>
+          <CargaTarjeta lineas={4} />
+        </>
       )}
 
       {datos && (
