@@ -32,7 +32,10 @@ export default function PlanPage() {
     const { data: sesion } = await supabase.auth.getSession();
     const res = await fetch('/api/mp/suscribir', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sesion?.session?.access_token || ''}`,
+      },
       body: JSON.stringify({
         negocio_id: negocio.id,
         email: sesion?.session?.user?.email,

@@ -5,7 +5,11 @@ import { supabase, METODOS_PAGO, ESTADOS, formatMoney } from '@/lib/supabase';
 import { CargaTarjeta } from '@/components/cargando';
 
 function fechaISO(d) {
-  return d.toISOString().slice(0, 10);
+  // Fecha local (no UTC): evita correr un día de noche en Argentina (UTC-3)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dia}`;
 }
 
 const PRESETS = [

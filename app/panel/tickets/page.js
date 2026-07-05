@@ -17,6 +17,7 @@ function RepuestosTicket({ ticketId }) {
   const [prodId, setProdId] = useState('');
   const [cant, setCant] = useState(1);
   const [error, setError] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
 
   const cargar = useCallback(async () => {
     const { data } = await supabase
@@ -39,12 +40,15 @@ function RepuestosTicket({ ticketId }) {
 
   async function agregar(e) {
     e.preventDefault();
+    if (ocupado) return;
     setError(null);
+    setOcupado(true);
     const { error: err } = await supabase.rpc('usar_repuesto', {
       p_ticket_id: ticketId,
       p_producto_id: prodId,
       p_cantidad: Number(cant),
     });
+    setOcupado(false);
     if (err) return setError(err.message);
     setProdId('');
     setCant(1);
@@ -112,7 +116,9 @@ function RepuestosTicket({ ticketId }) {
             />
           </div>
         </div>
-        <button className="btn btn-secondary btn-sm">Usar repuesto</button>
+        <button className="btn btn-secondary btn-sm" disabled={ocupado || !prodId}>
+          {ocupado ? <span className="spinner" /> : 'Usar repuesto'}
+        </button>
       </form>
     </div>
   );
@@ -610,6 +616,7 @@ export default function TicketsPage() {
 
       {seleccionado && (
         <DetalleTicket
+          key={seleccionado.id}
           ticket={seleccionado}
           onCerrar={() => setSeleccionado(null)}
           onGuardado={cargar}

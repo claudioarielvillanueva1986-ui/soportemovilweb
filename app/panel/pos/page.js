@@ -17,9 +17,52 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
   const [fase, setFase] = useState('creando'); // creando | esperando | registrando | error
   const [error, setError] = useState(null);
   const [qrData, setQrData] = useState(null);
+  const [cancelando, setCancelando] = useState(false);
   const cobroRef = useRef(null);
   const canvasRef = useRef(null);
   const activoRef = useRef(true);
+  const registrandoRef = useRef(false); // candado: una sola venta por cobro
+
+  // Registra la venta una única vez (usado por el polling y por el cierre tras cobro aprobado)
+  async function registrarUnaVez(mpPaymentId) {
+    if (registrandoRef.current) return;
+    registrandoRef.current = true;
+    setFase('registrando');
+    const { data: venta, error: errVenta } = await supabase.rpc('registrar_venta', {
+      p_items: items,
+      p_metodo: tipo === 'qr' ? 'mercadopago_qr' : 'mercadopago_point',
+      p_cliente_id: clienteId || null,
+      p_mp_payment_id: mpPaymentId,
+    });
+    if (errVenta) {
+      // El UNIQUE(mp_payment_id) hace idempotente el reintento: si ya se registró, no es error real
+      setError(`El pago se acreditó pero la venta falló: ${errVenta.message}. Registrala manualmente con el pago ${mpPaymentId}.`);
+      setFase('error');
+      registrandoRef.current = false;
+      return;
+    }
+    onListo(venta);
+  }
+
+  // Cancelar: si el pago ya se aprobó, NO se pierde — se registra la venta igual.
+  async function cancelar() {
+    if (registrandoRef.current) return;
+    setCancelando(true);
+    if (!cobroRef.current) {
+      onCancelar();
+      return;
+    }
+    const { data } = await supabase.rpc('cancelar_cobro_mp', {
+      p_cobro_id: cobroRef.current,
+    });
+    if (data?.estado === 'aprobado') {
+      activoRef.current = true; // seguimos montados para registrar
+      await registrarUnaVez(data.mp_payment_id);
+      setCancelando(false);
+      return;
+    }
+    onCancelar();
+  }
 
   useEffect(() => {
     activoRef.current = true;
@@ -77,27 +120,10 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
         .select('estado, mp_payment_id')
         .eq('id', cobroRef.current)
         .single();
-      if (!activoRef.current || !data) return;
+      if (!activoRef.current || !data || registrandoRef.current) return;
       if (data.estado === 'aprobado') {
         clearInterval(timer);
-        setFase('registrando');
-        const { data: venta, error: errVenta } = await supabase.rpc(
-          'registrar_venta',
-          {
-            p_items: items,
-            p_metodo: tipo === 'qr' ? 'mercadopago_qr' : 'mercadopago_point',
-            p_cliente_id: clienteId || null,
-            p_mp_payment_id: data.mp_payment_id,
-          }
-        );
-        if (errVenta) {
-          setError(
-            `El pago se acreditó pero la venta falló: ${errVenta.message}`
-          );
-          setFase('error');
-          return;
-        }
-        onListo(venta);
+        await registrarUnaVez(data.mp_payment_id);
       } else if (data.estado === 'rechazado') {
         clearInterval(timer);
         setError('El pago fue rechazado o cancelado en Mercado Pago.');
@@ -148,8 +174,18 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
 
       {fase === 'error' && <div className="alert alert-error">{error}</div>}
 
-      <button className="btn btn-secondary" onClick={onCancelar}>
-        {fase === 'error' ? 'Volver al carrito' : 'Cancelar cobro'}
+      <button
+        className="btn btn-secondary"
+        onClick={fase === 'error' ? onCancelar : cancelar}
+        disabled={cancelando || fase === 'registrando'}
+      >
+        {cancelando ? (
+          <span className="spinner" />
+        ) : fase === 'error' ? (
+          'Volver al carrito'
+        ) : (
+          'Cancelar cobro'
+        )}
       </button>
     </div>
   );
@@ -218,7 +254,7 @@ export default function PosPage() {
   const [cobroMP, setCobroMP] = useState(null); // null | 'qr' | 'point'
 
   async function cargar() {
-    const [{ data: resumen }, { data: prods }, { data: clis }] =
+    const [{ data: resumen, error: errR }, { data: prods }, { data: clis }] =
       await Promise.all([
         supabase.rpc('resumen_panel'),
         supabase
@@ -228,6 +264,13 @@ export default function PosPage() {
           .order('nombre'),
         supabase.from('clientes').select('id, nombre').order('nombre'),
       ]);
+    if (errR) {
+      // No confundir un fallo de carga con "caja cerrada": dejamos el estado sin decidir
+      setError('No se pudo cargar el POS. Revisá tu conexión y recargá.');
+      setTurno(undefined);
+      return;
+    }
+    setError(null);
     setTurno(resumen?.turno || null);
     setProductos(prods || []);
     setClientes(clis || []);
@@ -282,6 +325,11 @@ export default function PosPage() {
   }
 
   function fijarCantidad(id, valor) {
+    // vacío mientras se tipea: no borrar el ítem, mantener 1 como mínimo visible
+    if (valor === '') {
+      setCarrito((c) => ({ ...c, [id]: 1 }));
+      return;
+    }
     setCarrito((c) => {
       const p = productos.find((x) => x.id === id);
       let n = Math.max(0, Math.floor(Number(valor) || 0));
@@ -289,6 +337,14 @@ export default function PosPage() {
       const copia = { ...c };
       if (n <= 0) delete copia[id];
       else copia[id] = n;
+      return copia;
+    });
+  }
+
+  function quitarItem(id) {
+    setCarrito((c) => {
+      const copia = { ...c };
+      delete copia[id];
       return copia;
     });
   }
@@ -340,8 +396,18 @@ export default function PosPage() {
     cargar();
   }
 
-  if (turno === undefined)
+  if (turno === undefined) {
+    if (error)
+      return (
+        <main>
+          <div className="alert alert-error">{error}</div>
+          <button className="btn" onClick={cargar}>
+            Reintentar
+          </button>
+        </main>
+      );
     return <PantallaCarga />;
+  }
 
   if (!turno) return <AbrirTurno onAbierto={cargar} />;
 
@@ -466,7 +532,7 @@ export default function PosPage() {
                   <button
                     className="chip"
                     style={{ color: '#dc2626' }}
-                    onClick={() => fijarCantidad(i.id, 0)}
+                    onClick={() => quitarItem(i.id)}
                   >
                     ×
                   </button>

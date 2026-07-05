@@ -2,6 +2,7 @@ import {
   mpConfigurado,
   mpFetch,
   mpFetchConToken,
+  tokenVigente,
   rpcConSecreto,
 } from '@/lib/mp-server';
 
@@ -44,27 +45,37 @@ export async function POST(request) {
     }
 
     // Pagos de un taller: la notificación trae el user_id del vendedor;
-    // buscamos su token OAuth para consultar el pago.
+    // buscamos su token OAuth (renovándolo si venció) para consultar el pago.
     const sellerId = body?.user_id ? String(body.user_id) : null;
     let pago = null;
+    let sellerCollector = null;
     if (sellerId) {
       const cuenta = await rpcConSecreto('mp_cuenta_por_user', {
         p_mp_user_id: sellerId,
       });
       if (cuenta?.access_token) {
-        pago = await mpFetchConToken(cuenta.access_token, `/v1/payments/${dataId}`);
+        sellerCollector = sellerId;
+        const token = await tokenVigente({ ...cuenta, negocio_id: cuenta.negocio_id });
+        pago = await mpFetchConToken(token, `/v1/payments/${dataId}`);
       }
     }
     if (!pago && mpConfigurado()) {
       pago = await mpFetch(`/v1/payments/${dataId}`);
+      sellerCollector = pago?.collector_id ? String(pago.collector_id) : sellerCollector;
     }
-    if (!pago) return Response.json({ ok: true });
+    if (!pago) {
+      // No pudimos resolver el pago (token, red): que MP reintente, no lo perdemos.
+      return Response.json({ ok: false }, { status: 503 });
+    }
 
+    // La confirmación valida en la base que el collector sea el dueño del cobro
+    // y que el monto cubra el del cobro (defensa cross-tenant).
     await rpcConSecreto('mp_confirmar_pago', {
       p_cobro_id: pago.external_reference || null,
       p_payment_id: String(pago.id),
       p_estado: pago.status,
       p_monto: pago.transaction_amount,
+      p_mp_user_id: sellerCollector || (pago.collector_id ? String(pago.collector_id) : null),
       p_raw: {
         status: pago.status,
         status_detail: pago.status_detail,
@@ -73,8 +84,9 @@ export async function POST(request) {
       },
     });
   } catch (e) {
-    // Siempre 200: si devolvemos error, MP reintenta en loop.
+    // Error transitorio (Supabase/red): 503 para que MP reintente y no perder el pago.
     console.error('webhook mp:', e.message, dataId);
+    return Response.json({ ok: false }, { status: 503 });
   }
   return Response.json({ ok: true });
 }

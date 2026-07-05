@@ -129,13 +129,30 @@ export default function ImportarPage() {
     setEstado(null);
     setProgreso(0);
 
-    const { data: neg } = await supabase.from('negocios').select('id').maybeSingle();
+    const { data: neg, error: errNeg } = await supabase
+      .from('negocios')
+      .select('id')
+      .maybeSingle();
+    if (errNeg || !neg) {
+      setImportando(false);
+      setEstado({ tipo: 'error', texto: 'No se pudo identificar tu negocio. Recargá e intentá de nuevo.' });
+      return;
+    }
     const limpiar = (v) => {
       const s = v == null ? '' : String(v).trim();
       return s === '' || s === 'None' || s === 'null' ? null : s;
     };
+    // Maneja formato argentino "1.234,56" y también "1234.56"
     const num = (v) => {
-      const n = parseFloat(String(v ?? '').replace(',', '.'));
+      let s = String(v ?? '').trim().replace(/[^0-9.,-]/g, '');
+      if (s.includes(',')) {
+        // coma = decimal → los puntos son miles
+        s = s.replace(/\./g, '').replace(',', '.');
+      } else if ((s.match(/\./g) || []).length > 1) {
+        // varios puntos y sin coma → puntos de miles
+        s = s.replace(/\./g, '');
+      }
+      const n = parseFloat(s);
       return Number.isFinite(n) ? n : 0;
     };
 

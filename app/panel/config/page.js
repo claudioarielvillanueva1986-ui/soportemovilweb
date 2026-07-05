@@ -66,9 +66,20 @@ function TarjetaMercadoPago({ negocio, esDueno }) {
             tu cuenta — nosotros nunca tocamos tu plata.
           </p>
           {esDueno ? (
-            <a className="btn" href={`/api/mp/oauth/conectar?negocio=${negocio?.id}`}>
+            <button
+              className="btn"
+              onClick={async () => {
+                const { data } = await supabase.auth.getSession();
+                const token = data?.session?.access_token;
+                if (!token) {
+                  setAviso({ tipo: 'error', texto: 'Sesión no válida, volvé a ingresar.' });
+                  return;
+                }
+                window.location.href = `/api/mp/oauth/conectar?negocio=${negocio?.id}&token=${encodeURIComponent(token)}`;
+              }}
+            >
               Conectar con Mercado Pago
-            </a>
+            </button>
           ) : (
             <p style={{ color: 'var(--text-dim)' }}>
               Solo el dueño del negocio puede conectar la cuenta.
