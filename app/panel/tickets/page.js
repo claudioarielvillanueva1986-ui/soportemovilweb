@@ -9,6 +9,114 @@ import {
   formatFecha,
   formatMoney,
 } from '@/lib/supabase';
+import { linkAvisoWhatsApp } from '@/lib/whatsapp';
+
+function RepuestosTicket({ ticketId }) {
+  const [items, setItems] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [prodId, setProdId] = useState('');
+  const [cant, setCant] = useState(1);
+  const [error, setError] = useState(null);
+
+  const cargar = useCallback(async () => {
+    const { data } = await supabase
+      .from('ticket_repuestos')
+      .select('*, productos(nombre)')
+      .eq('ticket_id', ticketId)
+      .order('created_at');
+    setItems(data || []);
+  }, [ticketId]);
+
+  useEffect(() => {
+    cargar();
+    supabase
+      .from('productos')
+      .select('id, nombre, stock, maneja_stock')
+      .eq('activo', true)
+      .order('nombre')
+      .then(({ data }) => setProductos(data || []));
+  }, [cargar]);
+
+  async function agregar(e) {
+    e.preventDefault();
+    setError(null);
+    const { error: err } = await supabase.rpc('usar_repuesto', {
+      p_ticket_id: ticketId,
+      p_producto_id: prodId,
+      p_cantidad: Number(cant),
+    });
+    if (err) return setError(err.message);
+    setProdId('');
+    setCant(1);
+    cargar();
+  }
+
+  async function quitar(id) {
+    const { error: err } = await supabase.rpc('quitar_repuesto', { p_id: id });
+    if (err) setError(err.message);
+    else cargar();
+  }
+
+  const total = items.reduce((s, i) => s + Number(i.precio_unitario) * i.cantidad, 0);
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <h2 style={{ fontSize: '1rem' }}>
+        Repuestos usados{' '}
+        {total > 0 && (
+          <span style={{ color: 'var(--accent)' }}>— {formatMoney(total)}</span>
+        )}
+      </h2>
+      {error && (
+        <div className="alert alert-error" style={{ marginTop: 8 }}>
+          {error}
+        </div>
+      )}
+      {items.map((i) => (
+        <div className="carrito-item" key={i.id}>
+          <div className="info">
+            <div>
+              {i.cantidad} × {i.productos?.nombre || 'Producto'}
+            </div>
+            <div className="meta">{formatMoney(i.precio_unitario)} c/u — descuenta stock</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="subtotal">{formatMoney(Number(i.precio_unitario) * i.cantidad)}</div>
+            <button className="chip" style={{ color: '#ef4444' }} onClick={() => quitar(i.id)}>
+              Quitar
+            </button>
+          </div>
+        </div>
+      ))}
+      <form onSubmit={agregar} style={{ marginTop: 10 }}>
+        <div className="grid-2">
+          <div className="field">
+            <label>Repuesto / producto</label>
+            <select required value={prodId} onChange={(e) => setProdId(e.target.value)}>
+              <option value="">— Elegir —</option>
+              {productos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                  {p.maneja_stock ? ` (stock ${p.stock})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Cantidad</label>
+            <input
+              type="number"
+              min="1"
+              value={cant}
+              onChange={(e) => setCant(e.target.value)}
+            />
+          </div>
+        </div>
+        <button className="btn btn-secondary btn-sm">Usar repuesto</button>
+      </form>
+    </div>
+  );
+}
 
 function PagosTicket({ ticketId }) {
   const [pagos, setPagos] = useState([]);
@@ -132,6 +240,8 @@ function BadgeEstado({ estado }) {
 function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [estado, setEstado] = useState(ticket.estado);
   const [prioridad, setPrioridad] = useState(ticket.prioridad);
+  const [presupuesto, setPresupuesto] = useState(ticket.presupuesto ?? '');
+  const [negocioNombre, setNegocioNombre] = useState('');
   const [notas, setNotas] = useState(ticket.notas_internas || '');
   const [mensaje, setMensaje] = useState('');
   const [actualizaciones, setActualizaciones] = useState([]);
@@ -145,7 +255,18 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       .eq('ticket_id', ticket.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => setActualizaciones(data || []));
+    supabase
+      .from('negocios')
+      .select('nombre')
+      .maybeSingle()
+      .then(({ data }) => setNegocioNombre(data?.nombre || ''));
   }, [ticket.id]);
+
+  const waLink = linkAvisoWhatsApp({
+    ticket: { ...ticket, estado, presupuesto: presupuesto === '' ? null : Number(presupuesto) },
+    negocio: negocioNombre,
+    host: typeof window !== 'undefined' ? window.location.host : '',
+  });
 
   async function guardar() {
     setGuardando(true);
@@ -153,7 +274,12 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
 
     const { error: errUpd } = await supabase
       .from('tickets')
-      .update({ estado, prioridad, notas_internas: notas })
+      .update({
+        estado,
+        prioridad,
+        notas_internas: notas,
+        presupuesto: presupuesto === '' ? null : Number(presupuesto),
+      })
       .eq('id', ticket.id);
 
     let errMsg = errUpd?.message;
@@ -200,12 +326,23 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         <span className="ticket-numero" style={{ fontSize: '1.15rem' }}>
           {ticket.numero}
         </span>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {waLink && (
+            <a className="btn btn-sm" href={waLink} target="_blank" rel="noreferrer">
+              Avisar por WhatsApp
+            </a>
+          )}
           <a
             className="btn btn-secondary btn-sm"
             href={`/panel/imprimir/${ticket.id}`}
           >
-            Imprimir comprobante
+            Comprobante
+          </a>
+          <a
+            className="btn btn-secondary btn-sm"
+            href={`/panel/etiqueta/${ticket.id}`}
+          >
+            Etiqueta
           </a>
           <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
             Cerrar
@@ -283,6 +420,16 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
             ))}
           </select>
         </div>
+        <div className="field">
+          <label>Presupuesto ($) — con estado "Presupuesto enviado" el cliente puede aprobarlo online</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={presupuesto}
+            onChange={(e) => setPresupuesto(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="field">
@@ -307,6 +454,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       <button className="btn" onClick={guardar} disabled={guardando}>
         {guardando ? <span className="spinner" /> : 'Guardar cambios'}
       </button>
+
+      <RepuestosTicket ticketId={ticket.id} />
 
       <PagosTicket ticketId={ticket.id} />
 
@@ -347,6 +496,11 @@ export default function TicketsPage() {
 
   useEffect(() => {
     cargar();
+    const q = new URLSearchParams(window.location.search).get('buscar');
+    if (q) {
+      setBusqueda(q);
+      setFiltro('todos');
+    }
   }, [cargar]);
 
   const visibles = tickets.filter((t) => {

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { supabase, ESTADOS, formatFecha } from '@/lib/supabase';
+import { useEffect, useState } from 'react';
+import { supabase, ESTADOS, formatFecha, formatMoney } from '@/lib/supabase';
 
 function BadgeEstado({ estado }) {
   const info = ESTADOS[estado] || { label: estado, color: '#64748b' };
@@ -22,6 +22,32 @@ export default function ConsultaPage() {
   const [ticket, setTicket] = useState(null);
   const [noEncontrado, setNoEncontrado] = useState(false);
   const [error, setError] = useState(null);
+  const [respondiendo, setRespondiendo] = useState(false);
+
+  useEffect(() => {
+    const o = new URLSearchParams(window.location.search).get('orden');
+    if (o) setNumero(o);
+  }, []);
+
+  async function responder(acepta) {
+    if (!confirm(acepta ? '¿Confirmás que aprobás el presupuesto?' : '¿Confirmás que rechazás el presupuesto?')) return;
+    setRespondiendo(true);
+    const { error: err } = await supabase.rpc('responder_presupuesto', {
+      p_numero: numero,
+      p_email: email,
+      p_acepta: acepta,
+    });
+    setRespondiendo(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    const { data } = await supabase.rpc('consultar_ticket', {
+      p_numero: numero,
+      p_email: email,
+    });
+    setTicket(data);
+  }
 
   async function buscar(e) {
     e.preventDefault();
@@ -111,6 +137,40 @@ export default function ConsultaPage() {
             </span>
             <BadgeEstado estado={ticket.estado} />
           </div>
+
+          {ticket.estado === 'presupuestado' && ticket.presupuesto != null && (
+            <div
+              style={{
+                border: '1px solid var(--warn)',
+                borderRadius: 8,
+                padding: '14px 16px',
+                margin: '16px 0 4px',
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                Presupuesto de la reparación: {formatMoney(ticket.presupuesto)}
+              </div>
+              <p style={{ color: 'var(--text-dim)', fontSize: '0.88rem', marginBottom: 12 }}>
+                Necesitamos tu aprobación para avanzar con el arreglo.
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-sm"
+                  disabled={respondiendo}
+                  onClick={() => responder(true)}
+                >
+                  Aprobar presupuesto
+                </button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  disabled={respondiendo}
+                  onClick={() => responder(false)}
+                >
+                  Rechazar
+                </button>
+              </div>
+            </div>
+          )}
 
           <dl className="detalle-grid">
             <div>

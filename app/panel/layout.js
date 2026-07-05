@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { PerfilContext } from '@/lib/panel-context';
 import { registrarSW } from '@/lib/push';
+import { BuscadorGlobal } from '@/components/buscador';
 import { PantallaCarga } from '@/components/cargando';
 
 const GRUPOS = [
@@ -166,6 +167,8 @@ export default function PanelLayout({ children }) {
               </div>
             )}
           </div>
+
+          <BuscadorGlobal />
 
           {GRUPOS.filter(
             (g) => !g.soloDueno || perfil?.rol === 'dueno'

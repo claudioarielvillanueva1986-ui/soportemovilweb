@@ -1,10 +1,73 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, formatFecha } from '@/lib/supabase';
+import { supabase, ESTADOS, formatFecha, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 
 const VACIO = { nombre: '', telefono: '', email: '', notas: '' };
+
+function HistorialCliente({ clienteId }) {
+  const [datos, setDatos] = useState(null);
+
+  useEffect(() => {
+    supabase
+      .rpc('historial_cliente', { p_cliente_id: clienteId })
+      .then(({ data }) => setDatos(data));
+  }, [clienteId]);
+
+  if (!datos) return null;
+  if (datos.ordenes.length === 0 && datos.ventas.length === 0) {
+    return (
+      <p style={{ color: 'var(--text-dim)', marginTop: 14 }}>
+        Sin órdenes ni compras registradas todavía.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <h2 style={{ fontSize: '1rem' }}>
+        Historial{' '}
+        {Number(datos.total_gastado) > 0 && (
+          <span style={{ color: 'var(--accent)' }}>
+            — compró {formatMoney(datos.total_gastado)}
+          </span>
+        )}
+      </h2>
+      {datos.ordenes.map((o) => (
+        <div className="carrito-item" key={o.numero}>
+          <div className="info">
+            <div>
+              <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+                {o.numero}
+              </span>{' '}
+              · {o.equipo}
+            </div>
+            <div className="meta">{formatFecha(o.fecha)}</div>
+          </div>
+          <span
+            className="badge"
+            style={{
+              color: ESTADOS[o.estado]?.color || '#64748b',
+              border: `1px solid ${ESTADOS[o.estado]?.color || '#64748b'}55`,
+            }}
+          >
+            {ESTADOS[o.estado]?.label || o.estado}
+          </span>
+        </div>
+      ))}
+      {datos.ventas.map((v) => (
+        <div className="carrito-item" key={`v${v.numero}`}>
+          <div className="info">
+            <div>Compra #{v.numero}</div>
+            <div className="meta">{formatFecha(v.fecha)}</div>
+          </div>
+          <div className="subtotal">{formatMoney(v.total)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ClientesPage() {
   const { esDueno } = usePerfil();
@@ -24,6 +87,8 @@ export default function ClientesPage() {
 
   useEffect(() => {
     cargar();
+    const q = new URLSearchParams(window.location.search).get('buscar');
+    if (q) setBusqueda(q);
   }, [cargar]);
 
   const visibles = useMemo(() => {
@@ -131,6 +196,7 @@ export default function ClientesPage() {
               </button>
             </div>
           </form>
+          {form.id && <HistorialCliente clienteId={form.id} />}
         </div>
       )}
 

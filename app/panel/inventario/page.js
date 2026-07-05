@@ -35,6 +35,8 @@ export default function InventarioPage() {
 
   useEffect(() => {
     cargar();
+    const q = new URLSearchParams(window.location.search).get('buscar');
+    if (q) setBusqueda(q);
   }, [cargar]);
 
   const visibles = useMemo(() => {
