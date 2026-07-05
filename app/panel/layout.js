@@ -33,6 +33,7 @@ const GRUPOS = [
     titulo: 'Cuenta',
     links: [
       ['/panel/config', 'Configuración'],
+      ['/panel/importar', 'Importar datos'],
       ['/panel/plan', 'Mi plan'],
     ],
   },
