@@ -200,9 +200,17 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         <span className="ticket-numero" style={{ fontSize: '1.15rem' }}>
           {ticket.numero}
         </span>
-        <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
-          Cerrar
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a
+            className="btn btn-secondary btn-sm"
+            href={`/panel/imprimir/${ticket.id}`}
+          >
+            Imprimir comprobante
+          </a>
+          <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
+            Cerrar
+          </button>
+        </div>
       </div>
 
       <dl className="detalle-grid">
@@ -376,9 +384,14 @@ export default function TicketsPage() {
         }}
       >
         <h1 style={{ fontSize: '1.5rem' }}>Reparaciones</h1>
-        <button className="btn btn-secondary btn-sm" onClick={cargar}>
-          Actualizar
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a className="btn btn-sm" href="/panel/tickets/nueva">
+            + Nueva orden
+          </a>
+          <button className="btn btn-secondary btn-sm" onClick={cargar}>
+            Actualizar
+          </button>
+        </div>
       </div>
 
       <div className="stats">

@@ -1264,3 +1264,181 @@ main {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Comprobante imprimible ---------- */
+.comprobante {
+  background: #fff;
+  color: #111;
+  border-radius: 6px;
+  margin: 0 auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.comp-a4 {
+  max-width: 780px;
+  padding: 34px 40px;
+}
+
+.comp-80mm {
+  max-width: 302px;
+  padding: 16px 14px;
+  font-size: 11.5px;
+}
+
+.comp-talon {
+  padding: 6px 0 14px;
+}
+
+.comp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  border-bottom: 2px solid #111;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.comp-negocio {
+  font-size: 1.25em;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.comp-sub {
+  color: #444;
+  font-size: 0.86em;
+}
+
+.comp-derecha {
+  text-align: right;
+  flex: none;
+}
+
+.comp-tipo {
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #444;
+}
+
+.comp-numero {
+  font-family: var(--mono);
+  font-size: 1.35em;
+  font-weight: 800;
+}
+
+.comp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 22px;
+  margin-bottom: 10px;
+}
+
+.comp-80mm .comp-grid,
+.comp-80mm .comp-head {
+  display: block;
+}
+
+.comp-80mm .comp-derecha {
+  text-align: left;
+  margin-top: 8px;
+}
+
+.comp-lbl {
+  display: block;
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+}
+
+.comp-falla {
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  min-height: 52px;
+}
+
+.comp-seguimiento {
+  background: #f2f2f2;
+  border-radius: 4px;
+  padding: 7px 10px;
+  font-size: 0.88em;
+  margin-bottom: 10px;
+}
+
+.comp-pie {
+  font-size: 0.74em;
+  color: #555;
+  white-space: pre-line;
+  margin-bottom: 12px;
+}
+
+.comp-firmas {
+  display: flex;
+  gap: 40px;
+  margin-top: 22px;
+  font-size: 0.8em;
+  color: #444;
+}
+
+.comp-firmas > div {
+  flex: 1;
+  text-align: center;
+}
+
+.comp-firma-linea {
+  border-bottom: 1px solid #111;
+  height: 26px;
+  margin-bottom: 4px;
+}
+
+.comp-corte {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #888;
+  font-size: 0.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  border-top: 1.5px dashed #999;
+  margin: 10px -12px 14px;
+  padding: 3px 12px 0;
+}
+
+/* ---------- Impresión ---------- */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .comprobante,
+  .comprobante * {
+    visibility: visible;
+  }
+  .comprobante {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    box-shadow: none;
+    border-radius: 0;
+    animation: none;
+  }
+  .no-imprimir {
+    display: none !important;
+  }
+}
+
+@page {
+  margin: 12mm;
+}

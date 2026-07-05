@@ -355,6 +355,118 @@ function TarjetaNotificaciones() {
   );
 }
 
+function TarjetaComprobantes({ esDueno }) {
+  const [form, setForm] = useState(null);
+  const [aviso, setAviso] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('comprobante_config')
+      .select('*')
+      .maybeSingle()
+      .then(({ data }) =>
+        setForm({
+          plantilla: data?.plantilla || 'a4_doble',
+          encabezado: data?.encabezado || '',
+          pie: data?.pie || '',
+          mostrar_montos: data?.mostrar_montos ?? true,
+        })
+      );
+  }, []);
+
+  const set = (campo) => (e) =>
+    setForm({
+      ...form,
+      [campo]: e.target.type === 'checkbox' ? e.target.checked : e.target.value,
+    });
+
+  async function guardar(e) {
+    e.preventDefault();
+    setAviso(null);
+    setGuardando(true);
+    const { data: neg } = await supabase.from('negocios').select('id').maybeSingle();
+    const { error } = await supabase.from('comprobante_config').upsert(
+      {
+        negocio_id: neg.id,
+        plantilla: form.plantilla,
+        encabezado: form.encabezado || null,
+        pie: form.pie || null,
+        mostrar_montos: form.mostrar_montos,
+      },
+      { onConflict: 'negocio_id' }
+    );
+    setGuardando(false);
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else setAviso({ tipo: 'ok', texto: 'Comprobante guardado. Se aplica a las próximas impresiones.' });
+  }
+
+  if (!form) return <CargaTarjeta />;
+
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h2>Comprobante de orden</h2>
+      <p style={{ color: 'var(--text-dim)', marginBottom: 14 }}>
+        Elegí el formato del comprobante que se imprime (o se guarda como PDF)
+        al crear una orden, y personalizá el encabezado y las condiciones.
+      </p>
+      {aviso && (
+        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>
+          {aviso.texto}
+        </div>
+      )}
+      {!esDueno ? (
+        <p style={{ color: 'var(--text-dim)' }}>Solo el dueño puede configurar los comprobantes.</p>
+      ) : (
+        <form onSubmit={guardar}>
+          <div className="grid-2">
+            <div className="field">
+              <label>Plantilla</label>
+              <select value={form.plantilla} onChange={set('plantilla')}>
+                <option value="a4_doble">A4 — talón cliente + copia taller (con línea de corte)</option>
+                <option value="a4_simple">A4 — hoja simple</option>
+                <option value="ticket_80mm">Ticket 80mm (impresora térmica)</option>
+              </select>
+            </div>
+            <div className="field" style={{ justifyContent: 'flex-end' }}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={form.mostrar_montos}
+                  onChange={set('mostrar_montos')}
+                  style={{ width: 'auto', marginRight: 8 }}
+                />
+                Mostrar presupuesto y señas en el comprobante
+              </label>
+            </div>
+          </div>
+          <div className="field">
+            <label>Encabezado (dirección, teléfono, CUIT — un dato por línea)</label>
+            <textarea
+              value={form.encabezado}
+              onChange={set('encabezado')}
+              style={{ minHeight: 64 }}
+              placeholder={'Av. Siempre Viva 123, CABA\nTel: 11 5555-5555\nCUIT 20-12345678-9'}
+            />
+          </div>
+          <div className="field">
+            <label>Pie / condiciones de servicio</label>
+            <textarea
+              value={form.pie}
+              onChange={set('pie')}
+              style={{ minHeight: 64 }}
+              placeholder="Pasados 30 días de avisada la reparación, el equipo se considera abandonado..."
+            />
+          </div>
+          <button className="btn" disabled={guardando}>
+            {guardando ? <span className="spinner" /> : 'Guardar comprobante'}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export default function ConfigPage() {
   const { esDueno } = usePerfil();
   const [negocio, setNegocio] = useState(null);
@@ -374,6 +486,7 @@ export default function ConfigPage() {
         <TarjetaMercadoPago negocio={negocio} esDueno={esDueno} />
         <TarjetaArca esDueno={esDueno} />
       </div>
+      <TarjetaComprobantes esDueno={esDueno} />
       <TarjetaNotificaciones />
     </main>
   );

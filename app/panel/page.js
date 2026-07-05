@@ -151,6 +151,10 @@ export default function DashboardPage() {
               <strong>Nueva venta</strong>
               <span>POS con descuento de stock</span>
             </Link>
+            <Link href="/panel/tickets/nueva" className="acceso">
+              <strong>Nueva orden de reparación</strong>
+              <span>Alta en mostrador con comprobante imprimible</span>
+            </Link>
             <Link href="/panel/tickets" className="acceso">
               <strong>Órdenes de reparación</strong>
               <span>Estados, señas y avisos al cliente</span>
