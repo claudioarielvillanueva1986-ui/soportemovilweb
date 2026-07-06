@@ -19,6 +19,11 @@
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+
+  /* Los controles nativos (menús de select, date pickers, scrollbars,
+     autocompletado) se dibujan en oscuro; checkboxes/radios en lima. */
+  color-scheme: dark;
+  accent-color: var(--accent);
 }
 
 * {
@@ -203,7 +208,7 @@ select,
 textarea {
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--text);
   padding: 10px 13px;
   font-size: 0.93rem;
