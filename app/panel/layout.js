@@ -24,7 +24,10 @@ const GRUPOS = [
   },
   {
     titulo: 'Catálogo',
-    links: [['/panel/inventario', 'Inventario', 'inventario']],
+    links: [
+      ['/panel/inventario', 'Inventario', 'inventario'],
+      ['/panel/servicios', 'Servicios', 'servicios'],
+    ],
   },
   {
     titulo: 'Análisis',
