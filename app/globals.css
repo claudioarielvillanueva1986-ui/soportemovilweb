@@ -2143,3 +2143,33 @@ main {
   align-items: center;
   justify-content: center;
 }
+
+/* ---------- POS estilo v1: lista de resultados ---------- */
+.pos-lista {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.pos-lista-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  background: var(--bg-card);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+.pos-lista-row:last-child { border-bottom: none; }
+.pos-lista-row:hover:not(:disabled) { background: var(--bg-hover); }
+.pos-lista-row:disabled { opacity: 0.4; cursor: not-allowed; }
+.pos-lista-row .nombre { font-weight: 600; font-size: 0.9rem; }
+.pos-lista-row .meta { color: var(--text-dim); font-size: 0.76rem; margin-top: 2px; }
+.pos-lista-row .precio { font-weight: 700; white-space: nowrap; }
