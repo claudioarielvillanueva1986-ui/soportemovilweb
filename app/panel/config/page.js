@@ -138,150 +138,141 @@ function TarjetaMercadoPago({ negocio, esDueno }) {
   );
 }
 
-function TarjetaArca({ esDueno }) {
-  const [estado, setEstado] = useState(null);
-  const [form, setForm] = useState(null);
+function TarjetaFactura({ negocio, esDueno }) {
+  const [conexion, setConexion] = useState(null); // fila facturacion_conexion
+  const [estado, setEstado] = useState(null); // estado remoto (ARCA/MP en Facturá)
   const [aviso, setAviso] = useState(null);
-  const [guardando, setGuardando] = useState(false);
+  const [cargandoEstado, setCargandoEstado] = useState(false);
 
   async function cargar() {
-    const { data } = await supabase.rpc('arca_estado');
-    setEstado(data);
-    setForm({
-      modo: data?.modo || 'deshabilitado',
-      cuit: data?.cuit || '',
-      razon_social: data?.razon_social || '',
-      condicion_iva: data?.condicion_iva || 'monotributo',
-      punto_venta: data?.punto_venta || '',
-      cert_pem: '',
-      key_pem: '',
-    });
+    const { data } = await supabase
+      .from('facturacion_conexion')
+      .select('conectado, factura_negocio_id, expira_en, conectado_en')
+      .maybeSingle();
+    setConexion(data || null);
+    if (data?.conectado) cargarEstadoRemoto();
+  }
+
+  async function cargarEstadoRemoto() {
+    setCargandoEstado(true);
+    const { data: sesion } = await supabase.auth.getSession();
+    const token = sesion?.session?.access_token;
+    if (!token || !negocio?.id) return setCargandoEstado(false);
+    try {
+      const res = await fetch(
+        `/api/facturacion/estado?negocio=${negocio.id}&token=${encodeURIComponent(token)}`
+      );
+      const data = await res.json();
+      setEstado(data);
+    } catch {
+      /* se muestra igual el estado local */
+    }
+    setCargandoEstado(false);
   }
 
   useEffect(() => {
-    cargar();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('factura') === 'ok') {
+      setAviso({ tipo: 'ok', texto: '¡Cuenta de Facturá conectada! Completá los 2 pasos de abajo.' });
+    } else if (params.get('factura') === 'error') {
+      setAviso({
+        tipo: 'error',
+        texto: `No se pudo conectar: ${params.get('detalle') || 'error desconocido'}. Probá de nuevo.`,
+      });
+    }
   }, []);
 
-  const set = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
+  useEffect(() => {
+    if (negocio?.id) cargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [negocio?.id]);
 
-  async function guardar(e) {
-    e.preventDefault();
-    setAviso(null);
-    setGuardando(true);
-    const { error } = await supabase.rpc('arca_guardar', {
-      p_modo: form.modo,
-      p_cuit: form.cuit.replace(/\D/g, '') || null,
-      p_razon_social: form.razon_social,
-      p_condicion_iva: form.condicion_iva,
-      p_punto_venta: Number(form.punto_venta) || null,
-      p_cert_pem: form.cert_pem || null,
-      p_key_pem: form.key_pem || null,
-    });
-    setGuardando(false);
-    if (error) setAviso({ tipo: 'error', texto: error.message });
-    else {
-      setAviso({ tipo: 'ok', texto: 'Configuración de facturación guardada.' });
-      cargar();
-    }
+  async function conectar() {
+    const { data: sesion } = await supabase.auth.getSession();
+    const token = sesion?.session?.access_token;
+    const email = sesion?.session?.user?.email || '';
+    window.location.href = `/api/facturacion/conectar?negocio=${negocio?.id}&token=${encodeURIComponent(
+      token
+    )}&email=${encodeURIComponent(email)}`;
   }
 
-  if (!estado || !form) return <CargaTarjeta lineas={5} />;
+  const conectado = conexion?.conectado;
+  const arcaOk = estado?.facturacion?.arca_conectado;
+  const mpOk = estado?.cobros?.mp_conectado;
 
   return (
     <div className="card">
-      <h2>Facturación electrónica (ARCA)</h2>
+      <h2>Facturación electrónica (Facturá)</h2>
       {aviso && (
-        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>
+        <div className={`alert alert-${aviso.tipo === 'ok' ? 'ok' : 'error'}`} style={{ marginBottom: 12 }}>
           {aviso.texto}
         </div>
       )}
 
       <p style={{ color: 'var(--text-dim)', marginBottom: 14 }}>
-        Completá los datos fiscales de tu negocio para emitir comprobantes
-        desde el sistema. Empezá en <strong>modo homologación</strong> (prueba)
-        y pasá a producción cuando verifiques que todo sale bien.
+        La facturación en ARCA y los cobros con Mercado Pago se hacen a través de{' '}
+        <strong>Facturá</strong>. Conectás una sola vez con el <strong>mismo email</strong>{' '}
+        de tu cuenta y listo.
       </p>
 
-      {!esDueno ? (
-        <p style={{ color: 'var(--text-dim)' }}>Solo el dueño puede configurar la facturación.</p>
-      ) : (
-        <form onSubmit={guardar}>
-          <div className="grid-2">
-            <div className="field">
-              <label>Estado</label>
-              <select value={form.modo} onChange={set('modo')}>
-                <option value="deshabilitado">Deshabilitada</option>
-                <option value="homologacion">Homologación (prueba)</option>
-                <option value="produccion">Producción</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>CUIT (11 números, sin guiones)</label>
-              <input
-                value={form.cuit}
-                onChange={set('cuit')}
-                placeholder="20123456789"
-                maxLength={13}
-              />
-            </div>
-            <div className="field">
-              <label>Razón social</label>
-              <input value={form.razon_social} onChange={set('razon_social')} />
-            </div>
-            <div className="field">
-              <label>Condición frente al IVA</label>
-              <select value={form.condicion_iva} onChange={set('condicion_iva')}>
-                <option value="monotributo">Monotributo</option>
-                <option value="responsable_inscripto">Responsable inscripto</option>
-                <option value="exento">Exento</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Punto de venta (webservice)</label>
-              <input
-                type="number"
-                min="1"
-                value={form.punto_venta}
-                onChange={set('punto_venta')}
-                placeholder="Ej: 2"
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label>
-              Certificado digital (.crt / .pem)
-              {estado.tiene_certificado ? ' — ya cargado, pegá uno solo si querés reemplazarlo' : ''}
-            </label>
-            <textarea
-              value={form.cert_pem}
-              onChange={set('cert_pem')}
-              placeholder="-----BEGIN CERTIFICATE-----"
-              style={{ minHeight: 70, fontFamily: 'var(--mono)', fontSize: '0.75rem' }}
-            />
-          </div>
-          <div className="field">
-            <label>Clave privada (.key)</label>
-            <textarea
-              value={form.key_pem}
-              onChange={set('key_pem')}
-              placeholder="-----BEGIN PRIVATE KEY-----"
-              style={{ minHeight: 70, fontFamily: 'var(--mono)', fontSize: '0.75rem' }}
-            />
-          </div>
-
-          <button className="btn" disabled={guardando}>
-            {guardando ? <span className="spinner" /> : 'Guardar facturación'}
+      {!conectado ? (
+        esDueno ? (
+          <button className="btn" onClick={conectar}>
+            Conectar con Facturá
           </button>
-
-          <p style={{ color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: 14 }}>
-            ¿No tenés el certificado? Se genera gratis en el sitio de ARCA
-            (Administrador de Certificados Digitales) con tu clave fiscal, y el
-            punto de venta se crea en "Comprobantes en línea → ABM Puntos de
-            Venta" eligiendo "Factura Electrónica - Webservice". Son 10 minutos
-            por única vez.
+        ) : (
+          <p style={{ color: 'var(--text-dim)' }}>
+            Solo el dueño del negocio puede conectar Facturá.
           </p>
-        </form>
+        )
+      ) : (
+        <>
+          <div className="alert alert-ok" style={{ marginBottom: 14 }}>
+            Cuenta de Facturá vinculada.
+          </div>
+
+          <p style={{ fontWeight: 600, marginBottom: 8 }}>
+            Terminá la configuración dentro de Facturá:
+          </p>
+          <div className="carrito-item">
+            <div className="info">
+              <div>1 · Conectar Mercado Pago</div>
+              <div className="meta">Para cobrar a tus clientes con QR / link</div>
+            </div>
+            <span className="pill" style={{ color: mpOk ? 'var(--accent)' : 'var(--warn)', borderColor: mpOk ? 'var(--accent)' : 'var(--warn)' }}>
+              {cargandoEstado ? '…' : mpOk ? 'Listo' : 'Pendiente'}
+            </span>
+          </div>
+          <div className="carrito-item">
+            <div className="info">
+              <div>2 · Autorizar ARCA</div>
+              <div className="meta">Delegás el CUIT a Facturá, sin certificados</div>
+            </div>
+            <span className="pill" style={{ color: arcaOk ? 'var(--accent)' : 'var(--warn)', borderColor: arcaOk ? 'var(--accent)' : 'var(--warn)' }}>
+              {cargandoEstado ? '…' : arcaOk ? 'Listo' : 'Pendiente'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+            <a
+              className="btn"
+              href="https://factura-app.netlify.app/configuracion"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir Facturá
+            </a>
+            <button className="btn btn-secondary btn-sm" onClick={cargarEstadoRemoto} disabled={cargandoEstado}>
+              {cargandoEstado ? <span className="spinner" /> : 'Actualizar estado'}
+            </button>
+          </div>
+
+          {arcaOk && mpOk && (
+            <p style={{ color: 'var(--accent)', marginTop: 12, fontSize: '0.9rem' }}>
+              Todo listo: ya podés facturar y cobrar desde Soporte Móvil.
+            </p>
+          )}
+        </>
       )}
     </div>
   );
@@ -495,7 +486,7 @@ export default function ConfigPage() {
       <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Configuración</h1>
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <TarjetaMercadoPago negocio={negocio} esDueno={esDueno} />
-        <TarjetaArca esDueno={esDueno} />
+        <TarjetaFactura negocio={negocio} esDueno={esDueno} />
       </div>
       <TarjetaComprobantes esDueno={esDueno} />
       <TarjetaNotificaciones />

@@ -5,6 +5,7 @@ import {
   tokenVigente,
   rpcConSecreto,
 } from '@/lib/mp-server';
+import { sincronizarEntitlement } from '@/lib/factura-server';
 
 // Webhook de Mercado Pago (pagos de los talleres vía OAuth + suscripciones del SaaS).
 // Regla: el webhook NUNCA inserta ventas — solo registra pagos y estados;
@@ -36,6 +37,8 @@ export async function POST(request) {
           p_monto: pre.auto_recurring?.transaction_amount ?? null,
           p_raw: { status: pre.status, next_payment_date: pre.next_payment_date },
         });
+        // Combo: si incluye Facturá y está conectada, habilitar/renovar su cuenta
+        await sincronizarEntitlement(pre.external_reference);
       }
       return Response.json({ ok: true });
     }
