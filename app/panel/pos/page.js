@@ -10,18 +10,36 @@ import {
 } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
-// Cobro presencial con Mercado Pago (QR dinámico o Point):
-// 1. Se crea un cobro pendiente, 2. la API genera el QR / manda el monto al Point,
-// 3. el webhook confirma el pago, 4. recién ahí el POS registra la venta.
+// Cobro presencial con QR de Mercado Pago, a través de Facturá:
+// 1. se crea el cobro en Facturá (usa la cuenta MP que el taller conectó ahí),
+// 2. se muestra el QR (link de pago), 3. se consulta el estado por polling,
+// 4. al aprobarse el pago, recién ahí el POS registra la venta en la caja.
 function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
   const [fase, setFase] = useState('creando'); // creando | esperando | registrando | error
   const [error, setError] = useState(null);
-  const [qrData, setQrData] = useState(null);
+  const [qrData, setQrData] = useState(null); // init_point de Facturá
   const [cancelando, setCancelando] = useState(false);
-  const cobroRef = useRef(null);
+  const cobroRef = useRef(null); // id del cobro en Facturá
+  const tokenRef = useRef(null);
   const canvasRef = useRef(null);
   const activoRef = useRef(true);
   const registrandoRef = useRef(false); // candado: una sola venta por cobro
+
+  async function token() {
+    if (tokenRef.current) return tokenRef.current;
+    const { data } = await supabase.auth.getSession();
+    tokenRef.current = data?.session?.access_token || '';
+    return tokenRef.current;
+  }
+
+  // Consulta el estado del cobro en Facturá (vía proxy del servidor)
+  async function estadoActual() {
+    const t = await token();
+    const res = await fetch(
+      `/api/facturacion/cobro/estado?cobro_id=${cobroRef.current}&token=${encodeURIComponent(t)}`
+    );
+    return res.ok ? res.json() : null;
+  }
 
   // Registra la venta una única vez (usado por el polling y por el cierre tras cobro aprobado)
   async function registrarUnaVez(mpPaymentId) {
@@ -30,7 +48,7 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
     setFase('registrando');
     const { data: venta, error: errVenta } = await supabase.rpc('registrar_venta', {
       p_items: items,
-      p_metodo: tipo === 'qr' ? 'mercadopago_qr' : 'mercadopago_point',
+      p_metodo: 'mercadopago_qr',
       p_cliente_id: clienteId || null,
       p_mp_payment_id: mpPaymentId,
     });
@@ -48,18 +66,13 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
   async function cancelar() {
     if (registrandoRef.current) return;
     setCancelando(true);
-    if (!cobroRef.current) {
-      onCancelar();
-      return;
-    }
-    const { data } = await supabase.rpc('cancelar_cobro_mp', {
-      p_cobro_id: cobroRef.current,
-    });
-    if (data?.estado === 'aprobado') {
-      activoRef.current = true; // seguimos montados para registrar
-      await registrarUnaVez(data.mp_payment_id);
-      setCancelando(false);
-      return;
+    if (cobroRef.current) {
+      const est = await estadoActual();
+      if (est?.estado === 'aprobado') {
+        await registrarUnaVez(est.mp_payment_id);
+        setCancelando(false);
+        return;
+      }
     }
     onCancelar();
   }
@@ -68,31 +81,17 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
     activoRef.current = true;
     (async () => {
       try {
-        const { data: cobro, error: errIns } = await supabase
-          .from('cobros_mp')
-          .insert({
-            tipo,
-            monto: total,
-            creado_por: (await supabase.auth.getUser()).data.user?.id,
-          })
-          .select('id')
-          .single();
-        if (errIns) throw new Error(errIns.message);
-        cobroRef.current = cobro.id;
-
-        const res = await fetch(tipo === 'qr' ? '/api/mp/qr' : '/api/mp/point', {
+        const t = await token();
+        const res = await fetch('/api/facturacion/cobro', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cobro_id: cobro.id,
-            monto: total,
-            descripcion: 'Venta en mostrador',
-          }),
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ monto: total, descripcion: 'Venta en mostrador' }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error generando el cobro');
         if (!activoRef.current) return;
-        if (tipo === 'qr') setQrData(data.qr_data);
+        cobroRef.current = data.cobro_id;
+        setQrData(data.init_point);
         setFase('esperando');
       } catch (e) {
         if (activoRef.current) {
@@ -115,30 +114,24 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
   useEffect(() => {
     if (fase !== 'esperando') return;
     const timer = setInterval(async () => {
-      const { data } = await supabase
-        .from('cobros_mp')
-        .select('estado, mp_payment_id')
-        .eq('id', cobroRef.current)
-        .single();
-      if (!activoRef.current || !data || registrandoRef.current) return;
-      if (data.estado === 'aprobado') {
+      const est = await estadoActual();
+      if (!activoRef.current || !est || registrandoRef.current) return;
+      if (est.estado === 'aprobado') {
         clearInterval(timer);
-        await registrarUnaVez(data.mp_payment_id);
-      } else if (data.estado === 'rechazado') {
+        await registrarUnaVez(est.mp_payment_id);
+      } else if (est.estado === 'rechazado' || est.estado === 'cancelado') {
         clearInterval(timer);
         setError('El pago fue rechazado o cancelado en Mercado Pago.');
         setFase('error');
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [fase, items, clienteId, tipo, onListo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fase]);
 
   return (
     <div className="card" style={{ maxWidth: 420, margin: '30px auto', textAlign: 'center' }}>
-      <h2>
-        {tipo === 'qr' ? 'Cobro con QR' : 'Cobro con Point'} —{' '}
-        {formatMoney(total)}
-      </h2>
+      <h2>Cobro con QR — {formatMoney(total)}</h2>
 
       {fase === 'creando' && (
         <p style={{ padding: 20 }}>
@@ -146,23 +139,15 @@ function CobroMP({ tipo, total, items, clienteId, onListo, onCancelar }) {
         </p>
       )}
 
-      {fase === 'esperando' && tipo === 'qr' && (
+      {fase === 'esperando' && (
         <>
           <canvas ref={canvasRef} style={{ background: '#fff', borderRadius: 12, padding: 8, margin: '10px auto' }} />
           <p style={{ color: 'var(--text-dim)' }}>
-            El cliente escanea el QR desde la app de Mercado Pago.
+            El cliente escanea el QR con la cámara o la app de Mercado Pago.
             <br />
             Esperando el pago... <span className="spinner" style={{ verticalAlign: 'middle' }} />
           </p>
         </>
-      )}
-
-      {fase === 'esperando' && tipo === 'point' && (
-        <p style={{ color: 'var(--text-dim)', padding: 16 }}>
-          Monto enviado a la terminal Point. Cobrá en el dispositivo.
-          <br />
-          Esperando confirmación... <span className="spinner" style={{ verticalAlign: 'middle' }} />
-        </p>
       )}
 
       {fase === 'registrando' && (
@@ -573,7 +558,7 @@ export default function PosPage() {
               ['tarjeta', 'Tarjeta'],
               ['transferencia', 'Transferencia'],
               ['mercadopago_qr', 'QR Mercado Pago'],
-              ['mercadopago_point', 'Point'],
+              // Point/posnet integrado: próximamente vía Facturá
             ].map(([k, v]) => (
               <button
                 key={k}

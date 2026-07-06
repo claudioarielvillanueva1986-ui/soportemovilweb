@@ -1,142 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase, formatFecha } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 import { pushSoportado, suscribirPush } from '@/lib/push';
 import { CargaTarjeta } from '@/components/cargando';
-
-function TarjetaMercadoPago({ negocio, esDueno }) {
-  const [estado, setEstado] = useState(null);
-  const [device, setDevice] = useState('');
-  const [aviso, setAviso] = useState(null);
-
-  async function cargar() {
-    const { data } = await supabase.rpc('mp_estado_conexion');
-    setEstado(data);
-    setDevice(data?.point_device_id || '');
-  }
-
-  useEffect(() => {
-    cargar();
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('mp') === 'ok') {
-      setAviso({ tipo: 'ok', texto: '¡Cuenta de Mercado Pago conectada! Ya podés cobrar con QR desde el POS.' });
-    } else if (params.get('mp') === 'error') {
-      setAviso({ tipo: 'error', texto: `No se pudo conectar: ${params.get('detalle') || 'error desconocido'}. Probá de nuevo.` });
-    }
-  }, []);
-
-  async function guardarDevice(e) {
-    e.preventDefault();
-    setAviso(null);
-    const { error } = await supabase.rpc('mp_guardar_point_device', {
-      p_device_id: device,
-    });
-    if (error) setAviso({ tipo: 'error', texto: error.message });
-    else {
-      setAviso({ tipo: 'ok', texto: 'Terminal Point guardada.' });
-      cargar();
-    }
-  }
-
-  async function desconectar() {
-    if (!confirm('¿Desconectar tu cuenta de Mercado Pago? Dejarás de poder cobrar con QR y Point.')) return;
-    const { error } = await supabase.rpc('mp_desconectar');
-    if (error) setAviso({ tipo: 'error', texto: error.message });
-    else cargar();
-  }
-
-  if (!estado) return <CargaTarjeta />;
-
-  return (
-    <div className="card">
-      <h2>Cobros con Mercado Pago</h2>
-      {aviso && (
-        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>
-          {aviso.texto}
-        </div>
-      )}
-
-      {!estado.conectado ? (
-        <>
-          <p style={{ color: 'var(--text-dim)', marginBottom: 16 }}>
-            Conectá la cuenta de Mercado Pago <strong>de tu negocio</strong> en
-            dos clics. Los cobros del punto de venta (QR y Point) van directo a
-            tu cuenta — nosotros nunca tocamos tu plata.
-          </p>
-          {esDueno ? (
-            <button
-              className="btn"
-              onClick={async () => {
-                const { data } = await supabase.auth.getSession();
-                const token = data?.session?.access_token;
-                if (!token) {
-                  setAviso({ tipo: 'error', texto: 'Sesión no válida, volvé a ingresar.' });
-                  return;
-                }
-                window.location.href = `/api/mp/oauth/conectar?negocio=${negocio?.id}&token=${encodeURIComponent(token)}`;
-              }}
-            >
-              Conectar con Mercado Pago
-            </button>
-          ) : (
-            <p style={{ color: 'var(--text-dim)' }}>
-              Solo el dueño del negocio puede conectar la cuenta.
-            </p>
-          )}
-        </>
-      ) : (
-        <>
-          <dl className="detalle-grid">
-            <div>
-              <dt>Estado</dt>
-              <dd style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                Conectado {estado.live_mode ? '(producción)' : '(prueba)'}
-              </dd>
-            </div>
-            <div>
-              <dt>Cuenta MP</dt>
-              <dd>#{estado.mp_user_id}</dd>
-            </div>
-            <div>
-              <dt>QR dinámico</dt>
-              <dd>{estado.pos_external_id ? 'Listo para cobrar' : 'Sin caja creada — reconectá'}</dd>
-            </div>
-            <div>
-              <dt>Conectado desde</dt>
-              <dd>{formatFecha(estado.conectado_desde)}</dd>
-            </div>
-          </dl>
-
-          {esDueno && (
-            <>
-              <form onSubmit={guardarDevice} style={{ marginTop: 8 }}>
-                <div className="field">
-                  <label>Terminal Point (opcional)</label>
-                  <input
-                    value={device}
-                    onChange={(e) => setDevice(e.target.value)}
-                    placeholder="ID del dispositivo, ej: NEWLAND_N950__N950NCC..."
-                  />
-                  <small style={{ color: 'var(--text-dim)', fontSize: '0.76rem' }}>
-                    Lo encontrás en Mercado Pago → Tu negocio → Point → Detalles del dispositivo.
-                  </small>
-                </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <button className="btn btn-secondary btn-sm">Guardar Point</button>
-                  <button type="button" className="btn btn-danger btn-sm" onClick={desconectar}>
-                    Desconectar cuenta
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 
 function TarjetaFactura({ negocio, esDueno }) {
   const [conexion, setConexion] = useState(null); // fila facturacion_conexion
@@ -485,10 +353,9 @@ export default function ConfigPage() {
     <main>
       <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Configuración</h1>
       <div className="grid-2" style={{ alignItems: 'start' }}>
-        <TarjetaMercadoPago negocio={negocio} esDueno={esDueno} />
         <TarjetaFactura negocio={negocio} esDueno={esDueno} />
+        <TarjetaComprobantes esDueno={esDueno} />
       </div>
-      <TarjetaComprobantes esDueno={esDueno} />
       <TarjetaNotificaciones />
     </main>
   );
