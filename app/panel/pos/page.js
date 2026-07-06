@@ -296,8 +296,13 @@ export default function PosPage() {
     cargar();
   }, []);
 
+  // POS búsqueda-primero: la lista aparece al buscar/escanear o al elegir una
+  // categoría; por defecto (Todas, sin texto) no se vuelca todo el catálogo.
+  const buscando = busqueda.trim() !== '' || cat !== 'todas';
+
   const visibles = useMemo(() => {
-    const q = busqueda.toLowerCase();
+    if (!buscando) return [];
+    const q = busqueda.toLowerCase().trim();
     return productos
       .filter((p) => cat === 'todas' || p.categoria === cat)
       .filter(
@@ -307,7 +312,7 @@ export default function PosPage() {
           (p.sku || '').toLowerCase().includes(q)
       )
       .slice(0, 60);
-  }, [productos, busqueda, cat]);
+  }, [productos, busqueda, cat, buscando]);
 
   const items = Object.entries(carrito)
     .map(([id, cant]) => {
@@ -530,7 +535,17 @@ export default function PosPage() {
             ))}
           </div>
           <div className="pos-productos">
-            {visibles.map((p) => {
+            {!buscando &&
+              (productos.length === 0 ? (
+                <p style={{ color: 'var(--text-dim)' }}>No hay productos cargados todavía.</p>
+              ) : (
+                <p style={{ color: 'var(--text-dim)', padding: '18px 2px' }}>
+                  Buscá o escaneá un producto para agregarlo, o elegí una categoría
+                  para ver su lista.
+                </p>
+              ))}
+            {buscando &&
+              visibles.map((p) => {
               const enCarrito = carrito[p.id] || 0;
               const agotado = p.maneja_stock && p.stock - enCarrito <= 0;
               return (
@@ -548,7 +563,7 @@ export default function PosPage() {
                 </button>
               );
             })}
-            {visibles.length === 0 && (
+            {buscando && visibles.length === 0 && (
               <p style={{ color: 'var(--text-dim)' }}>Sin resultados.</p>
             )}
           </div>
