@@ -11,6 +11,20 @@ function TarjetaFactura({ negocio, esDueno }) {
   const [estado, setEstado] = useState(null); // estado remoto (ARCA/MP en Facturá)
   const [aviso, setAviso] = useState(null);
   const [cargandoEstado, setCargandoEstado] = useState(false);
+  const [autoFactura, setAutoFactura] = useState(false);
+
+  useEffect(() => {
+    if (negocio) setAutoFactura(!!negocio.facturar_auto);
+  }, [negocio]);
+
+  async function toggleAuto(valor) {
+    setAutoFactura(valor);
+    const { error } = await supabase.rpc('set_facturar_auto', { p_valor: valor });
+    if (error) {
+      setAutoFactura(!valor);
+      setAviso({ tipo: 'error', texto: error.message });
+    }
+  }
 
   async function cargar() {
     const { data } = await supabase
@@ -140,6 +154,24 @@ function TarjetaFactura({ negocio, esDueno }) {
               Todo listo: ya podés facturar y cobrar desde Soporte Móvil.
             </p>
           )}
+
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span>
+                <strong>Facturar automáticamente al cobrar</strong>
+                <br />
+                <small style={{ color: 'var(--text-dim)' }}>
+                  Si está apagado, facturás manualmente con el botón "Facturar" en cada venta.
+                </small>
+              </span>
+              <input
+                type="checkbox"
+                checked={autoFactura}
+                disabled={!esDueno}
+                onChange={(e) => toggleAuto(e.target.checked)}
+              />
+            </label>
+          </div>
         </>
       )}
     </div>

@@ -237,9 +237,36 @@ export default function PosPage() {
   const [error, setError] = useState(null);
   const [ventaOk, setVentaOk] = useState(null);
   const [cobroMP, setCobroMP] = useState(null); // null | 'qr' | 'point'
+  const [factura, setFactura] = useState(null); // { cae, pdf_url } | { error }
+  const [facturando, setFacturando] = useState(false);
+  const [facturarAuto, setFacturarAuto] = useState(false);
+  const [facturaConectada, setFacturaConectada] = useState(false);
+
+  // Emite la factura de una venta vía Facturá (auto tras la venta, o manual)
+  async function facturarVenta(ventaId) {
+    setFacturando(true);
+    setFactura(null);
+    const { data: sesion } = await supabase.auth.getSession();
+    try {
+      const res = await fetch('/api/facturacion/facturar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sesion?.session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ venta_id: ventaId }),
+      });
+      const data = await res.json();
+      if (!res.ok) setFactura({ error: data.error || 'No se pudo facturar' });
+      else setFactura(data);
+    } catch (e) {
+      setFactura({ error: e.message });
+    }
+    setFacturando(false);
+  }
 
   async function cargar() {
-    const [{ data: resumen, error: errR }, { data: prods }, { data: clis }] =
+    const [{ data: resumen, error: errR }, { data: prods }, { data: clis }, { data: neg }, { data: conex }] =
       await Promise.all([
         supabase.rpc('resumen_panel'),
         supabase
@@ -248,7 +275,11 @@ export default function PosPage() {
           .eq('activo', true)
           .order('nombre'),
         supabase.from('clientes').select('id, nombre').order('nombre'),
+        supabase.from('negocios').select('facturar_auto').maybeSingle(),
+        supabase.from('facturacion_conexion').select('conectado').maybeSingle(),
       ]);
+    setFacturarAuto(!!neg?.facturar_auto);
+    setFacturaConectada(!!conex?.conectado);
     if (errR) {
       // No confundir un fallo de carga con "caja cerrada": dejamos el estado sin decidir
       setError('No se pudo cargar el POS. Revisá tu conexión y recargá.');
@@ -368,17 +399,21 @@ export default function PosPage() {
       return;
     }
     setVentaOk(data);
+    setFactura(null);
     setCarrito({});
     setClienteId('');
     cargar();
+    if (facturarAuto && facturaConectada && data?.id) facturarVenta(data.id);
   }
 
   function ventaMPLista(venta) {
     setCobroMP(null);
     setVentaOk(venta);
+    setFactura(null);
     setCarrito({});
     setClienteId('');
     cargar();
+    if (facturarAuto && facturaConectada && venta?.id) facturarVenta(venta.id);
   }
 
   if (turno === undefined) {
@@ -420,10 +455,45 @@ export default function PosPage() {
         <div className="card" style={{ maxWidth: 460, margin: '30px auto', textAlign: 'center' }}>
           <h2 style={{ margin: '8px 0' }}>Venta #{ventaOk.numero} registrada</h2>
           <div className="ticket-numero">{formatMoney(ventaOk.total)}</div>
-          <p style={{ color: 'var(--text-dim)', margin: '10px 0 20px' }}>
+          <p style={{ color: 'var(--text-dim)', margin: '10px 0 16px' }}>
             {METODOS_PAGO[metodo]}
           </p>
-          <button className="btn" onClick={() => setVentaOk(null)}>
+
+          {facturaConectada && (
+            <div style={{ marginBottom: 16 }}>
+              {facturando ? (
+                <p style={{ color: 'var(--text-dim)' }}>
+                  Facturando en ARCA... <span className="spinner" style={{ verticalAlign: 'middle' }} />
+                </p>
+              ) : factura?.cae ? (
+                <div className="alert alert-ok" style={{ textAlign: 'left' }}>
+                  Factura emitida — CAE {factura.cae}
+                  {factura.pdf_url && (
+                    <>
+                      {' · '}
+                      <a href={factura.pdf_url} target="_blank" rel="noreferrer">
+                        Ver PDF
+                      </a>
+                    </>
+                  )}
+                </div>
+              ) : factura?.error ? (
+                <div className="alert alert-error" style={{ textAlign: 'left' }}>
+                  No se pudo facturar: {factura.error}
+                  <br />
+                  <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => facturarVenta(ventaOk.id)}>
+                    Reintentar
+                  </button>
+                </div>
+              ) : (
+                <button className="btn btn-secondary" onClick={() => facturarVenta(ventaOk.id)}>
+                  Facturar en ARCA
+                </button>
+              )}
+            </div>
+          )}
+
+          <button className="btn" onClick={() => { setVentaOk(null); setFactura(null); }}>
             Nueva venta
           </button>
         </div>

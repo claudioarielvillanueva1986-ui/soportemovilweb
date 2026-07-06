@@ -22,7 +22,39 @@ export default function VentasPage() {
   const [limite, setLimite] = useState(LOTE);
   const [abierta, setAbierta] = useState(null);
   const [error, setError] = useState(null);
+  const [facturaConectada, setFacturaConectada] = useState(false);
+  const [facturandoId, setFacturandoId] = useState(null);
   const timer = useRef(null);
+
+  useEffect(() => {
+    supabase
+      .from('facturacion_conexion')
+      .select('conectado')
+      .maybeSingle()
+      .then(({ data }) => setFacturaConectada(!!data?.conectado));
+  }, []);
+
+  async function facturar(v) {
+    setFacturandoId(v.id);
+    setError(null);
+    const { data: sesion } = await supabase.auth.getSession();
+    try {
+      const res = await fetch('/api/facturacion/facturar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sesion?.session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ venta_id: v.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error || 'No se pudo facturar');
+      else cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+    setFacturandoId(null);
+  }
 
   const cargar = useCallback(async () => {
     setError(null);
@@ -175,6 +207,29 @@ export default function VentasPage() {
                   <p className="lbl2" style={{ marginTop: 8 }}>
                     Pago Mercado Pago: {v.mp_payment_id}
                   </p>
+                )}
+                {facturaConectada && (
+                  <div style={{ marginTop: 10 }}>
+                    {v.facturada_en ? (
+                      <span className="pill" style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>
+                        Facturada · CAE {v.factura_cae}
+                        {v.factura_pdf_url && (
+                          <>
+                            {' · '}
+                            <a href={v.factura_pdf_url} target="_blank" rel="noreferrer">PDF</a>
+                          </>
+                        )}
+                      </span>
+                    ) : (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        disabled={facturandoId === v.id}
+                        onClick={() => facturar(v)}
+                      >
+                        {facturandoId === v.id ? <span className="spinner" /> : 'Facturar en ARCA'}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
