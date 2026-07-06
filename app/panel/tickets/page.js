@@ -22,6 +22,11 @@ const ETIQUETAS = [
 ];
 const COLOR_ETIQUETA = Object.fromEntries(ETIQUETAS);
 
+function diasDesde(fecha) {
+  if (!fecha) return null;
+  return Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
+}
+
 function ChipsEtiquetas({ etiquetas }) {
   if (!etiquetas?.length) return null;
   return (
@@ -852,6 +857,17 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           >
             Etiqueta
           </a>
+          {ticket.public_token && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                navigator.clipboard?.writeText(`${window.location.origin}/r/${ticket.public_token}`);
+                setAviso({ tipo: 'ok', texto: 'Link de seguimiento copiado.' });
+              }}
+            >
+              Copiar seguimiento
+            </button>
+          )}
           {estado !== 'entregado' && estado !== 'cancelado' && (
             <button className="btn btn-danger btn-sm" onClick={devolverEquipo}>
               Devolver sin reparar
@@ -1106,12 +1122,17 @@ export default function TicketsPage() {
     let q = supabase
       .from('tickets')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
       .range(0, limite - 1);
-    if (filtro === 'abiertos') q = q.not('estado', 'in', '(entregado,cancelado)');
-    else if (filtro === 'mias') {
-      if (userId) q = q.eq('tecnico_id', userId);
-    } else if (filtro !== 'todos') q = q.eq('estado', filtro);
+    if (filtro === 'sin_retirar') {
+      // Bandeja de retiros: listas, la que espera hace más tiempo primero
+      q = q.eq('estado', 'listo').order('listo_desde', { ascending: true, nullsFirst: false });
+    } else {
+      q = q.order('created_at', { ascending: false });
+      if (filtro === 'abiertos') q = q.not('estado', 'in', '(entregado,cancelado)');
+      else if (filtro === 'mias') {
+        if (userId) q = q.eq('tecnico_id', userId);
+      } else if (filtro !== 'todos') q = q.eq('estado', filtro);
+    }
     if (busqueda.trim()) {
       const t = busqueda.trim().replace(/[%,()]/g, '');
       q = q.or(
@@ -1284,6 +1305,7 @@ export default function TicketsPage() {
         {[
           ['abiertos', 'Abiertos'],
           ['mias', 'Mías'],
+          ['sin_retirar', 'Sin retirar'],
           ['todos', 'Todos'],
           ...Object.entries(ESTADOS).map(([k, v]) => [k, v.label]),
         ].map(([k, label]) => (
@@ -1330,6 +1352,11 @@ export default function TicketsPage() {
                 {t.marca_modelo ? ` (${t.marca_modelo})` : ''}
               </div>
               <div className="meta">{formatFecha(t.created_at)}</div>
+              {t.estado === 'listo' && t.listo_desde != null && (
+                <div className="meta" style={{ color: 'var(--warn)' }}>
+                  Listo hace {diasDesde(t.listo_desde)} día(s) — sin retirar
+                </div>
+              )}
               <ChipsEtiquetas etiquetas={t.etiquetas} />
             </div>
             <BadgeEstado estado={t.estado} />
