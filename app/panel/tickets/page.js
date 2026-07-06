@@ -10,6 +10,7 @@ import {
   formatMoney,
 } from '@/lib/supabase';
 import { linkAvisoWhatsApp } from '@/lib/whatsapp';
+import { usePerfil } from '@/lib/panel-context';
 
 // Etiquetas disponibles para las órdenes (color por etiqueta)
 const ETIQUETAS = [
@@ -447,6 +448,83 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
   );
 }
 
+// Rentabilidad de la orden (solo dueño): presupuesto − costo repuestos − costo extra
+function CostosOrden({ ticketId }) {
+  const [m, setM] = useState(null);
+  const [costoExtra, setCostoExtra] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  const cargar = useCallback(async () => {
+    const { data } = await supabase.rpc('margen_orden', { p_ticket_id: ticketId });
+    if (data) {
+      setM(data);
+      setCostoExtra(data.costo_extra ? String(data.costo_extra) : '');
+    }
+  }, [ticketId]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function guardar() {
+    setGuardando(true);
+    const { data, error } = await supabase.rpc('guardar_costo_extra', {
+      p_ticket_id: ticketId,
+      p_costo: costoExtra === '' ? 0 : Number(costoExtra),
+    });
+    setGuardando(false);
+    if (!error && data) setM(data);
+  }
+
+  if (!m) return null;
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <h2 style={{ fontSize: '1rem' }}>Rentabilidad</h2>
+        <button className="chip" onClick={cargar}>Actualizar</button>
+      </div>
+      <div className="saldo-box">
+        <div>
+          <span className="lbl2">Presupuesto</span>
+          <strong>{formatMoney(m.presupuesto)}</strong>
+        </div>
+        <div>
+          <span className="lbl2">Costo total</span>
+          <strong>{formatMoney(m.costo_total)}</strong>
+        </div>
+        <div>
+          <span className="lbl2">Margen</span>
+          <strong style={{ color: m.margen >= 0 ? 'var(--accent)' : 'var(--error-soft)' }}>
+            {formatMoney(m.margen)}
+          </strong>
+        </div>
+      </div>
+      <p className="lbl2" style={{ marginTop: 6 }}>
+        Repuestos: {formatMoney(m.costo_repuestos)} (del costo de inventario) + costo adicional.
+      </p>
+      <div className="grid-2" style={{ marginTop: 8 }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Costo adicional (mano de obra tercerizada, envíos…)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={costoExtra}
+            onChange={(e) => setCostoExtra(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+        <div className="field" style={{ marginBottom: 0, justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary btn-sm" onClick={guardar} disabled={guardando}>
+            {guardando ? <span className="spinner" /> : 'Guardar costo'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BadgeEstado({ estado }) {
   const info = ESTADOS[estado] || { label: estado, color: '#64748b' };
   return (
@@ -460,6 +538,7 @@ function BadgeEstado({ estado }) {
 }
 
 function DetalleTicket({ ticket, onCerrar, onGuardado }) {
+  const { esDueno } = usePerfil();
   const [estado, setEstado] = useState(ticket.estado);
   const [prioridad, setPrioridad] = useState(ticket.prioridad);
   const [presupuesto, setPresupuesto] = useState(ticket.presupuesto ?? '');
@@ -510,6 +589,24 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
     if (error) setAviso({ tipo: 'error', texto: error.message });
     else {
       setEtiquetas(data || []);
+      onGuardado();
+    }
+  }
+
+  async function devolverEquipo() {
+    const motivo = window.prompt(
+      'Motivo de la devolución (lo ve el cliente):',
+      'Equipo devuelto sin reparar'
+    );
+    if (motivo === null) return;
+    const { error } = await supabase.rpc('devolver_equipo', {
+      p_ticket_id: ticket.id,
+      p_motivo: motivo,
+    });
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else {
+      setEstado('cancelado');
+      setAviso({ tipo: 'ok', texto: 'Equipo marcado como devuelto sin reparar.' });
       onGuardado();
     }
   }
@@ -596,6 +693,11 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           >
             Etiqueta
           </a>
+          {estado !== 'entregado' && estado !== 'cancelado' && (
+            <button className="btn btn-danger btn-sm" onClick={devolverEquipo}>
+              Devolver sin reparar
+            </button>
+          )}
           <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
             Cerrar
           </button>
@@ -765,6 +867,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         presupuesto={ticket.presupuesto}
         onCambio={onGuardado}
       />
+
+      {esDueno && <CostosOrden ticketId={ticket.id} />}
 
       {actualizaciones.length > 0 && (
         <>
