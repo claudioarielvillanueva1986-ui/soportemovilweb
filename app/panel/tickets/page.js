@@ -677,6 +677,39 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [equipo, setEquipo] = useState([]);
   const [tecnicoId, setTecnicoId] = useState(ticket.tecnico_id || '');
   const [etiquetas, setEtiquetas] = useState(ticket.etiquetas || []);
+  const [datos, setDatos] = useState({
+    nombre: ticket.nombre || '',
+    telefono: ticket.telefono || '',
+    email: ticket.email || '',
+    dispositivo: ticket.dispositivo || '',
+    marca_modelo: ticket.marca_modelo || '',
+    equipo_password: ticket.equipo_password || '',
+  });
+  const [guardandoDatos, setGuardandoDatos] = useState(false);
+
+  const setDato = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
+
+  async function guardarDatos() {
+    setGuardandoDatos(true);
+    setAviso(null);
+    const { error } = await supabase
+      .from('tickets')
+      .update({
+        nombre: datos.nombre.trim(),
+        telefono: datos.telefono.trim() || null,
+        email: datos.email.trim() || null,
+        dispositivo: datos.dispositivo.trim(),
+        marca_modelo: datos.marca_modelo.trim() || null,
+        equipo_password: datos.equipo_password.trim() || null,
+      })
+      .eq('id', ticket.id);
+    setGuardandoDatos(false);
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else {
+      setAviso({ tipo: 'ok', texto: 'Datos actualizados.' });
+      onGuardado();
+    }
+  }
 
   useEffect(() => {
     supabase
@@ -878,6 +911,41 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       >
         {ticket.descripcion}
       </p>
+
+      <details style={{ marginTop: 14 }}>
+        <summary style={{ cursor: 'pointer', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+          Editar datos del cliente y equipo
+        </summary>
+        <div className="grid-2" style={{ marginTop: 12 }}>
+          <div className="field">
+            <label>Nombre</label>
+            <input value={datos.nombre} onChange={setDato('nombre')} />
+          </div>
+          <div className="field">
+            <label>Teléfono</label>
+            <input value={datos.telefono} onChange={setDato('telefono')} />
+          </div>
+          <div className="field">
+            <label>Email</label>
+            <input type="email" value={datos.email} onChange={setDato('email')} />
+          </div>
+          <div className="field">
+            <label>Equipo</label>
+            <input value={datos.dispositivo} onChange={setDato('dispositivo')} />
+          </div>
+          <div className="field">
+            <label>Marca / modelo</label>
+            <input value={datos.marca_modelo} onChange={setDato('marca_modelo')} />
+          </div>
+          <div className="field">
+            <label>Clave / patrón del equipo</label>
+            <input value={datos.equipo_password} onChange={setDato('equipo_password')} />
+          </div>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={guardarDatos} disabled={guardandoDatos}>
+          {guardandoDatos ? <span className="spinner" /> : 'Guardar datos'}
+        </button>
+      </details>
 
       <div className="grid-2" style={{ marginTop: 14 }}>
         <div className="field" style={{ marginBottom: 0 }}>
@@ -1086,6 +1154,56 @@ export default function TicketsPage() {
     }
   }, [cargarStats]);
 
+  async function exportarCSV() {
+    let q = supabase
+      .from('tickets')
+      .select('numero, created_at, nombre, telefono, email, dispositivo, marca_modelo, estado, prioridad, presupuesto, etiquetas')
+      .order('created_at', { ascending: false });
+    if (filtro === 'abiertos') q = q.not('estado', 'in', '(entregado,cancelado)');
+    else if (filtro === 'mias') {
+      if (userId) q = q.eq('tecnico_id', userId);
+    } else if (filtro !== 'todos') q = q.eq('estado', filtro);
+    if (busqueda.trim()) {
+      const t = busqueda.trim().replace(/[%,()]/g, '');
+      q = q.or(`numero.ilike.%${t}%,nombre.ilike.%${t}%,email.ilike.%${t}%,telefono.ilike.%${t}%,marca_modelo.ilike.%${t}%`);
+    }
+    const { data } = await q;
+    const filas = data || [];
+    const esc = (v) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const cols = ['numero', 'fecha', 'cliente', 'telefono', 'email', 'equipo', 'marca_modelo', 'estado', 'prioridad', 'presupuesto', 'etiquetas'];
+    const lineas = [cols.join(';')];
+    for (const t of filas) {
+      lineas.push(
+        [
+          t.numero,
+          new Date(t.created_at).toLocaleString('es-AR'),
+          t.nombre,
+          t.telefono,
+          t.email,
+          t.dispositivo,
+          t.marca_modelo,
+          ESTADOS[t.estado]?.label || t.estado,
+          t.prioridad,
+          t.presupuesto ?? '',
+          (t.etiquetas || []).join(', '),
+        ]
+          .map(esc)
+          .join(';')
+      );
+    }
+    const csv = '﻿' + lineas.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ordenes-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const visibles = tickets;
 
   return (
@@ -1105,6 +1223,9 @@ export default function TicketsPage() {
           <a className="btn btn-sm" href="/panel/tickets/nueva">
             + Nueva orden
           </a>
+          <button className="btn btn-secondary btn-sm" onClick={exportarCSV}>
+            Exportar CSV
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={cargar}>
             Actualizar
           </button>
