@@ -124,20 +124,25 @@ function RepuestosTicket({ ticketId }) {
   );
 }
 
-function PagosTicket({ ticketId }) {
+function idemKey() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function PagosTicket({ ticketId, presupuesto, onCambio }) {
   const [pagos, setPagos] = useState([]);
   const [monto, setMonto] = useState('');
   const [metodo, setMetodo] = useState('efectivo');
-  const [tipo, setTipo] = useState('sena');
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
+  // cobro de saldo con pago mixto
+  const [cobro, setCobro] = useState(null); // null | [{monto, metodo}]
 
   const cargar = useCallback(async () => {
     const { data } = await supabase
       .from('ticket_pagos')
       .select('*')
       .eq('ticket_id', ticketId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
     setPagos(data || []);
   }, [ticketId]);
 
@@ -145,88 +150,267 @@ function PagosTicket({ ticketId }) {
     cargar();
   }, [cargar]);
 
-  async function agregar(e) {
+  const abonado = pagos.reduce((s, p) => s + Number(p.monto), 0);
+  const presu = Number(presupuesto) || 0;
+  const saldo = Math.max(0, presu - abonado);
+
+  // registrar una seña suelta (feeds caja + idempotencia)
+  async function agregarSena(e) {
     e.preventDefault();
+    if (ocupado) return;
     setError(null);
     setOcupado(true);
-    const { error: err } = await supabase.from('ticket_pagos').insert({
-      ticket_id: ticketId,
-      tipo,
-      metodo,
-      monto: Number(monto),
-      registrado_por: (await supabase.auth.getUser()).data.user?.id,
+    const { error: err } = await supabase.rpc('registrar_pago_orden', {
+      p_ticket_id: ticketId,
+      p_monto: Number(monto),
+      p_metodo: metodo,
+      p_tipo: 'sena',
+      p_idempotency_key: idemKey(),
     });
     setOcupado(false);
     if (err) return setError(err.message);
     setMonto('');
     cargar();
+    onCambio?.();
   }
 
-  const total = pagos.reduce((s, p) => s + Number(p.monto), 0);
+  // cobrar saldo y entregar (pago mixto atómico)
+  async function cobrarYEntregar() {
+    setError(null);
+    setOcupado(true);
+    const pagosLimpios = cobro
+      .filter((p) => Number(p.monto) > 0)
+      .map((p) => ({ monto: Number(p.monto), metodo: p.metodo }));
+    if (pagosLimpios.length === 0) {
+      setOcupado(false);
+      setError('Ingresá al menos un pago.');
+      return;
+    }
+    const { data, error: err } = await supabase.rpc('cobrar_saldo_y_entregar', {
+      p_ticket_id: ticketId,
+      p_pagos: pagosLimpios,
+      p_idempotency_key: idemKey(),
+      p_entregar: true,
+    });
+    setOcupado(false);
+    if (err) return setError(err.message);
+    setCobro(null);
+    cargar();
+    onCambio?.();
+    if (data?.entregado) {
+      setError(null);
+    }
+  }
+
+  // devolver la seña (equipo no reparado / cliente se lleva el equipo)
+  async function devolverSena() {
+    if (ocupado) return;
+    if (
+      !window.confirm(
+        `¿Devolver ${formatMoney(abonado)} al cliente? Se registra el egreso en la caja.`
+      )
+    )
+      return;
+    setError(null);
+    setOcupado(true);
+    const { error: err } = await supabase.rpc('devolver_sena', {
+      p_ticket_id: ticketId,
+      p_metodo: metodo,
+    });
+    setOcupado(false);
+    if (err) return setError(err.message);
+    cargar();
+    onCambio?.();
+  }
+
+  const totalCobro = (cobro || []).reduce((s, p) => s + (Number(p.monto) || 0), 0);
 
   return (
     <div style={{ marginTop: 24 }}>
-      <h2 style={{ fontSize: '1rem' }}>
-        Señas y pagos{' '}
-        {total > 0 && (
-          <span style={{ color: 'var(--accent)' }}>
-            — abonado {formatMoney(total)}
-          </span>
-        )}
-      </h2>
+      <h2 style={{ fontSize: '1rem' }}>Pagos de la orden</h2>
+
+      {/* Resumen de saldo */}
+      {presu > 0 && (
+        <div className="saldo-box">
+          <div>
+            <span className="lbl2">Presupuesto</span>
+            <strong>{formatMoney(presu)}</strong>
+          </div>
+          <div>
+            <span className="lbl2">Abonado</span>
+            <strong>{formatMoney(abonado)}</strong>
+          </div>
+          <div>
+            <span className="lbl2">Saldo</span>
+            <strong style={{ color: saldo > 0 ? 'var(--warn)' : 'var(--accent)' }}>
+              {formatMoney(saldo)}
+            </strong>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="alert alert-error" style={{ marginTop: 8 }}>
           {error}
         </div>
       )}
+
       {pagos.map((p) => (
         <div className="carrito-item" key={p.id}>
           <div className="info">
             <div>
-              {p.tipo === 'sena' ? 'Seña' : 'Pago'} · {METODOS_PAGO[p.metodo]}
+              {Number(p.monto) < 0 ? 'Devolución' : p.tipo === 'sena' ? 'Seña' : 'Pago'} ·{' '}
+              {METODOS_PAGO[p.metodo]}
             </div>
             <div className="meta">{formatFecha(p.created_at)}</div>
           </div>
-          <div className="subtotal">{formatMoney(p.monto)}</div>
+          <div className="subtotal" style={{ color: Number(p.monto) < 0 ? 'var(--error-soft)' : 'inherit' }}>
+            {formatMoney(p.monto)}
+          </div>
         </div>
       ))}
-      <form onSubmit={agregar} style={{ marginTop: 10 }}>
-        <div className="grid-2">
-          <div className="field">
-            <label>Monto ($)</label>
-            <input
-              required
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label>Tipo</label>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-              <option value="sena">Seña</option>
-              <option value="pago">Pago</option>
-            </select>
-          </div>
-        </div>
-        <div className="field">
-          <label>Método</label>
-          <select value={metodo} onChange={(e) => setMetodo(e.target.value)}>
-            {Object.entries(METODOS_PAGO)
-              .filter(([k]) => !k.startsWith('mercadopago'))
-              .map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
+
+      {/* Cobrar saldo y entregar */}
+      {saldo > 0 && (
+        <div style={{ marginTop: 14 }}>
+          {cobro === null ? (
+            <button
+              className="btn"
+              onClick={() => setCobro([{ monto: saldo, metodo: 'efectivo' }])}
+            >
+              Cobrar saldo y entregar ({formatMoney(saldo)})
+            </button>
+          ) : (
+            <div className="card" style={{ padding: 18 }}>
+              <h2 style={{ fontSize: '0.95rem' }}>Cobrar {formatMoney(saldo)}</h2>
+              <p className="lbl2" style={{ marginBottom: 10 }}>
+                Podés dividir el pago en varios métodos.
+              </p>
+              {cobro.map((p, i) => (
+                <div className="grid-2" key={i} style={{ marginBottom: 8 }}>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={p.monto}
+                      onChange={(e) => {
+                        const c = [...cobro];
+                        c[i] = { ...c[i], monto: e.target.value };
+                        setCobro(c);
+                      }}
+                      placeholder="Monto"
+                    />
+                  </div>
+                  <div className="field" style={{ marginBottom: 0, flexDirection: 'row', gap: 6 }}>
+                    <select
+                      value={p.metodo}
+                      onChange={(e) => {
+                        const c = [...cobro];
+                        c[i] = { ...c[i], metodo: e.target.value };
+                        setCobro(c);
+                      }}
+                    >
+                      {Object.entries(METODOS_PAGO).map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                    {cobro.length > 1 && (
+                      <button
+                        type="button"
+                        className="chip"
+                        onClick={() => setCobro(cobro.filter((_, j) => j !== i))}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
               ))}
-          </select>
+              <button
+                type="button"
+                className="chip"
+                style={{ marginBottom: 12 }}
+                onClick={() => setCobro([...cobro, { monto: '', metodo: 'efectivo' }])}
+              >
+                + Otro método
+              </button>
+              <div className="carrito-total" style={{ padding: '8px 0' }}>
+                <span>Total a cobrar</span>
+                <span>{formatMoney(totalCobro)}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn" onClick={cobrarYEntregar} disabled={ocupado}>
+                  {ocupado ? <span className="spinner" /> : 'Cobrar y entregar'}
+                </button>
+                <button className="btn btn-secondary" onClick={() => setCobro(null)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        <button className="btn btn-secondary btn-sm" disabled={ocupado}>
-          Registrar {tipo === 'sena' ? 'seña' : 'pago'}
-        </button>
-      </form>
+      )}
+
+      {saldo <= 0 && presu > 0 && pagos.length > 0 && (
+        <div className="alert alert-ok" style={{ marginTop: 12 }}>
+          Orden saldada. {abonado > presu ? '' : 'Lista para entregar.'}
+        </div>
+      )}
+
+      {/* Registrar una seña suelta (siempre disponible) */}
+      <details style={{ marginTop: 14 }}>
+        <summary style={{ cursor: 'pointer', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+          Registrar una seña / pago suelto
+        </summary>
+        <form onSubmit={agregarSena} style={{ marginTop: 10 }}>
+          <div className="grid-2">
+            <div className="field">
+              <label>Monto ($)</label>
+              <input
+                required
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>Método</label>
+              <select value={metodo} onChange={(e) => setMetodo(e.target.value)}>
+                {Object.entries(METODOS_PAGO).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button className="btn btn-secondary btn-sm" disabled={ocupado}>
+            {ocupado ? <span className="spinner" /> : 'Registrar seña'}
+          </button>
+        </form>
+
+        {abonado > 0 && (
+          <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <p className="lbl2" style={{ marginBottom: 8 }}>
+              Equipo no reparado: devolvé lo abonado ({formatMoney(abonado)}) por el
+              método seleccionado arriba.
+            </p>
+            <button
+              type="button"
+              className="btn btn-danger btn-sm"
+              onClick={devolverSena}
+              disabled={ocupado}
+            >
+              {ocupado ? <span className="spinner" /> : 'Devolver seña / abonado'}
+            </button>
+          </div>
+        )}
+      </details>
     </div>
   );
 }
@@ -475,7 +659,11 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
 
       <RepuestosTicket ticketId={ticket.id} />
 
-      <PagosTicket ticketId={ticket.id} />
+      <PagosTicket
+        ticketId={ticket.id}
+        presupuesto={ticket.presupuesto}
+        onCambio={onGuardado}
+      />
 
       {actualizaciones.length > 0 && (
         <>

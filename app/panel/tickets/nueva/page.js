@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase, PRIORIDADES } from '@/lib/supabase';
+import { supabase, PRIORIDADES, METODOS_PAGO, formatMoney } from '@/lib/supabase';
 
 const DISPOSITIVOS = ['Celular', 'Tablet', 'Notebook', 'PC de escritorio', 'Consola', 'Otro'];
 
@@ -31,6 +31,8 @@ export default function NuevaOrdenPage() {
     equipo_password: '',
     presupuesto: '',
     prioridad: 'normal',
+    sena: '',
+    sena_metodo: 'efectivo',
   });
 
   const [error, setError] = useState(null);
@@ -158,6 +160,8 @@ export default function NuevaOrdenPage() {
         p_presupuesto: equipo.presupuesto === '' ? null : Number(equipo.presupuesto),
         p_cliente_id: clienteId,
         p_equipo_password: equipo.equipo_password,
+        p_sena: equipo.sena === '' ? null : Number(equipo.sena),
+        p_sena_metodo: equipo.sena_metodo,
       });
       if (err) throw new Error(err.message);
       router.push(`/panel/imprimir/${data.id}`);
@@ -343,6 +347,45 @@ export default function NuevaOrdenPage() {
                 placeholder="Qué le pasa, desde cuándo, estado en que se recibe (rayones, golpes, si enciende)..."
               />
             </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h2>3 · Seña (opcional)</h2>
+            <p className="lbl2" style={{ marginBottom: 12 }}>
+              Si el cliente deja una seña al dejar el equipo, registrala acá. El
+              saldo se cobra al entregar. Entra a la caja del turno.
+            </p>
+            <div className="grid-2">
+              <div className="field">
+                <label>Monto de la seña ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={equipo.sena}
+                  onChange={setEq('sena')}
+                  placeholder="0"
+                />
+              </div>
+              <div className="field">
+                <label>Método de la seña</label>
+                <select value={equipo.sena_metodo} onChange={setEq('sena_metodo')}>
+                  {Object.entries(METODOS_PAGO).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {equipo.presupuesto && equipo.sena && (
+              <p className="lbl2">
+                Saldo al entregar:{' '}
+                <strong style={{ color: 'var(--accent)' }}>
+                  {formatMoney(Math.max(0, Number(equipo.presupuesto) - Number(equipo.sena)))}
+                </strong>
+              </p>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>

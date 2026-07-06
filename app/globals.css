@@ -1028,6 +1028,35 @@ textarea {
   color: var(--text-dim);
 }
 
+/* Resumen de saldo en pagos de la orden */
+.saldo-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 10px 0 4px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.saldo-box > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.saldo-box .lbl2 {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.saldo-box strong {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+}
+
 .card-head {
   display: flex;
   align-items: baseline;

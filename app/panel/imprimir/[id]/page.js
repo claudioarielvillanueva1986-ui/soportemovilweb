@@ -65,6 +65,14 @@ function Talon({ tipo, ticket, negocio, config, senas }) {
             {formatMoney(senas)}
           </div>
         )}
+        {config?.mostrar_montos &&
+          ticket.presupuesto != null &&
+          Number(ticket.presupuesto) - senas > 0 && (
+            <div>
+              <span className="comp-lbl">Saldo pendiente</span>
+              {formatMoney(Number(ticket.presupuesto) - senas)}
+            </div>
+          )}
       </div>
 
       <div className="comp-falla">
