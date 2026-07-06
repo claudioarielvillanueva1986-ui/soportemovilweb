@@ -178,6 +178,95 @@ function TarjetaFactura({ negocio, esDueno }) {
   );
 }
 
+function TarjetaCuenta() {
+  const [emailActual, setEmailActual] = useState('');
+  const [nuevoEmail, setNuevoEmail] = useState('');
+  const [nuevaClave, setNuevaClave] = useState('');
+  const [aviso, setAviso] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmailActual(data?.user?.email || ''));
+  }, []);
+
+  async function cambiarEmail(e) {
+    e.preventDefault();
+    setAviso(null);
+    setOcupado(true);
+    const { error } = await supabase.auth.updateUser({ email: nuevoEmail.trim() });
+    setOcupado(false);
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else {
+      setAviso({
+        tipo: 'ok',
+        texto: `Te enviamos un email a ${nuevoEmail.trim()} para confirmar el cambio. El email nuevo queda activo recién cuando confirmás desde ese link.`,
+      });
+      setNuevoEmail('');
+    }
+  }
+
+  async function cambiarClave(e) {
+    e.preventDefault();
+    setAviso(null);
+    setOcupado(true);
+    const { error } = await supabase.auth.updateUser({ password: nuevaClave });
+    setOcupado(false);
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else {
+      setAviso({ tipo: 'ok', texto: 'Contraseña actualizada.' });
+      setNuevaClave('');
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2>Mi cuenta</h2>
+      {aviso && (
+        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>
+          {aviso.texto}
+        </div>
+      )}
+
+      <form onSubmit={cambiarEmail}>
+        <div className="field">
+          <label>Email de acceso</label>
+          <input
+            type="email"
+            required
+            value={nuevoEmail}
+            onChange={(e) => setNuevoEmail(e.target.value)}
+            placeholder={emailActual || 'tu@email.com'}
+          />
+          {emailActual && (
+            <small style={{ color: 'var(--text-dim)', fontSize: '0.76rem' }}>
+              Actual: {emailActual}
+            </small>
+          )}
+        </div>
+        <button className="btn btn-secondary btn-sm" disabled={ocupado}>
+          {ocupado ? <span className="spinner" /> : 'Cambiar email'}
+        </button>
+      </form>
+
+      <form onSubmit={cambiarClave} style={{ marginTop: 18, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+        <div className="field">
+          <label>Nueva contraseña (mínimo 6)</label>
+          <input
+            type="password"
+            required
+            minLength={6}
+            value={nuevaClave}
+            onChange={(e) => setNuevaClave(e.target.value)}
+          />
+        </div>
+        <button className="btn btn-secondary btn-sm" disabled={ocupado}>
+          {ocupado ? <span className="spinner" /> : 'Cambiar contraseña'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function TarjetaNotificaciones() {
   const [estado, setEstado] = useState('cargando'); // cargando | off | on | nosoporta
   const [aviso, setAviso] = useState(null);
@@ -388,7 +477,10 @@ export default function ConfigPage() {
         <TarjetaFactura negocio={negocio} esDueno={esDueno} />
         <TarjetaComprobantes esDueno={esDueno} />
       </div>
-      <TarjetaNotificaciones />
+      <div className="grid-2" style={{ alignItems: 'start' }}>
+        <TarjetaCuenta />
+        <TarjetaNotificaciones />
+      </div>
     </main>
   );
 }

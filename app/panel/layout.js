@@ -42,9 +42,11 @@ const GRUPOS = [
 ];
 
 function Login() {
+  const [modo, setModo] = useState('login'); // login | recuperar
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [aviso, setAviso] = useState(null);
   const [cargando, setCargando] = useState(false);
 
   async function entrar(e) {
@@ -59,6 +61,23 @@ function Login() {
     if (err) setError('Credenciales incorrectas.');
   }
 
+  async function recuperar(e) {
+    e.preventDefault();
+    setError(null);
+    setAviso(null);
+    if (!email.trim()) return setError('Ingresá tu email.');
+    setCargando(true);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/panel`,
+    });
+    setCargando(false);
+    if (err) setError(err.message);
+    else
+      setAviso(
+        `Si ${email.trim()} tiene una cuenta, te enviamos un email para restablecer la contraseña.`
+      );
+  }
+
   return (
     <main>
       <div className="hero">
@@ -69,28 +88,124 @@ function Login() {
       </div>
       <div className="card" style={{ maxWidth: 420, margin: '0 auto' }}>
         {error && <div className="alert alert-error">{error}</div>}
-        <form onSubmit={entrar}>
+        {aviso && <div className="alert alert-ok">{aviso}</div>}
+
+        {modo === 'login' ? (
+          <>
+            <form onSubmit={entrar}>
+              <div className="field">
+                <label>Email</label>
+                <input
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="usuario@soportemovil.com.ar"
+                />
+              </div>
+              <div className="field">
+                <label>Contraseña</label>
+                <input
+                  required
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <button className="btn" style={{ width: '100%' }} disabled={cargando}>
+                {cargando ? <span className="spinner" /> : 'Ingresar'}
+              </button>
+            </form>
+            <p style={{ textAlign: 'center', marginTop: 14, fontSize: '0.85rem' }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setModo('recuperar');
+                  setError(null);
+                  setAviso(null);
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </a>
+            </p>
+          </>
+        ) : (
+          <>
+            <form onSubmit={recuperar}>
+              <div className="field">
+                <label>Email de tu cuenta</label>
+                <input
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                />
+              </div>
+              <button className="btn" style={{ width: '100%' }} disabled={cargando}>
+                {cargando ? <span className="spinner" /> : 'Enviar link de recuperación'}
+              </button>
+            </form>
+            <p style={{ textAlign: 'center', marginTop: 14, fontSize: '0.85rem' }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setModo('login');
+                  setError(null);
+                  setAviso(null);
+                }}
+              >
+                ← Volver a ingresar
+              </a>
+            </p>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
+
+// Pantalla para fijar una contraseña nueva tras el link de recuperación.
+function NuevaClave({ onListo }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const [cargando, setCargando] = useState(false);
+
+  async function guardar(e) {
+    e.preventDefault();
+    setError(null);
+    setCargando(true);
+    const { error: err } = await supabase.auth.updateUser({ password });
+    setCargando(false);
+    if (err) setError(err.message);
+    else onListo();
+  }
+
+  return (
+    <main>
+      <div className="hero">
+        <h1>
+          Nueva <em>contraseña</em>
+        </h1>
+        <p>Elegí una contraseña nueva para tu cuenta.</p>
+      </div>
+      <div className="card" style={{ maxWidth: 420, margin: '0 auto' }}>
+        {error && <div className="alert alert-error">{error}</div>}
+        <form onSubmit={guardar}>
           <div className="field">
-            <label>Email</label>
-            <input
-              required
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="usuario@soportemovil.com.ar"
-            />
-          </div>
-          <div className="field">
-            <label>Contraseña</label>
+            <label>Contraseña nueva (mínimo 6)</label>
             <input
               required
               type="password"
+              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
           <button className="btn" style={{ width: '100%' }} disabled={cargando}>
-            {cargando ? <span className="spinner" /> : 'Ingresar'}
+            {cargando ? <span className="spinner" /> : 'Guardar contraseña'}
           </button>
         </form>
       </div>
@@ -103,13 +218,15 @@ export default function PanelLayout({ children }) {
   const [perfil, setPerfil] = useState(null);
   const [negocio, setNegocio] = useState(null);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSesion(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_ev, s) =>
-      setSesion(s)
-    );
+    const { data: sub } = supabase.auth.onAuthStateChange((ev, s) => {
+      if (ev === 'PASSWORD_RECOVERY') setRecuperando(true);
+      setSesion(s);
+    });
     registrarSW().catch(() => {});
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -151,6 +268,8 @@ export default function PanelLayout({ children }) {
   if (sesion === undefined) {
     return <PantallaCarga />;
   }
+
+  if (recuperando) return <NuevaClave onListo={() => setRecuperando(false)} />;
 
   if (!sesion) return <Login />;
 
