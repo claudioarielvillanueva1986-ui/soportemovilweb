@@ -448,6 +448,132 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
   );
 }
 
+// Reduce una imagen a máx 1280px y la comprime a JPEG (subidas livianas en móvil)
+async function comprimirImagen(file) {
+  if (!file.type?.startsWith('image/')) return file;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = document.createElement('img');
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = rej;
+      img.src = url;
+    });
+    const MAX = 1280;
+    let { width, height } = img;
+    if (width > MAX || height > MAX) {
+      const r = Math.min(MAX / width, MAX / height);
+      width = Math.round(width * r);
+      height = Math.round(height * r);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    URL.revokeObjectURL(url);
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.82));
+    return blob || file;
+  } catch {
+    return file;
+  }
+}
+
+// Fotos del equipo al ingreso (evidencia de estado). Cámara en móvil.
+function FotosTicket({ ticketId }) {
+  const [fotos, setFotos] = useState([]);
+  const [negocioId, setNegocioId] = useState(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [error, setError] = useState(null);
+
+  const cargar = useCallback(async () => {
+    const { data } = await supabase
+      .from('ticket_fotos')
+      .select('id, path, url, created_at')
+      .eq('ticket_id', ticketId)
+      .order('created_at');
+    setFotos(data || []);
+  }, [ticketId]);
+
+  useEffect(() => {
+    cargar();
+    supabase.from('negocios').select('id').maybeSingle().then(({ data }) => setNegocioId(data?.id || null));
+  }, [cargar]);
+
+  async function subir(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length || !negocioId) return;
+    setError(null);
+    setSubiendo(true);
+    for (const file of files) {
+      try {
+        const blob = await comprimirImagen(file);
+        const path = `${negocioId}/${ticketId}/${crypto.randomUUID()}.jpg`;
+        const { error: errUp } = await supabase.storage
+          .from('ordenes-fotos')
+          .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if (errUp) throw new Error(errUp.message);
+        const url = supabase.storage.from('ordenes-fotos').getPublicUrl(path).data.publicUrl;
+        const { error: errRpc } = await supabase.rpc('registrar_foto_ticket', {
+          p_ticket_id: ticketId,
+          p_path: path,
+          p_url: url,
+        });
+        if (errRpc) throw new Error(errRpc.message);
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+    setSubiendo(false);
+    cargar();
+  }
+
+  async function eliminar(foto) {
+    if (!window.confirm('¿Eliminar esta foto?')) return;
+    const { data: path, error: errRpc } = await supabase.rpc('eliminar_foto_ticket', { p_id: foto.id });
+    if (errRpc) return setError(errRpc.message);
+    if (path) await supabase.storage.from('ordenes-fotos').remove([path]);
+    cargar();
+  }
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <h2 style={{ fontSize: '1rem' }}>Fotos del equipo</h2>
+      {error && (
+        <div className="alert alert-error" style={{ marginTop: 8 }}>
+          {error}
+        </div>
+      )}
+      {fotos.length > 0 && (
+        <div className="fotos-grid">
+          {fotos.map((f) => (
+            <div className="foto-item" key={f.id}>
+              <a href={f.url} target="_blank" rel="noreferrer">
+                <img src={f.url} alt="Foto del equipo" loading="lazy" />
+              </a>
+              <button className="foto-del" onClick={() => eliminar(f)} aria-label="Eliminar">
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <label className="btn btn-secondary btn-sm" style={{ marginTop: 10, display: 'inline-flex', cursor: 'pointer' }}>
+        {subiendo ? <span className="spinner" /> : '+ Agregar fotos'}
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple
+          onChange={subir}
+          disabled={subiendo}
+          style={{ display: 'none' }}
+        />
+      </label>
+    </div>
+  );
+}
+
 // Rentabilidad de la orden (solo dueño): presupuesto − costo repuestos − costo extra
 function CostosOrden({ ticketId }) {
   const [m, setM] = useState(null);
@@ -859,6 +985,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       <button className="btn" onClick={guardar} disabled={guardando}>
         {guardando ? <span className="spinner" /> : 'Guardar cambios'}
       </button>
+
+      <FotosTicket ticketId={ticket.id} />
 
       <RepuestosTicket ticketId={ticket.id} />
 
