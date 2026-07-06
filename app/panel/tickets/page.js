@@ -11,6 +11,38 @@ import {
 } from '@/lib/supabase';
 import { linkAvisoWhatsApp } from '@/lib/whatsapp';
 
+// Etiquetas disponibles para las órdenes (color por etiqueta)
+const ETIQUETAS = [
+  ['Urgente', '#ef4444'],
+  ['Garantía', '#3b82f6'],
+  ['Esperando repuesto', '#f59e0b'],
+  ['Avisar cliente', '#8b5cf6'],
+  ['Presupuestada', '#22c55e'],
+];
+const COLOR_ETIQUETA = Object.fromEntries(ETIQUETAS);
+
+function ChipsEtiquetas({ etiquetas }) {
+  if (!etiquetas?.length) return null;
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+      {etiquetas.map((tag) => (
+        <span
+          key={tag}
+          className="badge"
+          style={{
+            background: `${COLOR_ETIQUETA[tag] || '#64748b'}22`,
+            color: COLOR_ETIQUETA[tag] || '#64748b',
+            border: `1px solid ${COLOR_ETIQUETA[tag] || '#64748b'}55`,
+            fontSize: '0.72rem',
+          }}
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function RepuestosTicket({ ticketId }) {
   const [items, setItems] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -437,6 +469,9 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [actualizaciones, setActualizaciones] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState(null);
+  const [equipo, setEquipo] = useState([]);
+  const [tecnicoId, setTecnicoId] = useState(ticket.tecnico_id || '');
+  const [etiquetas, setEtiquetas] = useState(ticket.etiquetas || []);
 
   useEffect(() => {
     supabase
@@ -450,7 +485,34 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       .select('nombre')
       .maybeSingle()
       .then(({ data }) => setNegocioNombre(data?.nombre || ''));
+    supabase.rpc('equipo_negocio').then(({ data }) => setEquipo(data || []));
   }, [ticket.id]);
+
+  async function asignarTecnico(nuevo) {
+    setTecnicoId(nuevo);
+    const { error } = await supabase.rpc('asignar_tecnico', {
+      p_ticket_id: ticket.id,
+      p_tecnico_id: nuevo || null,
+    });
+    if (error) {
+      setTecnicoId(ticket.tecnico_id || '');
+      setAviso({ tipo: 'error', texto: error.message });
+    } else {
+      onGuardado();
+    }
+  }
+
+  async function alternarEtiqueta(tag) {
+    const { data, error } = await supabase.rpc('toggle_etiqueta', {
+      p_ticket_id: ticket.id,
+      p_tag: tag,
+    });
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else {
+      setEtiquetas(data || []);
+      onGuardado();
+    }
+  }
 
   const waLink = linkAvisoWhatsApp({
     ticket: { ...ticket, estado, presupuesto: presupuesto === '' ? null : Number(presupuesto) },
@@ -589,6 +651,45 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         {ticket.descripcion}
       </p>
 
+      <div className="grid-2" style={{ marginTop: 14 }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Técnico asignado</label>
+          <select value={tecnicoId} onChange={(e) => asignarTecnico(e.target.value)}>
+            <option value="">Sin asignar</option>
+            {equipo.map((p) => (
+              <option key={p.user_id} value={p.user_id}>
+                {p.nombre}
+                {p.rol === 'dueno' ? ' (dueño)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Etiquetas</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {ETIQUETAS.map(([tag, color]) => {
+              const activa = etiquetas.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  className="chip"
+                  onClick={() => alternarEtiqueta(tag)}
+                  style={{
+                    background: activa ? `${color}22` : 'transparent',
+                    color: activa ? color : 'var(--text-dim)',
+                    borderColor: activa ? `${color}88` : 'var(--border)',
+                  }}
+                >
+                  {activa ? '✓ ' : ''}
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {aviso && (
         <div
           className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}
@@ -693,7 +794,12 @@ export default function TicketsPage() {
   const [limite, setLimite] = useState(100);
   const [totalServer, setTotalServer] = useState(0);
   const [stats, setStats] = useState({ total: 0, abiertos: 0, nuevo: 0, en_reparacion: 0, listo: 0 });
+  const [userId, setUserId] = useState(null);
   const timerRef = useRef(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data?.user?.id || null));
+  }, []);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -703,7 +809,9 @@ export default function TicketsPage() {
       .order('created_at', { ascending: false })
       .range(0, limite - 1);
     if (filtro === 'abiertos') q = q.not('estado', 'in', '(entregado,cancelado)');
-    else if (filtro !== 'todos') q = q.eq('estado', filtro);
+    else if (filtro === 'mias') {
+      if (userId) q = q.eq('tecnico_id', userId);
+    } else if (filtro !== 'todos') q = q.eq('estado', filtro);
     if (busqueda.trim()) {
       const t = busqueda.trim().replace(/[%,()]/g, '');
       q = q.or(
@@ -714,7 +822,7 @@ export default function TicketsPage() {
     setTickets(data || []);
     setTotalServer(count || 0);
     setCargando(false);
-  }, [filtro, busqueda, limite]);
+  }, [filtro, busqueda, limite, userId]);
 
   const cargarStats = useCallback(async () => {
     const contar = (mod) => {
@@ -822,6 +930,7 @@ export default function TicketsPage() {
       <div className="filters">
         {[
           ['abiertos', 'Abiertos'],
+          ['mias', 'Mías'],
           ['todos', 'Todos'],
           ...Object.entries(ESTADOS).map(([k, v]) => [k, v.label]),
         ].map(([k, label]) => (
@@ -868,6 +977,7 @@ export default function TicketsPage() {
                 {t.marca_modelo ? ` (${t.marca_modelo})` : ''}
               </div>
               <div className="meta">{formatFecha(t.created_at)}</div>
+              <ChipsEtiquetas etiquetas={t.etiquetas} />
             </div>
             <BadgeEstado estado={t.estado} />
           </div>
