@@ -41,6 +41,8 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  /* Evita el scroll horizontal accidental (cortes al borde en móvil) */
+  overflow-x: hidden;
 }
 
 /* ---------- Scrollbars (acordes al tema oscuro) ---------- */
@@ -935,6 +937,10 @@ textarea {
   .sidebar {
     display: none;
   }
+  /* 16px evita que iOS haga zoom al enfocar cualquier campo */
+  input,
+  select,
+  textarea,
   .buscador input {
     font-size: 16px;
   }

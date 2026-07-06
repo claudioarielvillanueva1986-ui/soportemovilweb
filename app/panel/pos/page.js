@@ -520,7 +520,7 @@ export default function PosPage() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               onKeyDown={escanear}
-              placeholder="Escaneá el código de barras o buscá por nombre (Enter agrega)..."
+              placeholder="Buscá o escaneá un producto…"
             />
           </div>
           <div className="filters" style={{ marginBottom: 12 }}>
