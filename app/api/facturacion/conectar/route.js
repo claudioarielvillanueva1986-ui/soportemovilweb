@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { firmarEstado } from '@/lib/mp-server';
-import { facturaConfigurado, facturaUrl, SCOPES_FACTURA } from '@/lib/factura-server';
+import { facturaConfigurado, facturaUrl, appPublicUrl, SCOPES_FACTURA } from '@/lib/factura-server';
 import { errorJson } from '@/lib/mp-server';
 
 // Inicia la conexión con Facturá (OAuth de partner).
@@ -32,7 +32,9 @@ export async function GET(request) {
     return errorJson('No tenés permiso para conectar Facturá a este negocio.', 403);
   }
 
-  const redirectUri = `${url.origin}/api/facturacion/callback`;
+  // redirect_uri FIJO (producción), no el origin del deploy — así coincide con
+  // el whitelisteado en Facturá aunque se entre desde un preview/branch.
+  const redirectUri = `${appPublicUrl()}/api/facturacion/callback`;
   const auth = new URL(`${facturaUrl()}/oauth/autorizar`);
   auth.searchParams.set('client_id', process.env.FACTURA_CLIENT_ID);
   auth.searchParams.set('response_type', 'code');

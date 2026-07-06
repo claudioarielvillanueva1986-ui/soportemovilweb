@@ -4,6 +4,7 @@ import {
   canjearCodigoFactura,
   guardarConexionFactura,
   sincronizarEntitlement,
+  appPublicUrl,
 } from '@/lib/factura-server';
 
 // Vuelta del OAuth de Facturá: canjea el code por los tokens del partner,
@@ -23,7 +24,8 @@ export async function GET(request) {
   if (!code || !negocioId) return volver('?factura=error&detalle=estado-invalido');
 
   try {
-    const redirectUri = `${url.origin}/api/facturacion/callback`;
+    // Debe ser IDÉNTICO al usado en /conectar (URL fija de producción)
+    const redirectUri = `${appPublicUrl()}/api/facturacion/callback`;
     const tokens = await canjearCodigoFactura(code, redirectUri);
     await guardarConexionFactura(negocioId, tokens);
     await sincronizarEntitlement(negocioId);
