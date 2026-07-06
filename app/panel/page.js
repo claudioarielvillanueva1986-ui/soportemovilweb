@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase, ESTADOS, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 import { PantallaCarga } from '@/components/cargando';
+import { Icon } from '@/components/icons';
 
 const AVATAR_COLORES = ['#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#22c55e', '#8b5cf6'];
 const DIAS = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
@@ -78,10 +79,7 @@ export default function DashboardPage() {
       {/* Encabezado: saludo + campana + avatar */}
       <div className="cl-top">
         <div className="cl-bell">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
+          <Icon name="bell" size={20} />
           {datos.tickets_abiertos > 0 && (
             <span className="cl-bell-badge">{datos.tickets_abiertos}</span>
           )}
@@ -98,7 +96,7 @@ export default function DashboardPage() {
         <div className="cl-hero-top">
           <span className="cl-hero-lbl">Facturación de hoy</span>
           <button className="cl-eye" onClick={() => setOcultarMonto((v) => !v)} aria-label="Mostrar/ocultar">
-            {ocultarMonto ? '•••' : '👁'}
+            <Icon name={ocultarMonto ? 'eyeOff' : 'eye'} size={18} />
           </button>
         </div>
         <div className="cl-hero-monto">
@@ -119,19 +117,19 @@ export default function DashboardPage() {
       {/* Fila de accesos con íconos circulares (nav estilo CLOOP) */}
       <div className="cl-nav">
         <Link href="/panel/pos" className="cl-nav-btn cl-nav-primary" title="Vender">
-          <span>＋</span>
+          <Icon name="pos" size={22} />
           <small>Vender</small>
         </Link>
         <Link href="/panel/tickets/nueva" className="cl-nav-btn" title="Nueva orden">
-          <span>🔧</span>
+          <Icon name="ordenes" size={22} />
           <small>Orden</small>
         </Link>
         <Link href="/panel/caja" className="cl-nav-btn" title="Caja">
-          <span>💵</span>
+          <Icon name="caja" size={22} />
           <small>Caja</small>
         </Link>
         <Link href="/panel/reportes" className="cl-nav-btn" title="Reportes">
-          <span>📈</span>
+          <Icon name="reportes" size={22} />
           <small>Reportes</small>
         </Link>
       </div>

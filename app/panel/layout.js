@@ -8,34 +8,35 @@ import { PerfilContext } from '@/lib/panel-context';
 import { registrarSW } from '@/lib/push';
 import { BuscadorGlobal } from '@/components/buscador';
 import { PantallaCarga } from '@/components/cargando';
+import { Icon } from '@/components/icons';
 
 const GRUPOS = [
   {
     titulo: 'Operación',
     links: [
-      ['/panel', 'Dashboard'],
-      ['/panel/pos', 'POS'],
-      ['/panel/ventas', 'Ventas'],
-      ['/panel/tickets', 'Órdenes'],
-      ['/panel/caja', 'Caja'],
-      ['/panel/clientes', 'Clientes'],
+      ['/panel', 'Dashboard', 'dashboard'],
+      ['/panel/pos', 'POS', 'pos'],
+      ['/panel/ventas', 'Ventas', 'ventas'],
+      ['/panel/tickets', 'Órdenes', 'ordenes'],
+      ['/panel/caja', 'Caja', 'caja'],
+      ['/panel/clientes', 'Clientes', 'clientes'],
     ],
   },
   {
     titulo: 'Catálogo',
-    links: [['/panel/inventario', 'Inventario']],
+    links: [['/panel/inventario', 'Inventario', 'inventario']],
   },
   {
     titulo: 'Análisis',
     soloDueno: true,
-    links: [['/panel/reportes', 'Reportes']],
+    links: [['/panel/reportes', 'Reportes', 'reportes']],
   },
   {
     titulo: 'Cuenta',
     links: [
-      ['/panel/config', 'Configuración'],
-      ['/panel/importar', 'Importar datos'],
-      ['/panel/plan', 'Mi plan'],
+      ['/panel/config', 'Configuración', 'config'],
+      ['/panel/importar', 'Importar datos', 'importar'],
+      ['/panel/plan', 'Mi plan', 'plan'],
     ],
   },
 ];
@@ -101,6 +102,7 @@ export default function PanelLayout({ children }) {
   const [sesion, setSesion] = useState(undefined);
   const [perfil, setPerfil] = useState(null);
   const [negocio, setNegocio] = useState(null);
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -111,6 +113,11 @@ export default function PanelLayout({ children }) {
     registrarSW().catch(() => {});
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // cerrar el drawer al navegar
+  useEffect(() => {
+    setMenuAbierto(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!sesion) {
@@ -147,69 +154,108 @@ export default function PanelLayout({ children }) {
 
   if (!sesion) return <Login />;
 
-  return (
-    <PerfilContext.Provider
-      value={{ perfil, esDueno: perfil?.rol === 'dueno' }}
-    >
-      <div className="panel-shell">
-        <aside className="sidebar">
-          <div className="sidebar-brand">
-            <div className="brand-name">
-              Soporte <span>Móvil</span>
-            </div>
-            <div className="brand-sub">Sistema de gestión</div>
-            {negocio && (
-              <div className="brand-negocio">
-                {negocio.nombre}
-                {diasTrial !== null && (
-                  <span className="pill" style={{ color: 'var(--warn)', borderColor: 'var(--warn)', marginLeft: 8 }}>
-                    Prueba: {diasTrial} días
-                  </span>
-                )}
-              </div>
+  const gruposVisibles = GRUPOS.filter(
+    (g) => !g.soloDueno || perfil?.rol === 'dueno'
+  );
+
+  const contenidoSidebar = (
+    <>
+      <div className="sidebar-brand">
+        <div className="brand-name">
+          Soporte <span>Móvil</span>
+        </div>
+        <div className="brand-sub">Sistema de gestión</div>
+        {negocio && (
+          <div className="brand-negocio">
+            {negocio.nombre}
+            {diasTrial !== null && (
+              <span className="pill" style={{ color: 'var(--warn)', borderColor: 'var(--warn)', marginLeft: 8 }}>
+                Prueba: {diasTrial} días
+              </span>
             )}
           </div>
+        )}
+      </div>
 
-          <BuscadorGlobal />
+      <BuscadorGlobal />
 
-          <div className="sidebar-nav-scroll">
-            {GRUPOS.filter(
-              (g) => !g.soloDueno || perfil?.rol === 'dueno'
-            ).map((g) => (
-              <div className="sidebar-group" key={g.titulo}>
-                <div className="sidebar-titulo">{g.titulo}</div>
-                {g.links.map(([href, label]) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={`side-link ${pathname === href ? 'active' : ''}`}
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </div>
+      <nav className="sidebar-nav">
+        {gruposVisibles.map((g) => (
+          <div className="sidebar-group" key={g.titulo}>
+            <div className="sidebar-titulo">{g.titulo}</div>
+            {g.links.map(([href, label, icono]) => (
+              <Link
+                key={href}
+                href={href}
+                className={`side-link ${pathname === href ? 'active' : ''}`}
+              >
+                <Icon name={icono} size={18} />
+                <span>{label}</span>
+              </Link>
             ))}
           </div>
+        ))}
+      </nav>
 
-          <div className="sidebar-user">
-            <div className="user-chip">
-              <span className="user-avatar">
-                {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
-              </span>
-              <span>
-                <strong>{perfil?.nombre || '...'}</strong>
-                <small>{perfil?.rol === 'dueno' ? 'Dueño' : 'Operador'}</small>
-              </span>
-            </div>
+      <div className="sidebar-user">
+        <div className="user-chip">
+          <span className="user-avatar">
+            {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
+          </span>
+          <span>
+            <strong>{perfil?.nombre || '...'}</strong>
+            <small>{perfil?.rol === 'dueno' ? 'Dueño' : 'Operador'}</small>
+          </span>
+        </div>
+        <button
+          className="btn btn-secondary btn-sm"
+          style={{ width: '100%' }}
+          onClick={() => supabase.auth.signOut()}
+        >
+          <Icon name="logout" size={16} />
+          Cerrar sesión
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <PerfilContext.Provider value={{ perfil, esDueno: perfil?.rol === 'dueno' }}>
+      {/* Barra superior — solo móvil */}
+      <div className="topbar">
+        <button
+          className="topbar-btn"
+          onClick={() => setMenuAbierto(true)}
+          aria-label="Abrir menú"
+        >
+          <Icon name="menu" size={22} />
+        </button>
+        <div className="topbar-brand">
+          Soporte <span>Móvil</span>
+        </div>
+        <span className="user-avatar">
+          {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
+        </span>
+      </div>
+
+      {/* Drawer móvil */}
+      {menuAbierto && (
+        <div className="drawer-overlay" onClick={() => setMenuAbierto(false)}>
+          <aside className="drawer" onClick={(e) => e.stopPropagation()}>
             <button
-              className="btn btn-secondary btn-sm"
-              style={{ width: '100%' }}
-              onClick={() => supabase.auth.signOut()}
+              className="drawer-close"
+              onClick={() => setMenuAbierto(false)}
+              aria-label="Cerrar menú"
             >
-              Cerrar sesión
+              <Icon name="close" size={22} />
             </button>
-          </div>
-        </aside>
+            {contenidoSidebar}
+          </aside>
+        </div>
+      )}
+
+      <div className="panel-shell">
+        <aside className="sidebar">{contenidoSidebar}</aside>
 
         <div className="panel-main">
           {negocio &&
