@@ -4,15 +4,16 @@ import {
   canjearCodigoFactura,
   guardarConexionFactura,
   sincronizarEntitlement,
-  appPublicUrl,
+  baseRedirect,
 } from '@/lib/factura-server';
 
 // Vuelta del OAuth de Facturá: canjea el code por los tokens del partner,
 // los guarda contra el negocio y —si el combo está activo— habilita la cuenta
-// de Facturá. Luego vuelve a Configuración.
+// de Facturá. Luego vuelve a Configuración (mismo dominio, para no perder sesión).
 export async function GET(request) {
   const url = new URL(request.url);
-  const volver = (extra) => Response.redirect(`${url.origin}/panel/config${extra}`, 302);
+  const base = baseRedirect(url.origin);
+  const volver = (extra) => Response.redirect(`${base}/panel/config${extra}`, 302);
 
   if (!facturaConfigurado()) return volver('?factura=error&detalle=sin-credenciales');
 
@@ -24,8 +25,8 @@ export async function GET(request) {
   if (!code || !negocioId) return volver('?factura=error&detalle=estado-invalido');
 
   try {
-    // Debe ser IDÉNTICO al usado en /conectar (URL fija de producción)
-    const redirectUri = `${appPublicUrl()}/api/facturacion/callback`;
+    // Debe ser IDÉNTICO al usado en /conectar (mismo dominio de producción)
+    const redirectUri = `${base}/api/facturacion/callback`;
     const tokens = await canjearCodigoFactura(code, redirectUri);
     await guardarConexionFactura(negocioId, tokens);
     await sincronizarEntitlement(negocioId);
