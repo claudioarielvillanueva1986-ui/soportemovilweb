@@ -90,7 +90,10 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
   RPCs `tienda_publica`/`crear_pedido_tienda`/`pedido_estado`. Página pública `/tienda/[slug]`
   (catálogo con fotos, carrito, checkout → pedido + WhatsApp), panel `/panel/tienda` (config) y
   `/panel/pedidos` (gestión de estados), toggle "Publicar en la tienda" en Inventario.
-- ⬜ **H2 — pago online con Mercado Pago** en el checkout (reactivar MP / ruteo del cobro).
+- ✅ **H2 — pago online con Mercado Pago** vía Facturá: `pedidos_tienda.cobro_id` + RPCs con secreto
+  (`pedido_para_pago`/`pedido_set_cobro`/`pedido_marcar_pagado`); rutas públicas `/api/tienda/pagar`
+  (crea el cobro con `facturaFetch → /api/partners/cobros`) y `/api/tienda/pago-estado` (polling que marca
+  pagado); botón "Pagar online" en el checkout con polling. Requiere el MP del taller conectado en Facturá.
 - ⬜ Reseñas de producto, catálogo Meta (CSV/JSON), gremio mayorista (B2B), dominios propios.
 
 ### Fase I — extras y pulido

@@ -15,6 +15,10 @@ export default function TiendaPage() {
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [pedido, setPedido] = useState(null);
+  const [pagando, setPagando] = useState(false);
+  const [pagado, setPagado] = useState(false);
+  const [pollPago, setPollPago] = useState(false);
+  const [pagoErr, setPagoErr] = useState(null);
 
   useEffect(() => {
     supabase.rpc('tienda_publica', { p_slug: slug }).then(({ data }) => setData(data ?? null));
@@ -57,6 +61,42 @@ export default function TiendaPage() {
     setCart([]);
   }
 
+  async function pagarOnline() {
+    setPagoErr(null);
+    setPagando(true);
+    try {
+      const res = await fetch('/api/tienda/pagar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: pedido.id }),
+      });
+      const d = await res.json();
+      if (d.ya_pagado) { setPagado(true); return; }
+      if (!res.ok || !d.init_point) { setPagoErr(d.error || 'No se pudo iniciar el pago.'); return; }
+      window.open(d.init_point, '_blank');
+      setPollPago(true);
+    } catch (e) {
+      setPagoErr(e.message);
+    } finally {
+      setPagando(false);
+    }
+  }
+
+  // Poll del estado del pago mientras el cliente paga en la otra pestaña
+  useEffect(() => {
+    if (!pollPago || !pedido || pagado) return;
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/tienda/pago-estado?pedido_id=${pedido.id}`);
+        const d = await res.json();
+        if (d.pagado) { setPagado(true); setPollPago(false); }
+      } catch {
+        /* reintenta */
+      }
+    }, 4000);
+    return () => clearInterval(t);
+  }, [pollPago, pedido, pagado]);
+
   if (data === undefined) return <PantallaCarga />;
   if (data === null) {
     return <main><div className="card" style={{ maxWidth: 460, margin: '40px auto', textAlign: 'center' }}><h2>Tienda no encontrada</h2></div></main>;
@@ -74,17 +114,33 @@ export default function TiendaPage() {
     return (
       <main>
         <div className="card" style={{ maxWidth: 460, margin: '40px auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 46 }}>🛍️</div>
-          <h2>¡Pedido #{pedido.numero} recibido!</h2>
+          <div style={{ fontSize: 46 }}>{pagado ? '✅' : '🛍️'}</div>
+          <h2>{pagado ? `¡Pago confirmado!` : `¡Pedido #${pedido.numero} recibido!`}</h2>
           <div className="pos-total-box" style={{ justifyContent: 'center', margin: '14px 0' }}><span className="val">{formatMoney(pedido.total)}</span></div>
-          <p style={{ color: 'var(--text-dim)', marginBottom: 16 }}>Te vamos a contactar para coordinar el pago y la entrega.</p>
-          {waTaller && (
-            <a className="btn" style={{ width: '100%', background: '#25D366', borderColor: '#25D366', color: '#fff' }} target="_blank" rel="noreferrer"
-              href={`https://wa.me/${waTaller}?text=${encodeURIComponent(waMsg)}`}>
-              Confirmar por WhatsApp
-            </a>
+
+          {pagado ? (
+            <p style={{ color: 'var(--accent)', marginBottom: 16 }}>Recibimos tu pago. Te contactamos para coordinar la entrega. ¡Gracias!</p>
+          ) : (
+            <>
+              <p style={{ color: 'var(--text-dim)', marginBottom: 16 }}>Pagá online ahora o coordiná con el taller.</p>
+              {pagoErr && <div className="alert alert-error">{pagoErr}</div>}
+              <button className="btn" style={{ width: '100%' }} onClick={pagarOnline} disabled={pagando || pollPago}>
+                {pagando ? <span className="spinner" /> : pollPago ? 'Esperando el pago…' : '💳 Pagar online con Mercado Pago'}
+              </button>
+              {pollPago && (
+                <p className="lbl2" style={{ marginTop: 8 }}>
+                  Completá el pago en la otra pestaña. Esta pantalla se actualiza sola.
+                </p>
+              )}
+              {waTaller && (
+                <a className="btn btn-secondary" style={{ width: '100%', marginTop: 10 }} target="_blank" rel="noreferrer"
+                  href={`https://wa.me/${waTaller}?text=${encodeURIComponent(waMsg)}`}>
+                  Coordinar por WhatsApp
+                </a>
+              )}
+            </>
           )}
-          <button className="btn btn-secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => setPedido(null)}>Volver a la tienda</button>
+          <button className="btn btn-secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => { setPedido(null); setPagado(false); setPollPago(false); }}>Volver a la tienda</button>
         </div>
       </main>
     );
