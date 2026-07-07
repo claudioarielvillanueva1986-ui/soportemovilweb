@@ -59,7 +59,6 @@ const GRUPOS = [
     links: [
       ['/panel/config', 'Configuración', 'config'],
       ['/panel/importar', 'Importar datos', 'importar'],
-      ['/panel/plan', 'Mi plan', 'plan'],
     ],
   },
 ];
@@ -105,8 +104,7 @@ function Login() {
     <main className="login-wrap">
       <div className="login-card">
         <div className="login-head">
-          <div className="login-logo"><Icon name="pos" size={30} /></div>
-          <div className="login-brand">Soporte <span>Móvil</span></div>
+          <img src="/logo.png" alt="Soporte Móvil" style={{ height: 56, width: 'auto', margin: '0 auto 10px' }} />
           <div className="login-sub">
             {modo === 'login' ? 'Sistema de gestión del taller' : 'Recuperá tu contraseña'}
           </div>
@@ -281,16 +279,6 @@ export default function PanelLayout({ children }) {
       .then(({ data }) => setNegocio(data));
   }, [sesion]);
 
-  const diasTrial =
-    negocio?.plan === 'trial'
-      ? Math.max(
-          0,
-          Math.ceil(
-            (new Date(negocio.trial_hasta) - Date.now()) / 86400000
-          )
-        )
-      : null;
-
   if (sesion === undefined) {
     return <PantallaCarga />;
   }
@@ -308,20 +296,9 @@ export default function PanelLayout({ children }) {
   const contenidoSidebar = (
     <>
       <div className="sidebar-brand">
-        <div className="brand-name">
-          Soporte <span>Móvil</span>
-        </div>
+        <img src="/logo.png" alt="Soporte Móvil" style={{ height: 34, width: 'auto' }} />
         <div className="brand-sub">Sistema de gestión</div>
-        {negocio && (
-          <div className="brand-negocio">
-            {negocio.nombre}
-            {diasTrial !== null && (
-              <span className="pill" style={{ color: 'var(--warn)', borderColor: 'var(--warn)', marginLeft: 8 }}>
-                Prueba: {diasTrial} días
-              </span>
-            )}
-          </div>
-        )}
+        {negocio && <div className="brand-negocio">{negocio.nombre}</div>}
       </div>
 
       <BuscadorGlobal />
@@ -378,9 +355,7 @@ export default function PanelLayout({ children }) {
         >
           <Icon name="menu" size={22} />
         </button>
-        <div className="topbar-brand">
-          Soporte <span>Móvil</span>
-        </div>
+        <img src="/logo.png" alt="Soporte Móvil" className="topbar-brand" style={{ height: 26, width: 'auto' }} />
         <span className="user-avatar" style={{ marginRight: 34 }}>
           {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
         </span>
@@ -405,27 +380,7 @@ export default function PanelLayout({ children }) {
       <div className="panel-shell">
         <aside className="sidebar">{contenidoSidebar}</aside>
 
-        <div className="panel-main">
-          {negocio &&
-          negocio.plan === 'trial' &&
-          new Date(negocio.trial_hasta) < Date.now() &&
-          pathname !== '/panel/plan' ? (
-            <main>
-              <div className="card" style={{ maxWidth: 520, margin: '40px auto', textAlign: 'center' }}>
-                <h2>Tu prueba gratis terminó</h2>
-                <p style={{ color: 'var(--text-dim)', marginBottom: 18 }}>
-                  Tus datos están intactos. Suscribite al Plan Pro para seguir
-                  operando: órdenes, ventas y usuarios ilimitados.
-                </p>
-                <Link className="btn" href="/panel/plan">
-                  Ver planes y suscribirme
-                </Link>
-              </div>
-            </main>
-          ) : (
-            children
-          )}
-        </div>
+        <div className="panel-main">{children}</div>
       </div>
     </PerfilContext.Provider>
   );

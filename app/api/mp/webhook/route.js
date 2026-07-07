@@ -5,9 +5,8 @@ import {
   tokenVigente,
   rpcConSecreto,
 } from '@/lib/mp-server';
-import { sincronizarEntitlement } from '@/lib/factura-server';
 
-// Webhook de Mercado Pago (pagos de los talleres vía OAuth + suscripciones del SaaS).
+// Webhook de Mercado Pago (pagos de los talleres vía OAuth).
 // Regla: el webhook NUNCA inserta ventas — solo registra pagos y estados;
 // la venta la crea siempre el POS con sesión de staff.
 // Antiduplicación por UNIQUE en pagos_mp.mp_payment_id.
@@ -24,24 +23,6 @@ export async function POST(request) {
       body?.data?.id ||
       null;
     if (!dataId) return Response.json({ ok: true });
-
-    // Suscripciones del SaaS (cobradas por la cuenta del dueño del producto)
-    if (topic && String(topic).includes('preapproval')) {
-      if (!mpConfigurado()) return Response.json({ ok: true });
-      const pre = await mpFetch(`/preapproval/${dataId}`);
-      if (pre.external_reference) {
-        await rpcConSecreto('saas_actualizar_suscripcion', {
-          p_negocio_id: pre.external_reference,
-          p_preapproval_id: String(pre.id),
-          p_estado: pre.status,
-          p_monto: pre.auto_recurring?.transaction_amount ?? null,
-          p_raw: { status: pre.status, next_payment_date: pre.next_payment_date },
-        });
-        // Combo: si incluye Facturá y está conectada, habilitar/renovar su cuenta
-        await sincronizarEntitlement(pre.external_reference);
-      }
-      return Response.json({ ok: true });
-    }
 
     if (topic && !String(topic).includes('payment')) {
       return Response.json({ ok: true });

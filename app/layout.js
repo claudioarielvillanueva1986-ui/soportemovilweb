@@ -2,15 +2,15 @@ import './globals.css';
 import { SiteChrome } from '@/components/site-chrome';
 
 export const metadata = {
-  title: 'Soporte Móvil — Sistema de Tickets',
+  title: 'Soporte Móvil — Reparamos tu celular',
   description:
-    'Sistema de soporte técnico de Soporte Móvil: creá tu ticket de reparación y seguí el estado online.',
+    'Reparación de celulares con garantía, accesorios y repuestos. Consultá el estado de tu equipo online.',
   manifest: '/manifest.json',
-  icons: { icon: '/icons/icon-192.png', apple: '/icons/icon-192.png' },
+  icons: { icon: '/favicon.ico', shortcut: '/favicon.ico', apple: '/icons/icon-192.png' },
 };
 
 export const viewport = {
-  themeColor: '#0e100c',
+  themeColor: '#0A1220',
 };
 
 export default function RootLayout({ children }) {

@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-// Envuelve el contenido con el header/footer de marketing, EXCEPTO en la
-// tienda pública (/tienda/[slug]) que va a pantalla completa con su propio nav.
+// Envuelve el contenido con un header/footer institucional simple, EXCEPTO en
+// la tienda pública ("/" y "/tienda/[slug]", que van a pantalla completa con
+// su propio nav) y en el panel interno (que tiene su propio login/sidebar).
 export function SiteChrome({ children }) {
   const pathname = usePathname() || '';
-  const fullBleed = pathname.startsWith('/tienda/');
+  const fullBleed =
+    pathname === '/' || pathname.startsWith('/tienda/') || pathname.startsWith('/panel');
 
   if (fullBleed) return children;
 
@@ -15,14 +17,11 @@ export function SiteChrome({ children }) {
     <div className="container">
       <header className="header">
         <Link href="/" className="logo">
-          Soporte <span>Móvil</span>
+          <img src="/logo.png" alt="Soporte Móvil" style={{ height: 34, width: 'auto' }} />
         </Link>
         <nav className="nav">
           <Link href="/consulta">Consultar orden</Link>
           <Link href="/panel">Ingresar</Link>
-          <Link href="/registro" style={{ color: 'var(--accent)' }}>
-            Prueba gratis
-          </Link>
         </nav>
       </header>
       {children}

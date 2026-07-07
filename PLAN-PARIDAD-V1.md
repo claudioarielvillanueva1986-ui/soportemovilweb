@@ -8,6 +8,28 @@ Leyenda: ✅ hecho · 🔶 parcial · ⬜ falta
 
 ---
 
+## 📌 Decisión (2026-07): Soporte Móvil NO se vende como SaaS
+
+Soporte Móvil deja de ser un producto multi-tenant a la venta (a diferencia de Facturá).
+Es el sistema de gestión de este negocio, con la tienda pública como frontend — igual que v1.
+
+- **Dominio raíz (`/`)** = la tienda pública (antes era una landing de venta). El panel
+  interno queda atrás en `/panel`, sin login expuesto en portada.
+- **Eliminado**: `/registro`, `/panel/plan` (planes combo + suscripción mensual),
+  `/api/mp/suscribir`, el gate de "prueba vencida" que podía bloquear el panel, y la rama
+  de webhook de MP para suscripciones del SaaS (`preapproval`). El resto de Mercado Pago
+  (cobros de la tienda/POS vía OAuth de cada taller) sigue intacto.
+- **Branding real**: logo de v1 (`logo.png`, favicon, íconos PWA) integrado en la tienda,
+  el panel y el manifest. Tabla `tienda_config` ahora soporta personalización propia:
+  `logo_url` (subida desde `/panel/tienda`), `color_acento`, `banner_titulo/subtitulo`,
+  `instagram` — pensado para si en el futuro se abre otra sucursal/marca, no para vender
+  el software a terceros.
+- **Deuda técnica aceptada**: quedan en la base (sin uso) las tablas/RPCs `suscripciones`,
+  `precio_plan`, `actualizar_plan`, `saas_actualizar_suscripcion` — inofensivas, se pueden
+  limpiar más adelante si hace falta.
+
+---
+
 ## ✅ Ya hecho (base + esta tanda)
 
 **Núcleo (Fases 0–4 previas):** tickets/órdenes, portal público `/t/{slug}`, POS + venta

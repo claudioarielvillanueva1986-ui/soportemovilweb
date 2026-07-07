@@ -1,12 +1,12 @@
 {
-  "name": "Soporte Móvil — Sistema de Gestión",
+  "name": "Soporte Móvil — Reparamos tu celular",
   "short_name": "Soporte Móvil",
-  "description": "Gestión de servicio técnico: órdenes, POS, caja e inventario.",
+  "description": "Reparación de celulares con garantía, accesorios y repuestos.",
   "start_url": "/panel",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0e100c",
-  "theme_color": "#0e100c",
+  "background_color": "#0A1220",
+  "theme_color": "#0A1220",
   "icons": [
     {
       "src": "/icons/icon-192.png",
