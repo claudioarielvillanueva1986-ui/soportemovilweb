@@ -458,6 +458,70 @@ function TarjetaComprobantes({ esDueno }) {
   );
 }
 
+function TarjetaAvisos({ negocio, esDueno }) {
+  const [recibido, setRecibido] = useState('');
+  const [listo, setListo] = useState('');
+  const [aviso, setAviso] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    if (!negocio) return;
+    setRecibido(
+      negocio.wa_aviso_recibido ??
+        'Hola {cliente}! 👋 Recibimos tu {equipo} en {taller}. Tu orden es {numero}. Te avisamos apenas esté lista. Podés seguirla acá: {link}'
+    );
+    setListo(
+      negocio.wa_aviso_listo ??
+        'Hola {cliente}! ✅ Tu {equipo} (orden {numero}) ya está listo para retirar en {taller}. ¡Te esperamos!'
+    );
+  }, [negocio]);
+
+  async function guardar(e) {
+    e.preventDefault();
+    setAviso(null);
+    setGuardando(true);
+    const { error } = await supabase.rpc('set_avisos_whatsapp', {
+      p_recibido: recibido,
+      p_listo: listo,
+    });
+    setGuardando(false);
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else setAviso({ tipo: 'ok', texto: 'Mensajes guardados.' });
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h2>Avisos por WhatsApp</h2>
+      <p style={{ color: 'var(--text-dim)', marginBottom: 12 }}>
+        Los mensajes que se abren al tocar <strong>“WhatsApp: recibido”</strong> y{' '}
+        <strong>“WhatsApp: listo”</strong> en una orden. Podés usar estos comodines:{' '}
+        <code>{'{cliente}'}</code> <code>{'{equipo}'}</code> <code>{'{numero}'}</code>{' '}
+        <code>{'{taller}'}</code> <code>{'{link}'}</code>.
+      </p>
+      {aviso && (
+        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>{aviso.texto}</div>
+      )}
+      {!esDueno ? (
+        <p style={{ color: 'var(--text-dim)' }}>Solo el dueño puede editar los mensajes.</p>
+      ) : (
+        <form onSubmit={guardar}>
+          <div className="field">
+            <label>Cuando se recibe el equipo</label>
+            <textarea value={recibido} onChange={(e) => setRecibido(e.target.value)} style={{ minHeight: 72 }} />
+          </div>
+          <div className="field">
+            <label>Cuando está listo para retirar</label>
+            <textarea value={listo} onChange={(e) => setListo(e.target.value)} style={{ minHeight: 72 }} />
+          </div>
+          <button className="btn" disabled={guardando}>
+            {guardando ? <span className="spinner" /> : 'Guardar mensajes'}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export default function ConfigPage() {
   const { esDueno } = usePerfil();
   const [negocio, setNegocio] = useState(null);
@@ -478,7 +542,10 @@ export default function ConfigPage() {
         <TarjetaComprobantes esDueno={esDueno} />
       </div>
       <div className="grid-2" style={{ alignItems: 'start' }}>
+        <TarjetaAvisos negocio={negocio} esDueno={esDueno} />
         <TarjetaCuenta />
+      </div>
+      <div className="grid-2" style={{ alignItems: 'start' }}>
         <TarjetaNotificaciones />
       </div>
     </main>

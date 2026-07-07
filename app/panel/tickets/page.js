@@ -674,6 +674,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [prioridad, setPrioridad] = useState(ticket.prioridad);
   const [presupuesto, setPresupuesto] = useState(ticket.presupuesto ?? '');
   const [negocioNombre, setNegocioNombre] = useState('');
+  const [waPlantillas, setWaPlantillas] = useState({});
   const [notas, setNotas] = useState(ticket.notas_internas || '');
   const [mensaje, setMensaje] = useState('');
   const [actualizaciones, setActualizaciones] = useState([]);
@@ -725,9 +726,12 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       .then(({ data }) => setActualizaciones(data || []));
     supabase
       .from('negocios')
-      .select('nombre')
+      .select('nombre, wa_aviso_recibido, wa_aviso_listo')
       .maybeSingle()
-      .then(({ data }) => setNegocioNombre(data?.nombre || ''));
+      .then(({ data }) => {
+        setNegocioNombre(data?.nombre || '');
+        setWaPlantillas({ recibido: data?.wa_aviso_recibido, listo: data?.wa_aviso_listo });
+      });
     supabase.rpc('equipo_negocio').then(({ data }) => setEquipo(data || []));
   }, [ticket.id]);
 
@@ -775,11 +779,14 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
     }
   }
 
-  const waLink = linkAvisoWhatsApp({
-    ticket: { ...ticket, estado, presupuesto: presupuesto === '' ? null : Number(presupuesto) },
+  const waArgs = {
+    ticket: { ...ticket, estado },
+    plantillas: waPlantillas,
     negocio: negocioNombre,
     host: typeof window !== 'undefined' ? window.location.host : '',
-  });
+  };
+  const waRecibido = linkAvisoWhatsApp({ ...waArgs, tipo: 'recibido' });
+  const waListo = linkAvisoWhatsApp({ ...waArgs, tipo: 'listo' });
 
   async function guardar() {
     setGuardando(true);
@@ -840,9 +847,14 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           {ticket.numero}
         </span>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {waLink && (
-            <a className="btn btn-sm" href={waLink} target="_blank" rel="noreferrer">
-              Avisar por WhatsApp
+          {waRecibido && (
+            <a className="btn btn-sm" href={waRecibido} target="_blank" rel="noreferrer" title="Avisar que recibiste el equipo">
+              WhatsApp: recibido
+            </a>
+          )}
+          {waListo && (
+            <a className="btn btn-sm" href={waListo} target="_blank" rel="noreferrer" title="Avisar que está listo para retirar">
+              WhatsApp: listo
             </a>
           )}
           <a
