@@ -86,8 +86,12 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 - 🚫 Reactivación de clientes: **fuera del plan** (decisión del usuario).
 
 ### Fase H — vidriera y B2B
-- ⬜ Tienda online pública + galería + pedidos + reseñas, catálogo Meta (CSV/JSON),
-  gremio mayorista (B2B), dominios propios por taller.
+- 🔶 **Tienda online (H1 hecho)**: `tienda_config` + `productos.en_tienda` + `pedidos_tienda`;
+  RPCs `tienda_publica`/`crear_pedido_tienda`/`pedido_estado`. Página pública `/tienda/[slug]`
+  (catálogo con fotos, carrito, checkout → pedido + WhatsApp), panel `/panel/tienda` (config) y
+  `/panel/pedidos` (gestión de estados), toggle "Publicar en la tienda" en Inventario.
+- ⬜ **H2 — pago online con Mercado Pago** en el checkout (reactivar MP / ruteo del cobro).
+- ⬜ Reseñas de producto, catálogo Meta (CSV/JSON), gremio mayorista (B2B), dominios propios.
 
 ### Fase I — extras y pulido
 - ⬜ Dashboard en vivo (Realtime), centro de notificaciones, páginas legales, multi-tema,

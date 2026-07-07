@@ -36,6 +36,13 @@ const GRUPOS = [
     links: [['/panel/whatsapp', 'WhatsApp', 'whatsapp']],
   },
   {
+    titulo: 'Tienda',
+    links: [
+      ['/panel/pedidos', 'Pedidos', 'pedidos'],
+      ['/panel/tienda', 'Mi tienda', 'tienda'],
+    ],
+  },
+  {
     titulo: 'Análisis',
     soloDueno: true,
     links: [

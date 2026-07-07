@@ -88,6 +88,7 @@ const VACIO = {
   stock: 0,
   stock_minimo: 1,
   activo: true,
+  en_tienda: false,
 };
 
 export default function InventarioPage() {
@@ -153,6 +154,7 @@ export default function InventarioPage() {
       stock: Number(form.stock) || 0,
       stock_minimo: Number(form.stock_minimo) || 0,
       activo: !!form.activo,
+      en_tienda: !!form.en_tienda,
     };
     const { error: err } = form.id
       ? await supabase.from('productos').update(datos).eq('id', form.id)
@@ -320,6 +322,15 @@ export default function InventarioPage() {
                     style={{ width: 'auto', marginRight: 8 }}
                   />
                   Activo (visible en el POS)
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={form.en_tienda}
+                    onChange={set('en_tienda')}
+                    style={{ width: 'auto', marginRight: 8 }}
+                  />
+                  Publicar en la tienda online
                 </label>
               </div>
             </div>
