@@ -2252,3 +2252,21 @@ main {
 .seg-btn.on-ing { border-color:#22c55e; background:#22c55e1a; color:#22c55e; }
 .seg-btn.on-egr { border-color:#ef4444; background:#ef44441a; color:#ef4444; }
 .mp-badge { font-size:.7rem; font-weight:700; padding:2px 9px; border-radius:999px; border:1px solid; }
+
+/* ===== Estado público / seguimiento (riqueza de v1, tema v2) ===== */
+.seg-num { font-family: ui-monospace, monospace; font-size: 2.4rem; font-weight: 800; color: var(--accent); line-height: 1; text-align:center; }
+.estado-big { display:flex; flex-direction:column; align-items:center; text-align:center; padding:20px 8px 6px; }
+.estado-badge2 { display:inline-flex; align-items:center; gap:10px; padding:12px 26px; border-radius:999px; font-size:1.2rem; font-weight:800; border:2px solid; }
+.estado-msg2 { color:var(--text-dim); margin-top:12px; font-size:.9rem; max-width:380px; line-height:1.5; }
+.flow { display:flex; align-items:center; margin:10px 0 6px; }
+.flow-dot { width:30px; height:30px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; background:var(--card); color:var(--text-dim); }
+.flow-dot.done { background:var(--accent); border-color:var(--accent); color:#0e100c; }
+.flow-dot.current { border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.flow-line { flex:1; height:2px; background:var(--border); }
+.flow-line.done { background:var(--accent); }
+.flow-labels { display:flex; }
+.flow-label { flex:1; text-align:center; font-size:.66rem; color:var(--text-dim); font-weight:600; }
+.flow-label.on { color:var(--text); }
+.saldo-pub { background:color-mix(in srgb, #ef4444 10%, transparent); border:1px solid #ef444455; border-radius:12px; padding:14px 16px; text-align:center; margin-top:16px; }
+.saldo-pub .lbl { font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#f87171; }
+.saldo-pub .val { font-size:1.7rem; font-weight:800; color:#f87171; }
