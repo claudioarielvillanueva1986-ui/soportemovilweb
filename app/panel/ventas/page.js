@@ -27,6 +27,7 @@ export default function VentasPage() {
   const [error, setError] = useState(null);
   const [facturaConectada, setFacturaConectada] = useState(false);
   const [facturandoId, setFacturandoId] = useState(null);
+  const [kpis, setKpis] = useState(null);
   const timer = useRef(null);
 
   useEffect(() => {
@@ -113,6 +114,26 @@ export default function VentasPage() {
     }
     setVentas(filas);
     setTotal(count || 0);
+
+    // KPIs del período (todas las ventas del rango, sin anuladas)
+    let kq = supabase.from('ventas').select('total, metodo_pago').eq('anulada', false).limit(5000);
+    if (p[2] !== null) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - p[2]);
+      kq = kq.gte('created_at', d.toISOString());
+    }
+    const { data: agg } = await kq;
+    const acc = { total: 0, efectivo: 0, transferencia: 0, tarjetas: 0 };
+    for (const v of agg || []) {
+      const m = v.metodo_pago;
+      const t = Number(v.total) || 0;
+      acc.total += t;
+      if (m === 'efectivo') acc.efectivo += t;
+      else if (m === 'transferencia') acc.transferencia += t;
+      else if (['debito', 'credito', 'tarjeta', 'mercadopago_qr', 'mercadopago_point'].includes(m)) acc.tarjetas += t;
+    }
+    setKpis(acc);
   }, [preset, metodo, limite, busqueda]);
 
   useEffect(() => {
@@ -129,6 +150,27 @@ export default function VentasPage() {
         Ventas <span className="lbl2">({total} en el período)</span>
       </h1>
       {error && <div className="alert alert-error">{error}</div>}
+
+      {kpis && (
+        <div className="caja-kpis" style={{ marginBottom: 16 }}>
+          <div className="caja-kpi">
+            <div className="k-lbl" style={{ color: '#7dd3fc' }}>Total facturado</div>
+            <div className="k-val">{formatMoney(kpis.total)}</div>
+          </div>
+          <div className="caja-kpi">
+            <div className="k-lbl" style={{ color: '#22c55e' }}>Efectivo</div>
+            <div className="k-val" style={{ color: '#22c55e' }}>{formatMoney(kpis.efectivo)}</div>
+          </div>
+          <div className="caja-kpi">
+            <div className="k-lbl" style={{ color: '#3b82f6' }}>Transferencias</div>
+            <div className="k-val">{formatMoney(kpis.transferencia)}</div>
+          </div>
+          <div className="caja-kpi">
+            <div className="k-lbl" style={{ color: '#a855f7' }}>Tarjetas / QR</div>
+            <div className="k-val">{formatMoney(kpis.tarjetas)}</div>
+          </div>
+        </div>
+      )}
 
       <div className="field">
         <input
