@@ -17,6 +17,7 @@ const GRUPOS = [
       ['/panel', 'Dashboard', 'dashboard'],
       ['/panel/pos', 'POS', 'pos'],
       ['/panel/ventas', 'Ventas', 'ventas'],
+      ['/panel/presupuestos', 'Presupuestos', 'presupuestos'],
       ['/panel/tickets', 'Órdenes', 'ordenes'],
       ['/panel/caja', 'Caja', 'caja'],
       ['/panel/clientes', 'Clientes', 'clientes'],
