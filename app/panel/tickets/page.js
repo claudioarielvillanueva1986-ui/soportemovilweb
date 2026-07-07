@@ -22,6 +22,22 @@ const ETIQUETAS = [
 ];
 const COLOR_ETIQUETA = Object.fromEntries(ETIQUETAS);
 
+const AV_COLORES_ORD = ['#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#22c55e', '#8b5cf6', '#14b8a6', '#ef4444'];
+function inicialesOrd(nombre) {
+  return (nombre || '?').split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+}
+function avColorOrd(nombre) {
+  const n = String(nombre || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return AV_COLORES_ORD[n % AV_COLORES_ORD.length];
+}
+// Columnas del kanban: agrupan estados y definen el estado destino al soltar.
+const KANBAN_COLS = [
+  { key: 'recibido', label: 'Recibido', estados: ['nuevo', 'en_revision'], destino: 'nuevo', color: '#3b82f6' },
+  { key: 'proceso', label: 'En proceso', estados: ['presupuestado', 'en_reparacion', 'esperando_repuesto'], destino: 'en_reparacion', color: '#f59e0b' },
+  { key: 'listo', label: 'Listo', estados: ['listo'], destino: 'listo', color: '#22c55e' },
+  { key: 'entregado', label: 'Entregado', estados: ['entregado'], destino: 'entregado', color: '#10b981' },
+];
+
 function diasDesde(fecha) {
   if (!fecha) return null;
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
@@ -1123,6 +1139,25 @@ export default function TicketsPage() {
   const [totalServer, setTotalServer] = useState(0);
   const [stats, setStats] = useState({ total: 0, abiertos: 0, nuevo: 0, en_reparacion: 0, listo: 0 });
   const [userId, setUserId] = useState(null);
+  const [vista, setVista] = useState('cards');
+  const [dragId, setDragId] = useState(null);
+  const [overCol, setOverCol] = useState(null);
+
+  useEffect(() => {
+    const v = typeof window !== 'undefined' && localStorage.getItem('ordenes_vista');
+    if (v) setVista(v);
+  }, []);
+
+  function elegirVista(v) {
+    setVista(v);
+    try { localStorage.setItem('ordenes_vista', v); } catch { /* noop */ }
+  }
+
+  async function moverEstado(id, destino) {
+    setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, estado: destino } : t)));
+    await supabase.from('tickets').update({ estado: destino }).eq('id', id);
+    cargar();
+  }
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -1252,7 +1287,12 @@ export default function TicketsPage() {
         }}
       >
         <h1 style={{ fontSize: '1.5rem' }}>Reparaciones</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="ord-toolbar">
+          <div className="view-toggle">
+            <button className={vista === 'cards' ? 'active' : ''} onClick={() => elegirVista('cards')}>Cards</button>
+            <button className={vista === 'tabla' ? 'active' : ''} onClick={() => elegirVista('tabla')}>Tabla</button>
+            <button className={vista === 'kanban' ? 'active' : ''} onClick={() => elegirVista('kanban')}>Kanban</button>
+          </div>
           <a className="btn btn-sm" href="/panel/tickets/nueva">
             + Nueva orden
           </a>
@@ -1340,40 +1380,101 @@ export default function TicketsPage() {
         <p style={{ color: 'var(--text-dim)' }}>
           No hay tickets que coincidan con el filtro.
         </p>
-      ) : (
-        visibles.map((t) => (
-          <div
-            className="ticket-row"
-            key={t.id}
-            onClick={() => {
-              setSeleccionado(t);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          >
-            <div className="info">
-              <div className="numero">
-                {t.numero}
-                {t.prioridad === 'alta' || t.prioridad === 'urgente' ? (
-                  <span style={{ color: '#ef4444', marginLeft: 8 }}>
-                    {PRIORIDADES[t.prioridad]}
-                  </span>
-                ) : null}
-              </div>
-              <div className="titulo">
-                {t.nombre} — {t.dispositivo}
-                {t.marca_modelo ? ` (${t.marca_modelo})` : ''}
-              </div>
-              <div className="meta">{formatFecha(t.created_at)}</div>
-              {t.estado === 'listo' && t.listo_desde != null && (
-                <div className="meta" style={{ color: 'var(--warn)' }}>
-                  Listo hace {diasDesde(t.listo_desde)} día(s) — sin retirar
+      ) : vista === 'kanban' ? (
+        <div className="kanban">
+          {KANBAN_COLS.map((col) => {
+            const items = visibles.filter((t) => col.estados.includes(t.estado));
+            return (
+              <div className="kanban-col" key={col.key}>
+                <div className="kanban-head" style={{ color: col.color, borderColor: col.color }}>
+                  <span>{col.label}</span>
+                  <span style={{ background: `${col.color}22`, padding: '1px 8px', borderRadius: 20 }}>{items.length}</span>
                 </div>
-              )}
-              <ChipsEtiquetas etiquetas={t.etiquetas} />
-            </div>
-            <BadgeEstado estado={t.estado} />
-          </div>
-        ))
+                <div
+                  className={`kanban-body ${overCol === col.key ? 'over' : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setOverCol(col.key); }}
+                  onDragLeave={() => setOverCol((c) => (c === col.key ? null : c))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setOverCol(null);
+                    if (dragId) {
+                      const t = visibles.find((x) => x.id === dragId);
+                      if (t && t.estado !== col.destino) moverEstado(dragId, col.destino);
+                      setDragId(null);
+                    }
+                  }}
+                >
+                  {items.map((t) => (
+                    <div
+                      className={`kanban-card ${dragId === t.id ? 'drag' : ''}`}
+                      key={t.id}
+                      draggable
+                      onDragStart={() => setDragId(t.id)}
+                      onDragEnd={() => setDragId(null)}
+                      onClick={() => { setSeleccionado(t); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    >
+                      <div style={{ color: 'var(--text-dim)', fontSize: '.7rem' }}>{t.numero}</div>
+                      <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nombre}</div>
+                      <div style={{ color: 'var(--text-dim)', fontSize: '.72rem' }}>{t.marca_modelo || t.dispositivo}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : vista === 'tabla' ? (
+        <div className="tabla-scroll">
+          <table className="ord-tabla">
+            <thead>
+              <tr><th>#</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th>Fecha</th></tr>
+            </thead>
+            <tbody>
+              {visibles.map((t) => (
+                <tr key={t.id} onClick={() => { setSeleccionado(t); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                  <td style={{ fontWeight: 700, color: 'var(--accent)' }}>{t.numero}</td>
+                  <td>{t.nombre}</td>
+                  <td style={{ color: 'var(--text-dim)' }}>{t.dispositivo}{t.marca_modelo ? ` ${t.marca_modelo}` : ''}</td>
+                  <td><BadgeEstado estado={t.estado} /></td>
+                  <td style={{ color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{formatFecha(t.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="ord-cards">
+          {visibles.map((t) => {
+            const color = ESTADOS[t.estado]?.color || '#94a3b8';
+            const urgente = ['alta', 'urgente'].includes(t.prioridad);
+            return (
+              <div className="ord-card" key={t.id} onClick={() => { setSeleccionado(t); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                <div className="ord-stripe" style={{ background: color }} />
+                <div className="ord-card-body">
+                  <div className="ord-av" style={{ background: avColorOrd(t.nombre) }}>{inicialesOrd(t.nombre)}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '.72rem', color: 'var(--text-dim)', fontWeight: 700 }}>{t.numero}</span>
+                      <span style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{t.nombre}</span>
+                      {urgente && <span style={{ color: '#ef4444', fontSize: '.7rem', fontWeight: 700 }}>{PRIORIDADES[t.prioridad]}</span>}
+                    </div>
+                    <div style={{ fontSize: '.82rem', color: 'var(--text-dim)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.dispositivo}{t.marca_modelo ? ` — ${t.marca_modelo}` : ''}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
+                      <BadgeEstado estado={t.estado} />
+                      <span style={{ fontSize: '.72rem', color: 'var(--text-dim)' }}>{formatFecha(t.created_at)}</span>
+                      {t.estado === 'listo' && t.listo_desde != null && (
+                        <span style={{ fontSize: '.72rem', color: 'var(--warn)' }}>· sin retirar {diasDesde(t.listo_desde)}d</span>
+                      )}
+                    </div>
+                    <ChipsEtiquetas etiquetas={t.etiquetas} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {tickets.length < totalServer && (
