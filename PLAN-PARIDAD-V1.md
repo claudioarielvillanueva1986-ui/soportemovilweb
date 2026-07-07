@@ -97,8 +97,11 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 - ⬜ Reseñas de producto, catálogo Meta (CSV/JSON), gremio mayorista (B2B), dominios propios.
 
 ### Fase I — extras y pulido
-- ⬜ Dashboard en vivo (Realtime), centro de notificaciones, páginas legales, multi-tema,
-  datos demo, **optimización mobile pantalla por pantalla**.
+- ✅ **Centro de notificaciones en tiempo real** (Realtime): `tickets` y `pedidos_tienda` en la
+  publicación `supabase_realtime`; componente `NotificacionesCentro` (campana + toasts) que avisa
+  órdenes y pedidos nuevos sin recargar, respetando RLS por negocio.
+- ⬜ Órdenes/lista con vistas cards/tabla/kanban ✅ (hecho en el rediseño). Falta: páginas legales,
+  multi-tema, datos demo, **optimización mobile pantalla por pantalla**.
 
 ## Fuera de paridad (obsoleto)
 Backups manuales (Supabase los hace), `touch` al WSGI, landings de marketing (van a la web comercial).

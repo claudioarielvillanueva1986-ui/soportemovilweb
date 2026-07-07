@@ -2399,3 +2399,17 @@ main {
 .kanban-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:9px 11px; cursor:grab; font-size:.8rem; }
 .kanban-card:hover { border-color:color-mix(in srgb, var(--accent) 40%, var(--border)); }
 .kanban-card.drag { opacity:.5; }
+
+/* ===== Notificaciones (realtime) ===== */
+.noti-toasts { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; width:min(360px, calc(100vw - 24px)); pointer-events:none; }
+.noti-toast { pointer-events:auto; background:var(--card); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:12px; padding:11px 14px; box-shadow:0 12px 30px rgba(0,0,0,.5); display:flex; gap:10px; align-items:center; animation:notiIn .25s ease; cursor:pointer; }
+@keyframes notiIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
+.noti-toast .ico { font-size:20px; }
+.noti-toast .txt strong { display:block; font-size:.9rem; }
+.noti-toast .txt small { color:var(--text-dim); font-size:.78rem; }
+.noti-bell { position:relative; background:none; border:0; cursor:pointer; color:var(--text); display:inline-flex; }
+.noti-badge { position:absolute; top:-4px; right:-4px; background:#ef4444; color:#fff; border-radius:999px; min-width:16px; height:16px; font-size:.62rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+.noti-drop { position:absolute; right:0; top:calc(100% + 8px); width:300px; max-height:380px; overflow-y:auto; background:var(--card); border:1px solid var(--border); border-radius:14px; box-shadow:0 16px 40px rgba(0,0,0,.5); z-index:120; }
+.noti-item { display:flex; gap:10px; align-items:center; padding:11px 14px; border-bottom:1px solid var(--border); text-decoration:none; color:var(--text); }
+.noti-item:last-child { border-bottom:0; }
+.noti-item:hover { background:var(--bg-input, rgba(255,255,255,.03)); }

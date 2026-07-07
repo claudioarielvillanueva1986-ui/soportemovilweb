@@ -9,6 +9,7 @@ import { registrarSW } from '@/lib/push';
 import { BuscadorGlobal } from '@/components/buscador';
 import { PantallaCarga } from '@/components/cargando';
 import { Icon } from '@/components/icons';
+import { NotificacionesCentro } from '@/components/notificaciones';
 
 const GRUPOS = [
   {
@@ -367,6 +368,7 @@ export default function PanelLayout({ children }) {
 
   return (
     <PerfilContext.Provider value={{ perfil, esDueno: perfil?.rol === 'dueno' }}>
+      {negocio?.id && <NotificacionesCentro negocioId={negocio.id} />}
       {/* Barra superior — solo móvil */}
       <div className="topbar">
         <button
@@ -379,7 +381,7 @@ export default function PanelLayout({ children }) {
         <div className="topbar-brand">
           Soporte <span>Móvil</span>
         </div>
-        <span className="user-avatar">
+        <span className="user-avatar" style={{ marginRight: 34 }}>
           {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
         </span>
       </div>
