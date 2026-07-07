@@ -2270,3 +2270,13 @@ main {
 .saldo-pub { background:color-mix(in srgb, #ef4444 10%, transparent); border:1px solid #ef444455; border-radius:12px; padding:14px 16px; text-align:center; margin-top:16px; }
 .saldo-pub .lbl { font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#f87171; }
 .saldo-pub .val { font-size:1.7rem; font-weight:800; color:#f87171; }
+
+/* ===== Login (branded, tema v2) ===== */
+.login-wrap { min-height: 82vh; display:flex; align-items:center; justify-content:center; padding: 20px; }
+.login-card { width:100%; max-width: 400px; background: var(--card); border:1px solid var(--border); border-radius: 20px; overflow:hidden; box-shadow: 0 30px 70px rgba(0,0,0,.5); }
+.login-head { text-align:center; padding: 32px 32px 4px; }
+.login-logo { width:64px; height:64px; border-radius:18px; background: color-mix(in srgb, var(--accent) 18%, transparent); border:1px solid color-mix(in srgb, var(--accent) 45%, transparent); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; color: var(--accent); }
+.login-brand { font-size:1.5rem; font-weight:900; letter-spacing:-.5px; }
+.login-brand span { color: var(--accent); }
+.login-sub { font-size:.82rem; color: var(--text-dim); margin-top:4px; }
+.login-body { padding: 24px 32px 30px; }

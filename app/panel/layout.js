@@ -91,14 +91,16 @@ function Login() {
   }
 
   return (
-    <main>
-      <div className="hero">
-        <h1>
-          Panel de <em>Soporte Móvil</em>
-        </h1>
-        <p>Acceso exclusivo para el equipo.</p>
-      </div>
-      <div className="card" style={{ maxWidth: 420, margin: '0 auto' }}>
+    <main className="login-wrap">
+      <div className="login-card">
+        <div className="login-head">
+          <div className="login-logo"><Icon name="pos" size={30} /></div>
+          <div className="login-brand">Soporte <span>Móvil</span></div>
+          <div className="login-sub">
+            {modo === 'login' ? 'Sistema de gestión del taller' : 'Recuperá tu contraseña'}
+          </div>
+        </div>
+        <div className="login-body">
         {error && <div className="alert alert-error">{error}</div>}
         {aviso && <div className="alert alert-ok">{aviso}</div>}
 
@@ -174,6 +176,7 @@ function Login() {
             </p>
           </>
         )}
+        </div>
       </div>
     </main>
   );

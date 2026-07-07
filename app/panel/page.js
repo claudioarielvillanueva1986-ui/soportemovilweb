@@ -44,12 +44,27 @@ export default function DashboardPage() {
   const [serie, setSerie] = useState([]);
   const [error, setError] = useState(null);
   const [ocultarMonto, setOcultarMonto] = useState(false);
+  const [botIa, setBotIa] = useState(false);
+  const [waUnread, setWaUnread] = useState(null);
 
   useEffect(() => {
     supabase.rpc('resumen_panel').then(({ data, error: err }) => {
       if (err) setError(err.message);
       else setDatos(data);
     });
+    supabase
+      .from('negocios')
+      .select('bot_ia')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.bot_ia) {
+          setBotIa(true);
+          supabase
+            .from('wa_conversaciones')
+            .select('no_leidos')
+            .then(({ data: cs }) => setWaUnread((cs || []).reduce((s, c) => s + (c.no_leidos || 0), 0)));
+        }
+      });
     // gráfico de barras: últimos 7 días de facturación
     const hasta = new Date();
     const desde = new Date(Date.now() - 6 * 86400000);
@@ -73,6 +88,9 @@ export default function DashboardPage() {
   });
   const maxSerie = serie.length ? Math.max(...serie.map((d) => Number(d.total))) : 0;
   const ventaReciente = datos.tickets_activos?.[0];
+  const hoyTotal = serie.length ? Number(serie[serie.length - 1].total) : 0;
+  const ayerTotal = serie.length > 1 ? Number(serie[serie.length - 2].total) : 0;
+  const deltaPct = ayerTotal > 0 ? Math.round(((hoyTotal - ayerTotal) / ayerTotal) * 100) : null;
 
   return (
     <main className="cloop">
@@ -101,6 +119,19 @@ export default function DashboardPage() {
         </div>
         <div className="cl-hero-monto">
           {ocultarMonto ? '$ • • • • •' : formatMoney(datos.ventas_hoy.total)}
+          {deltaPct !== null && !ocultarMonto && (
+            <span
+              style={{
+                marginLeft: 10,
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: deltaPct >= 0 ? '#22c55e' : '#ef4444',
+                verticalAlign: 'middle',
+              }}
+            >
+              {deltaPct >= 0 ? '↑' : '↓'} {Math.abs(deltaPct)}% vs ayer
+            </span>
+          )}
         </div>
         <div className="cl-hero-fecha">
           {fecha.charAt(0).toUpperCase() + fecha.slice(1)}
@@ -202,6 +233,14 @@ export default function DashboardPage() {
               <span className="cl-chip-num">{datos.ventas_hoy.cantidad}</span>
               <span className="cl-chip-lbl">Ventas hoy</span>
             </Link>
+            {botIa && (
+              <Link href="/panel/whatsapp" className="cl-chip">
+                <span className="cl-chip-num" style={{ color: waUnread > 0 ? 'var(--warn)' : 'var(--accent)' }}>
+                  {waUnread ?? '—'}
+                </span>
+                <span className="cl-chip-lbl">WhatsApp sin leer</span>
+              </Link>
+            )}
           </div>
 
           <div className="cl-ordenes-card">
