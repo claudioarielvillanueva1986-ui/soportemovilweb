@@ -40,6 +40,7 @@ const GRUPOS = [
     soloDueno: true,
     links: [
       ['/panel/reportes', 'Reportes', 'reportes'],
+      ['/panel/fidelizacion', 'Fidelización', 'fidelizacion'],
       ['/panel/usuarios', 'Usuarios', 'usuarios'],
     ],
   },

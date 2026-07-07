@@ -74,7 +74,11 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
   rápidas, chat IA para el staff. Los demás clientes solo tienen el botón de avisar. ⬜ Construir.
 
 ### Fase G — fidelización y marketing
-- ⬜ Puntos/fidelización (acumular, premios, canje), cupones, encuestas NPS, reactivación de clientes.
+- ✅ **Puntos/fidelización "Soporte Puntos"**: `fidelizacion_config` (activo, puntos_por_mil),
+  `puntos_movimientos`, `premios`; acreditación automática en `registrar_venta_pos`, `saldo_puntos`,
+  `canjear_premio`; página `/panel/fidelizacion` (config + premios + canje + movimientos) y saldo/estimado en el POS.
+- ⬜ Cupones (código, % o monto, mínimo, usos, vencimiento) aplicables en el POS.
+- ⬜ Encuestas NPS por orden (token público, estrellas/rapidez/atención) + reactivación de clientes.
 
 ### Fase H — vidriera y B2B
 - ⬜ Tienda online pública + galería + pedidos + reseñas, catálogo Meta (CSV/JSON),

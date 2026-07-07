@@ -77,6 +77,8 @@ export default function PosPage() {
   const [facturando, setFacturando] = useState(false);
   const [facturarAuto, setFacturarAuto] = useState(false);
   const [facturaConectada, setFacturaConectada] = useState(false);
+  const [fidPpm, setFidPpm] = useState(0);
+  const [saldoPts, setSaldoPts] = useState(null);
 
   async function cargar() {
     const [{ data: resumen, error: errR }, { data: prods }, { data: clis }, { data: neg }, { data: conex }] =
@@ -102,7 +104,22 @@ export default function PosPage() {
 
   useEffect(() => {
     cargar();
+    supabase
+      .from('fidelizacion_config')
+      .select('activo, puntos_por_mil')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.activo) setFidPpm(Number(data.puntos_por_mil) || 0);
+      });
   }, []);
+
+  useEffect(() => {
+    if (fidPpm > 0 && clienteId) {
+      supabase.rpc('saldo_puntos', { p_cliente_id: clienteId }).then(({ data }) => setSaldoPts(data ?? 0));
+    } else {
+      setSaldoPts(null);
+    }
+  }, [clienteId, fidPpm]);
 
   const resultados = useMemo(() => {
     const q = busqueda.toLowerCase().trim();
@@ -430,6 +447,12 @@ export default function PosPage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{clienteSel.nombre}</div>
                     {clienteSel.dni && <div className="meta" style={{ fontSize: '.75rem', color: 'var(--text-dim)' }}>DNI {clienteSel.dni}</div>}
+                    {fidPpm > 0 && (
+                      <div className="meta" style={{ fontSize: '.75rem', color: '#f59e0b' }}>
+                        ⭐ {saldoPts ?? '…'} pts
+                        {total > 0 ? ` · +${Math.floor((total / 1000) * fidPpm)} por esta venta` : ''}
+                      </div>
+                    )}
                   </div>
                   <button className="chip" onClick={() => { setClienteId(''); setBusqCliente(''); }}>Quitar</button>
                 </div>
