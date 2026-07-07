@@ -42,6 +42,7 @@ const GRUPOS = [
       ['/panel/reportes', 'Reportes', 'reportes'],
       ['/panel/fidelizacion', 'Fidelización', 'fidelizacion'],
       ['/panel/cupones', 'Cupones', 'cupones'],
+      ['/panel/encuestas', 'Encuestas', 'encuestas'],
       ['/panel/usuarios', 'Usuarios', 'usuarios'],
     ],
   },

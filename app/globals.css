@@ -2345,3 +2345,11 @@ main {
   .wc-main.oculto { display:none; }
   .wc-back { display:inline-flex; background:rgba(255,255,255,.14); border:none; color:#fff; border-radius:50%; width:32px; height:32px; cursor:pointer; }
 }
+
+/* ===== Encuesta NPS (estrellas) ===== */
+.stars { display:flex; gap:6px; }
+.star { font-size:30px; cursor:pointer; line-height:1; filter:grayscale(1) opacity(.4); transition:transform .1s, filter .1s; background:none; border:0; padding:0; }
+.star.on { filter:none; }
+.star:hover { transform:scale(1.15); }
+.rate-row { margin:14px 0; }
+.rate-lbl { font-size:.82rem; color:var(--text-dim); margin-bottom:6px; font-weight:600; }

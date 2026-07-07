@@ -79,7 +79,10 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
   `canjear_premio`; página `/panel/fidelizacion` (config + premios + canje + movimientos) y saldo/estimado en el POS.
 - ✅ **Cupones** (código, % o monto, mínimo, usos, vencimiento): tabla `cupones`, `validar_cupon`,
   aplicación atómica en `registrar_venta_pos` (suma uso, guarda código en la venta), página `/panel/cupones` y campo de cupón en el POS.
-- ⬜ Encuestas NPS por orden (token público, estrellas/rapidez/atención) + reactivación de clientes.
+- ✅ **Encuestas NPS** por orden: tabla `encuestas` + RPCs `crear_encuesta`/`encuesta_ver`/`responder_encuesta`;
+  página pública `/encuesta/[token]` (estrellas general/rapidez/atención + recomendaría + comentario) y
+  `/panel/encuestas` (KPIs, generar link por orden + enviar por WhatsApp, listado de respuestas).
+- 🚫 Reactivación de clientes: **fuera del plan** (decisión del usuario).
 
 ### Fase H — vidriera y B2B
 - ⬜ Tienda online pública + galería + pedidos + reseñas, catálogo Meta (CSV/JSON),
