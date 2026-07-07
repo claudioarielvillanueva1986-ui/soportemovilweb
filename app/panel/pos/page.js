@@ -5,13 +5,13 @@ import { supabase, formatMoney } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
 const METODOS_POS = [
-  ['efectivo', 'Efectivo'],
-  ['transferencia', 'Transferencia'],
-  ['debito', 'Débito'],
-  ['credito', 'Crédito'],
-  ['mercadopago_qr', 'MP QR'],
+  ['efectivo', 'Efectivo', '💵'],
+  ['transferencia', 'Transfer.', '🏦'],
+  ['debito', 'Débito', '💳'],
+  ['credito', 'Crédito', '💳'],
+  ['mercadopago_qr', 'MP QR', '📲'],
 ];
-const LABEL_METODO = Object.fromEntries(METODOS_POS);
+const LABEL_METODO = Object.fromEntries(METODOS_POS.map(([k, v]) => [k, v]));
 
 function AbrirTurno({ onAbierto }) {
   const [monto, setMonto] = useState('');
@@ -63,9 +63,9 @@ export default function PosPage() {
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
-  const [lineas, setLineas] = useState([]); // ítems del carrito (producto o manual)
+  const [lineas, setLineas] = useState([]);
   const [descuento, setDescuento] = useState('');
-  const [pagos, setPagos] = useState([]); // [{metodo, monto}]
+  const [pagos, setPagos] = useState([{ metodo: 'efectivo', monto: '' }]);
   const [clienteId, setClienteId] = useState('');
   const [busqCliente, setBusqCliente] = useState('');
   const [manualAbierto, setManualAbierto] = useState(false);
@@ -126,6 +126,11 @@ export default function PosPage() {
   const pagado = pagos.reduce((s, p) => s + (Number(p.monto) || 0), 0);
   const resta = Math.round(Math.max(0, total - pagado) * 100) / 100;
 
+  // Con un solo medio de pago, el monto sigue al total (1 toque = listo).
+  useEffect(() => {
+    setPagos((prev) => (prev.length === 1 ? [{ ...prev[0], monto: total || '' }] : prev));
+  }, [total]);
+
   function agregarProducto(p) {
     setError(null);
     setLineas((prev) => {
@@ -179,14 +184,24 @@ export default function PosPage() {
     );
   }
 
-  function agregarPago(metodo) {
-    setPagos((prev) => [...prev, { metodo, monto: resta > 0 ? resta : '' }]);
+  function setPagoMetodo(i, metodo) {
+    setPagos((prev) =>
+      prev.map((p, j) => (j === i ? { ...p, metodo, monto: prev.length === 1 ? total : p.monto } : p))
+    );
   }
   function setPagoMonto(i, v) {
     setPagos((prev) => prev.map((p, j) => (j === i ? { ...p, monto: v } : p)));
   }
+  function agregarMedio() {
+    setPagos((prev) => (prev.length < 5 ? [...prev, { metodo: '', monto: resta > 0 ? resta : '' }] : prev));
+  }
   function quitarPago(i) {
-    setPagos((prev) => prev.filter((_, j) => j !== i));
+    setPagos((prev) => (prev.length > 1 ? prev.filter((_, j) => j !== i) : prev));
+  }
+  function autocompletar() {
+    setPagos((prev) =>
+      prev.map((p, j) => (j === prev.length - 1 ? { ...p, monto: Math.round(((Number(p.monto) || 0) + resta) * 100) / 100 } : p))
+    );
   }
 
   async function facturarVenta(ventaId) {
@@ -211,8 +226,10 @@ export default function PosPage() {
   async function confirmar() {
     setError(null);
     if (lineas.length === 0) return setError('El carrito está vacío.');
+    if (pagos.some((p) => Number(p.monto) > 0 && !p.metodo))
+      return setError('Elegí el medio de pago en cada fila.');
     const pagosLimpios = pagos
-      .filter((p) => Number(p.monto) > 0)
+      .filter((p) => Number(p.monto) > 0 && p.metodo)
       .map((p) => ({ metodo: p.metodo, monto: Number(p.monto) }));
     if (pagosLimpios.length === 0) return setError('Agregá al menos un medio de pago.');
     const pagadoLimpio = pagosLimpios.reduce((s, p) => s + p.monto, 0);
@@ -236,7 +253,7 @@ export default function PosPage() {
     setVentaOk(data);
     setFactura(null);
     setLineas([]);
-    setPagos([]);
+    setPagos([{ metodo: 'efectivo', monto: '' }]);
     setDescuento('');
     setClienteId('');
     setBusqCliente('');
@@ -249,9 +266,7 @@ export default function PosPage() {
       return (
         <main>
           <div className="alert alert-error">{error}</div>
-          <button className="btn" onClick={cargar}>
-            Reintentar
-          </button>
+          <button className="btn" onClick={cargar}>Reintentar</button>
         </main>
       );
     return <PantallaCarga />;
@@ -263,8 +278,11 @@ export default function PosPage() {
     return (
       <main>
         <div className="card" style={{ maxWidth: 460, margin: '30px auto', textAlign: 'center' }}>
+          <div style={{ fontSize: 44, lineHeight: 1 }}>✅</div>
           <h2 style={{ margin: '8px 0' }}>Venta #{ventaOk.numero} registrada</h2>
-          <div className="ticket-numero">{formatMoney(ventaOk.total)}</div>
+          <div className="pos-total-box" style={{ justifyContent: 'center' }}>
+            <span className="val">{formatMoney(ventaOk.total)}</span>
+          </div>
 
           {facturaConectada && (
             <div style={{ margin: '16px 0' }}>
@@ -278,9 +296,7 @@ export default function PosPage() {
                   {factura.pdf_url && (
                     <>
                       {' · '}
-                      <a href={factura.pdf_url} target="_blank" rel="noreferrer">
-                        Ver PDF
-                      </a>
+                      <a href={factura.pdf_url} target="_blank" rel="noreferrer">Ver PDF</a>
                     </>
                   )}
                 </div>
@@ -300,7 +316,7 @@ export default function PosPage() {
             </div>
           )}
 
-          <button className="btn" onClick={() => { setVentaOk(null); setFactura(null); }}>
+          <button className="btn" style={{ width: '100%' }} onClick={() => { setVentaOk(null); setFactura(null); }}>
             Nueva venta
           </button>
         </div>
@@ -313,240 +329,257 @@ export default function PosPage() {
   return (
     <main>
       <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Punto de venta</h1>
-
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="pos-grid">
-        {/* Columna izquierda */}
+        {/* ── Izquierda ── */}
         <div>
-          {/* Buscar producto */}
-          <div className="field">
-            <input
-              autoFocus
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && resultados.length) {
-                  e.preventDefault();
-                  agregarProducto(resultados[0]);
-                }
-              }}
-              placeholder="Buscá o escaneá un producto…"
-            />
-          </div>
-
-          {busqueda.trim() !== '' && (
-            <div className="pos-lista">
-              {resultados.length === 0 ? (
-                <p style={{ color: 'var(--text-dim)', padding: '8px 2px' }}>Sin resultados.</p>
-              ) : (
-                resultados.map((p) => {
-                  const enCarrito = lineas.find((l) => l.producto_id === p.id)?.cantidad || 0;
-                  const agotado = p.maneja_stock && p.stock - enCarrito <= 0;
-                  return (
-                    <button
-                      key={p.id}
-                      className="pos-lista-row"
-                      disabled={agotado}
-                      onClick={() => agregarProducto(p)}
-                    >
-                      <div>
-                        <div className="nombre">{p.nombre}</div>
-                        <div className="meta">
-                          {p.maneja_stock ? `Stock: ${p.stock - enCarrito}` : 'Sin control de stock'}
-                        </div>
-                      </div>
-                      <div className="precio">{formatMoney(p.precio)}</div>
-                    </button>
-                  );
-                })
+          {/* Buscar */}
+          <div className="pos-card">
+            <div className="pos-card-header">🔍 Buscar producto</div>
+            <div className="pos-card-body pos-search-wrap">
+              <input
+                autoFocus
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && resultados.length) {
+                    e.preventDefault();
+                    agregarProducto(resultados[0]);
+                  } else if (e.key === 'Escape') {
+                    setBusqueda('');
+                  }
+                }}
+                placeholder="Nombre o código de barras…"
+                style={{ fontSize: '1rem', fontWeight: 600 }}
+              />
+              {busqueda.trim() !== '' && (
+                <div className="pos-dropdown">
+                  {resultados.length === 0 ? (
+                    <div className="pos-drop-row" style={{ cursor: 'default', color: 'var(--text-dim)' }}>
+                      Sin resultados — podés cargarlo como venta manual.
+                    </div>
+                  ) : (
+                    resultados.map((p) => {
+                      const enCarrito = lineas.find((l) => l.producto_id === p.id)?.cantidad || 0;
+                      const agotado = p.maneja_stock && p.stock - enCarrito <= 0;
+                      return (
+                        <button key={p.id} className="pos-drop-row" disabled={agotado} onClick={() => agregarProducto(p)}>
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{p.nombre}</div>
+                            <div className="meta" style={{ fontSize: '.75rem', color: agotado ? '#ef4444' : 'var(--text-dim)' }}>
+                              {p.maneja_stock ? `Stock: ${p.stock - enCarrito}` : 'Sin control de stock'}
+                            </div>
+                          </div>
+                          <span className="precio">{formatMoney(p.precio)}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </div>
 
           {/* Venta manual */}
-          <div style={{ marginTop: 12 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setManualAbierto((v) => !v)}>
-              + Venta manual
+          <div className="pos-card">
+            <button
+              className="pos-card-header"
+              onClick={() => setManualAbierto((v) => !v)}
+              style={{ width: '100%', background: 'none', border: 0, cursor: 'pointer', color: 'var(--accent)' }}
+            >
+              ＋ Venta manual
+              <span style={{ marginLeft: 'auto' }}>{manualAbierto ? '▲' : '▼'}</span>
             </button>
             {manualAbierto && (
-              <form onSubmit={agregarManual} className="card" style={{ marginTop: 10, padding: 16 }}>
-                <div className="field">
-                  <label>Descripción</label>
+              <form onSubmit={agregarManual} className="pos-card-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  value={manual.descripcion}
+                  onChange={(e) => setManual({ ...manual, descripcion: e.target.value })}
+                  placeholder="Descripción del producto o servicio…"
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
                   <input
-                    value={manual.descripcion}
-                    onChange={(e) => setManual({ ...manual, descripcion: e.target.value })}
-                    placeholder="Servicio / producto no listado"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={manual.precio}
+                    onChange={(e) => setManual({ ...manual, precio: e.target.value })}
+                    placeholder="Precio $"
+                    style={{ flex: 1, textAlign: 'center', fontWeight: 700 }}
                   />
+                  <input
+                    type="number"
+                    min="1"
+                    value={manual.cantidad}
+                    onChange={(e) => setManual({ ...manual, cantidad: e.target.value })}
+                    style={{ width: 70, textAlign: 'center' }}
+                  />
+                  <button className="btn btn-sm">＋ Agregar</button>
                 </div>
-                <div className="grid-2">
-                  <div className="field">
-                    <label>Precio unitario ($)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={manual.precio}
-                      onChange={(e) => setManual({ ...manual, precio: e.target.value })}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Cantidad</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={manual.cantidad}
-                      onChange={(e) => setManual({ ...manual, cantidad: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <button className="btn btn-sm">Agregar al carrito</button>
               </form>
             )}
           </div>
 
           {/* Cliente */}
-          <div className="field" style={{ marginTop: 14 }}>
-            <label>Cliente (opcional)</label>
-            {clienteSel ? (
-              <div className="carrito-item">
-                <div className="info">
-                  <div>{clienteSel.nombre}</div>
-                  {clienteSel.dni && <div className="meta">DNI {clienteSel.dni}</div>}
-                </div>
-                <button className="chip" onClick={() => { setClienteId(''); setBusqCliente(''); }}>
-                  Quitar
-                </button>
-              </div>
-            ) : (
-              <>
-                <input
-                  value={busqCliente}
-                  onChange={(e) => setBusqCliente(e.target.value)}
-                  placeholder="Buscar por nombre o DNI…"
-                />
-                {clientesFiltrados.length > 0 && (
-                  <div className="pos-lista">
-                    {clientesFiltrados.map((c) => (
-                      <button
-                        key={c.id}
-                        className="pos-lista-row"
-                        onClick={() => { setClienteId(c.id); setBusqCliente(c.nombre); }}
-                      >
-                        <div>
-                          <div className="nombre">{c.nombre}</div>
-                          {c.dni && <div className="meta">DNI {c.dni}</div>}
-                        </div>
-                      </button>
-                    ))}
+          <div className="pos-card">
+            <div className="pos-card-header">👤 Cliente (opcional)</div>
+            <div className="pos-card-body pos-search-wrap">
+              {clienteSel ? (
+                <div className="pos-cart-row" style={{ padding: 0 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{clienteSel.nombre}</div>
+                    {clienteSel.dni && <div className="meta" style={{ fontSize: '.75rem', color: 'var(--text-dim)' }}>DNI {clienteSel.dni}</div>}
                   </div>
-                )}
-              </>
-            )}
+                  <button className="chip" onClick={() => { setClienteId(''); setBusqCliente(''); }}>Quitar</button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    value={busqCliente}
+                    onChange={(e) => setBusqCliente(e.target.value)}
+                    placeholder="Buscar por nombre o DNI…"
+                  />
+                  {clientesFiltrados.length > 0 && (
+                    <div className="pos-dropdown">
+                      {clientesFiltrados.map((c) => (
+                        <button key={c.id} className="pos-drop-row" onClick={() => { setClienteId(c.id); setBusqCliente(c.nombre); }}>
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{c.nombre}</div>
+                            {c.dni && <div className="meta" style={{ fontSize: '.75rem', color: 'var(--text-dim)' }}>DNI {c.dni}</div>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Carrito */}
-          <div className="card" style={{ marginTop: 14 }}>
-            <div className="card-head">
-              <strong>Carrito</strong>
-              <span className="lbl2">{lineas.length} ítem(s)</span>
+          <div className="pos-card">
+            <div className="pos-card-header">
+              🛒 Carrito <span className="count">{lineas.length} ítems</span>
             </div>
             {lineas.length === 0 ? (
-              <p style={{ color: 'var(--text-dim)' }}>Buscá un producto o agregá una venta manual.</p>
+              <div className="pos-cart-empty">
+                <div style={{ fontSize: 34 }}>🛒</div>
+                <div style={{ marginTop: 6 }}>El carrito está vacío</div>
+                <div style={{ fontSize: '.82rem', marginTop: 2 }}>Buscá un producto o agregá una venta manual</div>
+              </div>
             ) : (
               lineas.map((l) => (
-                <div className="carrito-item" key={l.key}>
-                  <div className="info">
-                    <div>{l.nombre}</div>
-                    <div className="meta">{formatMoney(l.precio)} c/u</div>
+                <div className="pos-cart-row" key={l.key}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nombre}</div>
+                    <div className="meta" style={{ fontSize: '.75rem', color: 'var(--text-dim)' }}>{formatMoney(l.precio)} c/u</div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button className="chip" onClick={() => cambiarCant(l.key, -1)}>−</button>
-                    <strong style={{ minWidth: 18, textAlign: 'center' }}>{l.cantidad}</strong>
-                    <button className="chip" onClick={() => cambiarCant(l.key, 1)}>+</button>
-                    <div className="subtotal" style={{ minWidth: 80, textAlign: 'right' }}>
-                      {formatMoney(l.precio * l.cantidad)}
-                    </div>
-                  </div>
+                  <button className="pos-qty" onClick={() => cambiarCant(l.key, -1)}>−</button>
+                  <strong style={{ minWidth: 22, textAlign: 'center' }}>{l.cantidad}</strong>
+                  <button className="pos-qty" onClick={() => cambiarCant(l.key, 1)}>+</button>
+                  <div style={{ fontWeight: 800, minWidth: 84, textAlign: 'right' }}>{formatMoney(l.precio * l.cantidad)}</div>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {/* Columna derecha: resumen + pagos */}
-        <div className="card pos-carrito">
-          <h2>Resumen</h2>
-          <div className="carrito-item">
-            <div className="info"><div>Subtotal</div></div>
-            <div className="subtotal">{formatMoney(subtotal)}</div>
-          </div>
-          <div className="carrito-item">
-            <div className="info"><div>Descuento (%)</div></div>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={descuento}
-              onChange={(e) => setDescuento(e.target.value)}
-              style={{ width: 80, textAlign: 'right' }}
-              placeholder="0"
-            />
-          </div>
-          <div className="carrito-total" style={{ marginTop: 6 }}>
-            <span>Total a cobrar</span>
-            <span>{formatMoney(total)}</span>
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <div className="card-head">
-              <strong>Medios de pago</strong>
-            </div>
-            <div className="filters" style={{ marginBottom: 10 }}>
-              {METODOS_POS.map(([k, v]) => (
-                <button key={k} className="chip" onClick={() => agregarPago(k)} disabled={lineas.length === 0}>
-                  + {v}
-                </button>
-              ))}
-            </div>
-
-            {pagos.map((p, i) => (
-              <div className="carrito-item" key={i}>
-                <div className="info"><div>{LABEL_METODO[p.metodo] || p.metodo}</div></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* ── Derecha ── */}
+        <div>
+          {/* Resumen */}
+          <div className="pos-card">
+            <div className="pos-card-header">🧾 Resumen</div>
+            <div className="pos-card-body">
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.9rem', marginBottom: 10 }}>
+                <span style={{ color: 'var(--text-dim)' }}>Subtotal</span>
+                <span style={{ fontWeight: 600 }}>{formatMoney(subtotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.9rem' }}>
+                <span style={{ color: 'var(--text-dim)' }}>Descuento</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={descuento}
+                    onChange={(e) => setDescuento(e.target.value)}
+                    style={{ width: 66, textAlign: 'center', fontWeight: 700 }}
+                    placeholder="0"
+                  />
+                  <span style={{ color: 'var(--text-dim)' }}>%</span>
+                </div>
+              </div>
+              <div className="pos-total-box">
+                <span className="lbl">Total a cobrar</span>
+                <span className="val">{formatMoney(total)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Medios de pago */}
+          <div className="pos-card">
+            <div className="pos-card-header">
+              💳 Medios de pago
+              <button className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }} onClick={agregarMedio}>
+                ＋ Agregar
+              </button>
+            </div>
+            <div className="pos-card-body">
+              {pagos.map((p, i) => (
+                <div className="pos-payline" key={i}>
+                  <input
+                    className="monto"
                     type="number"
                     min="0"
                     step="0.01"
                     value={p.monto}
                     onChange={(e) => setPagoMonto(i, e.target.value)}
-                    style={{ width: 110, textAlign: 'right' }}
-                    placeholder="Monto"
+                    placeholder="$"
                   />
-                  <button className="chip" style={{ color: '#ef4444' }} onClick={() => quitarPago(i)}>×</button>
+                  <div className="pos-tiles">
+                    {METODOS_POS.map(([k, label, ico]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        className={`pos-tile ${p.metodo === k ? 'active' : ''}`}
+                        onClick={() => setPagoMetodo(i, k)}
+                      >
+                        <span className="ico">{ico}</span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button className="quitar" onClick={() => quitarPago(i)} disabled={pagos.length === 1}>×</button>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            <div className="carrito-item" style={{ borderTop: '1px solid var(--border)', marginTop: 6 }}>
-              <div className="info"><div>Pagado</div></div>
-              <div className="subtotal">{formatMoney(pagado)}</div>
-            </div>
-            <div className="carrito-item">
-              <div className="info"><div>Resta</div></div>
-              <div className="subtotal" style={{ color: resta > 0 ? 'var(--warn)' : 'var(--accent)' }}>
-                {formatMoney(resta)}
+              {resta > 0.01 && (
+                <button type="button" className="pos-autocompletar" onClick={autocompletar}>
+                  ↙ Completar {formatMoney(resta)} en el último medio
+                </button>
+              )}
+
+              <div className="pos-resumen-pill">
+                <span>
+                  Pagado:{' '}
+                  <strong style={{ color: pagado >= total - 0.01 ? 'var(--accent)' : '#ef4444' }}>{formatMoney(pagado)}</strong>
+                </span>
+                <span>
+                  Resta:{' '}
+                  <strong style={{ color: resta <= 0.01 ? 'var(--accent)' : '#ef4444' }}>{formatMoney(resta)}</strong>
+                </span>
               </div>
             </div>
           </div>
 
           <button
             className="btn"
-            style={{ width: '100%', marginTop: 14 }}
+            style={{ width: '100%', marginTop: 12, padding: '15px', fontSize: '1rem' }}
             onClick={confirmar}
             disabled={cobrando || lineas.length === 0 || resta > 0.009}
           >
-            {cobrando ? <span className="spinner" /> : `Confirmar venta — ${formatMoney(total)}`}
+            {cobrando ? <span className="spinner" /> : `✓ Confirmar venta — ${formatMoney(total)}`}
           </button>
         </div>
       </div>
