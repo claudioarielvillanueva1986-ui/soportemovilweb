@@ -1,5 +1,5 @@
 import './globals.css';
-import Link from 'next/link';
+import { SiteChrome } from '@/components/site-chrome';
 
 export const metadata = {
   title: 'Soporte Móvil — Sistema de Tickets',
@@ -17,24 +17,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es">
       <body>
-        <div className="container">
-          <header className="header">
-            <Link href="/" className="logo">
-              Soporte <span>Móvil</span>
-            </Link>
-            <nav className="nav">
-              <Link href="/consulta">Consultar orden</Link>
-              <Link href="/panel">Ingresar</Link>
-              <Link href="/registro" style={{ color: 'var(--accent)' }}>
-                Prueba gratis
-              </Link>
-            </nav>
-          </header>
-          {children}
-          <footer className="footer">
-            © {new Date().getFullYear()} Soporte Móvil — soportemovil.com.ar
-          </footer>
-        </div>
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );
