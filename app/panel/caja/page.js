@@ -19,7 +19,8 @@ export default function CajaPage() {
   const [ventas, setVentas] = useState([]);
   const [retiros, setRetiros] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
-  const [facturas, setFacturas] = useState({});
+  const [facturaConectada, setFacturaConectada] = useState(false);
+  const [facturandoId, setFacturandoId] = useState(null);
   const [historial, setHistorial] = useState([]);
   const [montoInicial, setMontoInicial] = useState('');
   const [retMonto, setRetMonto] = useState('');
@@ -55,17 +56,6 @@ export default function CajaPage() {
       setVentas(vs || []);
       setRetiros(rs || []);
       setMovimientos(ms || []);
-      if (vs?.length) {
-        const { data: fs } = await supabase
-          .from('facturas')
-          .select('venta_id, estado')
-          .in('venta_id', vs.map((v) => v.id));
-        setFacturas(
-          Object.fromEntries((fs || []).map((f) => [f.venta_id, f.estado]))
-        );
-      } else {
-        setFacturas({});
-      }
     } else {
       const { data: hs } = await supabase
         .from('turnos_caja')
@@ -79,7 +69,34 @@ export default function CajaPage() {
 
   useEffect(() => {
     cargar();
+    supabase
+      .from('facturacion_conexion')
+      .select('conectado')
+      .maybeSingle()
+      .then(({ data }) => setFacturaConectada(!!data?.conectado));
   }, [cargar]);
+
+  async function facturar(v) {
+    setFacturandoId(v.id);
+    setError(null);
+    const { data: sesion } = await supabase.auth.getSession();
+    try {
+      const res = await fetch('/api/facturacion/facturar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sesion?.session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ venta_id: v.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error || 'No se pudo facturar');
+      else cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+    setFacturandoId(null);
+  }
 
   async function abrir(e) {
     e.preventDefault();
@@ -472,38 +489,42 @@ export default function CajaPage() {
               </form>
 
               <h2 style={{ marginTop: 20 }}>Últimas ventas</h2>
+              {!facturaConectada && (
+                <p className="lbl2" style={{ marginBottom: 8 }}>
+                  Conectá Facturá en Configuración para emitir facturas de ARCA.
+                </p>
+              )}
               {ventas.slice(0, 8).map((v) => (
                 <div className="carrito-item" key={v.id}>
                   <div className="info">
                     <div>
                       #{v.numero} · {METODOS_PAGO[v.metodo_pago]}
+                      {v.anulada && (
+                        <span className="badge" style={{ marginLeft: 6, background: '#ef444422', color: '#ef4444', border: '1px solid #ef444455' }}>
+                          Anulada
+                        </span>
+                      )}
                     </div>
                     <div className="meta">{formatFecha(v.created_at)}</div>
                   </div>
-                  {facturas[v.id] ? (
+                  {v.facturada_en ? (
                     <span
                       className="badge"
-                      style={{
-                        background: '#22c55e22',
-                        color: facturas[v.id] === 'emitida' ? '#22c55e' : '#f59e0b',
-                        border: '1px solid #22c55e55',
-                      }}
+                      style={{ background: '#22c55e22', color: '#22c55e', border: '1px solid #22c55e55' }}
+                      title={v.factura_cae ? `CAE ${v.factura_cae}` : ''}
                     >
-                      {facturas[v.id]}
+                      Facturada
                     </span>
                   ) : (
-                    <button
-                      className="chip"
-                      onClick={async () => {
-                        const { error: err } = await supabase
-                          .from('facturas')
-                          .insert({ venta_id: v.id });
-                        if (err) setError(err.message);
-                        else cargar();
-                      }}
-                    >
-                      Facturar
-                    </button>
+                    facturaConectada && !v.anulada && (
+                      <button
+                        className="chip"
+                        disabled={facturandoId === v.id}
+                        onClick={() => facturar(v)}
+                      >
+                        {facturandoId === v.id ? <span className="spinner" /> : 'Facturar en ARCA'}
+                      </button>
+                    )
                   )}
                   <div className="subtotal">{formatMoney(v.total)}</div>
                 </div>
