@@ -31,6 +31,11 @@ const GRUPOS = [
     ],
   },
   {
+    titulo: 'Comunicación',
+    soloBot: true,
+    links: [['/panel/whatsapp', 'WhatsApp', 'whatsapp']],
+  },
+  {
     titulo: 'Análisis',
     soloDueno: true,
     links: [
@@ -281,7 +286,9 @@ export default function PanelLayout({ children }) {
   if (!sesion) return <Login />;
 
   const gruposVisibles = GRUPOS.filter(
-    (g) => !g.soloDueno || perfil?.rol === 'dueno'
+    (g) =>
+      (!g.soloDueno || perfil?.rol === 'dueno') &&
+      (!g.soloBot || negocio?.bot_ia)
   );
 
   const contenidoSidebar = (

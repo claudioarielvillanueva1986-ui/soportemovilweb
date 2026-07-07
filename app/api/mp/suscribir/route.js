@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
-import { mpConfigurado, mpFetch, errorJson, NO_CONFIG_MSG } from '@/lib/mp-server';
+import { mpConfigurado, mpFetch, errorJson } from '@/lib/mp-server';
 
 const PRECIO_MENSUAL = Number(process.env.SUSCRIPCION_PRECIO || 20000);
 
 // Crea la suscripción mensual (preapproval) del negocio y devuelve el link de pago.
 // El cobro lo recibe la cuenta de MP dueña del producto (MP_ACCESS_TOKEN).
 export async function POST(request) {
-  if (!mpConfigurado()) return errorJson(NO_CONFIG_MSG, 501);
+  if (!mpConfigurado())
+    return errorJson(
+      'Los pagos de la suscripción todavía no están habilitados. Por ahora seguí usando el sistema con tu prueba; te avisamos cuando puedas suscribirte.',
+      501
+    );
 
   let body;
   try {

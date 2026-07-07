@@ -2173,3 +2173,30 @@ main {
 .pos-lista-row .nombre { font-weight: 600; font-size: 0.9rem; }
 .pos-lista-row .meta { color: var(--text-dim); font-size: 0.76rem; margin-top: 2px; }
 .pos-lista-row .precio { font-weight: 700; white-space: nowrap; }
+
+/* ===== Bandeja de WhatsApp (PACHE) ===== */
+.wa-shell { display: grid; grid-template-columns: 320px 1fr; gap: 14px; align-items: stretch; min-height: 60vh; }
+.wa-lista { display: flex; flex-direction: column; gap: 6px; max-height: 72vh; overflow-y: auto; }
+.wa-conv { text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; cursor: pointer; position: relative; }
+.wa-conv.active { border-color: var(--accent); }
+.wa-conv-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.wa-conv-sub { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
+.wa-ultimo { color: var(--text-dim); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.wa-badge { background: var(--accent); color: #0e100c; border-radius: 999px; min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; padding: 0 6px; }
+.wa-modo { font-size: 0.68rem; margin-top: 6px; display: inline-block; }
+.wa-modo.humano { color: var(--warn); border-color: var(--warn); }
+.wa-modo.bot { color: var(--accent); border-color: var(--accent); }
+.wa-hilo { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); min-height: 60vh; max-height: 72vh; }
+.wa-vacio { margin: auto; color: var(--text-dim); }
+.wa-hilo-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.wa-mensajes { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.wa-msg { max-width: 78%; padding: 8px 11px; border-radius: 12px; font-size: 0.9rem; line-height: 1.35; word-break: break-word; white-space: pre-wrap; }
+.wa-msg.in { align-self: flex-start; background: var(--bg-input); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.wa-msg.out { align-self: flex-end; background: color-mix(in srgb, var(--accent) 20%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-bottom-right-radius: 4px; }
+.wa-msg-meta { font-size: 0.66rem; color: var(--text-dim); margin-top: 3px; text-align: right; }
+.wa-responder { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); }
+.wa-responder input { flex: 1; }
+@media (max-width: 760px) {
+  .wa-shell { grid-template-columns: 1fr; }
+  .wa-ultimo { max-width: 60vw; }
+}
