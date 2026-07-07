@@ -132,7 +132,7 @@ facturación ARCA (delegada a Facturá), planes/suscripción, PWA + web push.
 - **Caja QR pantalla dedicada** (`/caja-qr`): el cobro QR está, falta la pantalla de espera a pantalla completa.
 
 ### ⬜ Falta (verificado, ordenado por impacto)
-1. **Gremio / Mayorista B2B** — login gremio, tienda mayorista con precios B2B, pedidos, panel admin gremio (`/gremio*`, `/admin/gremio*`). Módulo entero.
+1. ~~Gremio / Mayorista B2B~~ — **🚫 EXCLUIDO por decisión del usuario.**
 2. **/pantallas** — landing “Consulta por cambio de módulos 100% originales” (linkeada desde el nav de la tienda).
 3. **Recordatorios de retiro** — bandeja de órdenes listas sin retirar N días + avisar (`/admin/recordatorios`).
 4. **Exportar a CSV** — órdenes y reportes (`/exportar/ordenes/csv`, `/reportes/exportar/csv`).
