@@ -64,6 +64,8 @@ async function procesarMensaje({ phoneNumberId, from, nombre, texto, waId }) {
     p_wa_id: waId,
   });
   if (!ctx) return; // sin config para ese número
+  // Número bloqueado: se guarda el mensaje pero el bot no responde.
+  if (ctx.bloqueado) return;
   // Si un humano tomó la conversación o el bot está apagado, no auto-respondemos.
   if (ctx.modo === 'humano' || !ctx.bot_activo) return;
   if (!waConfigurado() || !process.env.ANTHROPIC_API_KEY) return;
