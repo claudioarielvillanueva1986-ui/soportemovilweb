@@ -33,7 +33,10 @@ const GRUPOS = [
   {
     titulo: 'Análisis',
     soloDueno: true,
-    links: [['/panel/reportes', 'Reportes', 'reportes']],
+    links: [
+      ['/panel/reportes', 'Reportes', 'reportes'],
+      ['/panel/usuarios', 'Usuarios', 'usuarios'],
+    ],
   },
   {
     titulo: 'Cuenta',

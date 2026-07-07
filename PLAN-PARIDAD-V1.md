@@ -56,10 +56,10 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 - ✅ **Efectivo disponible** en vivo — arqueo de caja incluye ventas efectivo, movimientos y retiros.
 
 ### Fase D — equipo, permisos y stock
-- ⬜ **Gestión de usuarios/operadores** (invitar por email, rol, activar/eliminar) — Edge Function.
+- ✅ **Gestión de usuarios/operadores** — Edge Function `equipo` (alta con email+contraseña, sin depender de SMTP), rol/activar por RLS, baja; `/panel/usuarios` (dueño). Trigger `proteger_ultimo_dueno` impide dejar el negocio sin dueño activo; `mi_negocio()`/`es_dueno()` bloquean a usuarios inactivos.
 - ⬜ **Workflow de aprobaciones** (cambios que requieren OK del dueño) — evaluar si aporta sobre RLS.
-- ⬜ **Ajuste de stock con motivo + historial** (merma, recuento, ingreso).
-- ⬜ **Fotos y categorías de producto**.
+- ✅ **Ajuste de stock con motivo + historial** (merma, recuento, ingreso) — `movimientos_stock` + `ajustar_stock`.
+- ⬜ **Fotos y categorías de producto** (categorías ya existen; faltan fotos).
 
 ### Fase E — facturación AFIP/ARCA
 - ✅ **Emisión real** delegada en Facturá (ARCA WSFE + PDF + CAE).
