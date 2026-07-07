@@ -44,17 +44,16 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 - ⬜ **Comprobante público con token** (link compartible sin login): `tickets.public_token` + `/r/[token]`.
 - ⬜ **Exportar órdenes a CSV**.
 
-### Fase B — presupuestos y servicios
-- ⬜ **Catálogo de servicios** (mano de obra con precio) — se suma al POS y a repuestos.
-- ⬜ **Presupuestos/cotizaciones** con ítems y **conversión a orden**.
+### Fase B — presupuestos y servicios ✅
+- ✅ **Catálogo de servicios** (mano de obra con precio) — `/panel/servicios`, se suma al POS y a presupuestos.
+- ✅ **Presupuestos/cotizaciones** con ítems y **conversión a orden** — `/panel/presupuestos`.
 - ⬜ **Sugerir presupuesto (IA)** (opcional, Claude API).
 
-### Fase C — caja y ventas completas
-- ⬜ **Gastos** categorizados (aparte de retiros).
-- ⬜ **Movimientos de caja** ingreso/egreso manuales con motivo.
-- ⬜ **Anular venta** (reposición de stock atómica) y **anular pago**.
-- ⬜ **Editar / reimprimir venta**.
-- ⬜ **Efectivo disponible** en vivo (widget).
+### Fase C — caja y ventas completas ✅
+- ✅ **Gastos** categorizados y **movimientos de caja** ingreso/egreso con motivo — tabla `movimientos_caja` + `registrar_movimiento`.
+- ✅ **Anular venta** (reposición de stock atómica) — `anular_venta` (dueño); arqueo excluye anuladas.
+- ✅ **Reimprimir venta** — `/panel/imprimir-venta/[id]` (editar = anular + rehacer).
+- ✅ **Efectivo disponible** en vivo — arqueo de caja incluye ventas efectivo, movimientos y retiros.
 
 ### Fase D — equipo, permisos y stock
 - ⬜ **Gestión de usuarios/operadores** (invitar por email, rol, activar/eliminar) — Edge Function.

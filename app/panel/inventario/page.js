@@ -1,8 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, CATEGORIAS, formatMoney } from '@/lib/supabase';
+import { supabase, CATEGORIAS, formatMoney, formatFecha } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
+
+const TIPOS_STOCK = {
+  ingreso: 'Ingreso (compra)',
+  merma: 'Merma / rotura',
+  recuento: 'Recuento (stock real)',
+  ajuste: 'Ajuste manual (±)',
+};
 
 const VACIO = {
   nombre: '',
@@ -22,6 +29,9 @@ export default function InventarioPage() {
   const [busqueda, setBusqueda] = useState('');
   const [filtroCat, setFiltroCat] = useState('todas');
   const [form, setForm] = useState(null); // null = cerrado, {} = alta, {id} = edición
+  const [stockProd, setStockProd] = useState(null);
+  const [ajuste, setAjuste] = useState({ tipo: 'ingreso', cantidad: '', motivo: '' });
+  const [historialStock, setHistorialStock] = useState([]);
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
 
@@ -83,6 +93,35 @@ export default function InventarioPage() {
     setOcupado(false);
     if (err) return setError(err.message);
     setForm(null);
+    cargar();
+  }
+
+  async function abrirStock(p) {
+    setStockProd(p);
+    setAjuste({ tipo: 'ingreso', cantidad: '', motivo: '' });
+    setError(null);
+    const { data } = await supabase
+      .from('movimientos_stock')
+      .select('*')
+      .eq('producto_id', p.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setHistorialStock(data || []);
+  }
+
+  async function guardarAjuste(e) {
+    e.preventDefault();
+    setError(null);
+    setOcupado(true);
+    const { error: err } = await supabase.rpc('ajustar_stock', {
+      p_producto_id: stockProd.id,
+      p_tipo: ajuste.tipo,
+      p_cantidad: parseInt(ajuste.cantidad, 10),
+      p_motivo: ajuste.motivo,
+    });
+    setOcupado(false);
+    if (err) return setError(err.message);
+    setStockProd(null);
     cargar();
   }
 
@@ -233,6 +272,91 @@ export default function InventarioPage() {
         </div>
       )}
 
+      {stockProd && (
+        <div className="drawer-overlay" onClick={() => setStockProd(null)}>
+          <div
+            className="card"
+            style={{ maxWidth: 480, width: '100%', margin: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0 }}>Stock — {stockProd.nombre}</h2>
+              <button className="chip" onClick={() => setStockProd(null)}>×</button>
+            </div>
+            <p className="lbl2" style={{ marginTop: 4 }}>
+              Stock actual: <strong>{stockProd.stock}</strong>
+            </p>
+
+            <form onSubmit={guardarAjuste}>
+              <div className="grid-2">
+                <div className="field">
+                  <label>Tipo</label>
+                  <select
+                    value={ajuste.tipo}
+                    onChange={(e) => setAjuste({ ...ajuste, tipo: e.target.value })}
+                  >
+                    {Object.entries(TIPOS_STOCK).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>
+                    {ajuste.tipo === 'recuento'
+                      ? 'Stock real contado'
+                      : ajuste.tipo === 'ajuste'
+                      ? 'Cantidad (±)'
+                      : 'Cantidad'}
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    step="1"
+                    value={ajuste.cantidad}
+                    onChange={(e) => setAjuste({ ...ajuste, cantidad: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label>Motivo</label>
+                <input
+                  value={ajuste.motivo}
+                  onChange={(e) => setAjuste({ ...ajuste, motivo: e.target.value })}
+                  placeholder="Compra a proveedor, rotura, recuento mensual…"
+                />
+              </div>
+              <button className="btn" disabled={ocupado}>
+                {ocupado ? <span className="spinner" /> : 'Aplicar'}
+              </button>
+            </form>
+
+            {historialStock.length > 0 && (
+              <>
+                <h2 style={{ marginTop: 20, fontSize: '1rem' }}>Historial</h2>
+                {historialStock.map((m) => (
+                  <div className="carrito-item" key={m.id}>
+                    <div className="info">
+                      <div style={{ textTransform: 'capitalize' }}>
+                        {TIPOS_STOCK[m.tipo] || m.tipo}
+                        {m.motivo ? ` — ${m.motivo}` : ''}
+                      </div>
+                      <div className="meta">{formatFecha(m.created_at)} · queda {m.stock_resultante}</div>
+                    </div>
+                    <div
+                      className="subtotal"
+                      style={{ color: m.delta >= 0 ? '#22c55e' : '#ef4444' }}
+                    >
+                      {m.delta >= 0 ? '+' : ''}
+                      {m.delta}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="field">
         <input
           value={busqueda}
@@ -295,6 +419,15 @@ export default function InventarioPage() {
                     )}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
+                    {p.maneja_stock && (
+                      <button
+                        className="chip"
+                        style={{ marginRight: 6 }}
+                        onClick={() => abrirStock(p)}
+                      >
+                        Stock
+                      </button>
+                    )}
                     <button
                       className="chip"
                       onClick={() => setForm({ ...p, sku: p.sku || '' })}
