@@ -104,7 +104,9 @@ function Login() {
     <main className="login-wrap">
       <div className="login-card">
         <div className="login-head">
-          <img src="/logo.png" alt="Soporte Móvil" style={{ height: 56, width: 'auto', margin: '0 auto 10px' }} />
+          <span className="logo-plate" style={{ margin: '0 auto 10px' }}>
+            <img src="/logo.png" alt="Soporte Móvil" style={{ height: 48, width: 'auto' }} />
+          </span>
           <div className="login-sub">
             {modo === 'login' ? 'Sistema de gestión del taller' : 'Recuperá tu contraseña'}
           </div>
@@ -296,7 +298,9 @@ export default function PanelLayout({ children }) {
   const contenidoSidebar = (
     <>
       <div className="sidebar-brand">
-        <img src="/logo.png" alt="Soporte Móvil" style={{ height: 34, width: 'auto' }} />
+        <span className="logo-plate">
+          <img src="/logo.png" alt="Soporte Móvil" style={{ height: 30, width: 'auto' }} />
+        </span>
         <div className="brand-sub">Sistema de gestión</div>
         {negocio && <div className="brand-negocio">{negocio.nombre}</div>}
       </div>
@@ -355,7 +359,11 @@ export default function PanelLayout({ children }) {
         >
           <Icon name="menu" size={22} />
         </button>
-        <img src="/logo.png" alt="Soporte Móvil" className="topbar-brand" style={{ height: 26, width: 'auto' }} />
+        <span className="topbar-brand">
+          <span className="logo-plate">
+            <img src="/logo.png" alt="Soporte Móvil" style={{ height: 22, width: 'auto' }} />
+          </span>
+        </span>
         <span className="user-avatar" style={{ marginRight: 34 }}>
           {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
         </span>

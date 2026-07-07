@@ -210,7 +210,9 @@ export function TiendaStore({ slug }) {
       {/* NAV */}
       <nav className="tv1-nav">
         <a href="#inicio" className="nav-brand">
-          <img className="nav-logo-img" src={cfg.logo_url || '/logo.png'} alt={neg.nombre} />
+          <span className="nav-logo-plate">
+            <img className="nav-logo-img" src={cfg.logo_url || '/logo.png'} alt={neg.nombre} />
+          </span>
         </a>
         <div className={`nav-links${navOpen ? ' open' : ''}`} onClick={() => setNavOpen(false)}>
           <a href="#productos" className="nav-link"><Ic n="bag" /> Tienda</a>
