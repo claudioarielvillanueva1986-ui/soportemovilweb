@@ -41,6 +41,7 @@ const GRUPOS = [
     links: [
       ['/panel/reportes', 'Reportes', 'reportes'],
       ['/panel/fidelizacion', 'Fidelización', 'fidelizacion'],
+      ['/panel/cupones', 'Cupones', 'cupones'],
       ['/panel/usuarios', 'Usuarios', 'usuarios'],
     ],
   },

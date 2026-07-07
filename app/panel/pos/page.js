@@ -65,6 +65,9 @@ export default function PosPage() {
   const [busqueda, setBusqueda] = useState('');
   const [lineas, setLineas] = useState([]);
   const [descuento, setDescuento] = useState('');
+  const [cupon, setCupon] = useState(null); // {id, codigo, tipo, valor}
+  const [cuponCod, setCuponCod] = useState('');
+  const [cuponErr, setCuponErr] = useState(null);
   const [pagos, setPagos] = useState([{ metodo: 'efectivo', monto: '' }]);
   const [clienteId, setClienteId] = useState('');
   const [busqCliente, setBusqCliente] = useState('');
@@ -139,7 +142,12 @@ export default function PosPage() {
 
   const subtotal = lineas.reduce((s, l) => s + l.precio * l.cantidad, 0);
   const desc = Math.min(100, Math.max(0, Number(descuento) || 0));
-  const total = Math.round(subtotal * (1 - desc / 100) * 100) / 100;
+  const cuponDesc = cupon
+    ? cupon.tipo === 'porcentaje'
+      ? Math.round(subtotal * cupon.valor) / 100
+      : Math.min(cupon.valor, subtotal)
+    : 0;
+  const total = Math.round(Math.max(0, subtotal * (1 - desc / 100) - cuponDesc) * 100) / 100;
   const pagado = pagos.reduce((s, p) => s + (Number(p.monto) || 0), 0);
   const resta = Math.round(Math.max(0, total - pagado) * 100) / 100;
 
@@ -147,6 +155,21 @@ export default function PosPage() {
   useEffect(() => {
     setPagos((prev) => (prev.length === 1 ? [{ ...prev[0], monto: total || '' }] : prev));
   }, [total]);
+
+  async function aplicarCupon() {
+    setCuponErr(null);
+    if (!cuponCod.trim()) return;
+    const { data, error: err } = await supabase.rpc('validar_cupon', { p_codigo: cuponCod.trim(), p_subtotal: subtotal });
+    if (err) return setCuponErr(err.message);
+    if (!data?.valido) return setCuponErr(data?.mensaje || 'Cupón inválido');
+    setCupon({ id: data.cupon_id, codigo: data.codigo, tipo: data.tipo, valor: Number(data.valor) });
+    setCuponErr(null);
+  }
+  function quitarCupon() {
+    setCupon(null);
+    setCuponCod('');
+    setCuponErr(null);
+  }
 
   function agregarProducto(p) {
     setError(null);
@@ -263,6 +286,7 @@ export default function PosPage() {
       p_pagos: pagosLimpios,
       p_descuento: desc,
       p_cliente_id: clienteId || null,
+      p_cupon_id: cupon?.id || null,
     });
     setCobrando(false);
     if (err) return setError(err.message);
@@ -272,6 +296,7 @@ export default function PosPage() {
     setLineas([]);
     setPagos([{ metodo: 'efectivo', monto: '' }]);
     setDescuento('');
+    quitarCupon();
     setClienteId('');
     setBusqCliente('');
     cargar();
@@ -533,6 +558,27 @@ export default function PosPage() {
                   <span style={{ color: 'var(--text-dim)' }}>%</span>
                 </div>
               </div>
+              <div style={{ marginTop: 10 }}>
+                {cupon ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.85rem', color: '#22c55e', background: 'color-mix(in srgb, #22c55e 12%, transparent)', padding: '8px 10px', borderRadius: 8 }}>
+                    <span>🎟️ {cupon.codigo} · −{formatMoney(cuponDesc)}</span>
+                    <button className="chip" onClick={quitarCupon} style={{ color: '#ef4444' }}>Quitar</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      value={cuponCod}
+                      onChange={(e) => setCuponCod(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aplicarCupon(); } }}
+                      placeholder="Cupón"
+                      style={{ flex: 1, textTransform: 'uppercase' }}
+                    />
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={aplicarCupon} disabled={!cuponCod.trim()}>Aplicar</button>
+                  </div>
+                )}
+                {cuponErr && <div style={{ color: '#ef4444', fontSize: '.78rem', marginTop: 4 }}>{cuponErr}</div>}
+              </div>
+
               <div className="pos-total-box">
                 <span className="lbl">Total a cobrar</span>
                 <span className="val">{formatMoney(total)}</span>

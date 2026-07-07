@@ -77,7 +77,8 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 - ✅ **Puntos/fidelización "Soporte Puntos"**: `fidelizacion_config` (activo, puntos_por_mil),
   `puntos_movimientos`, `premios`; acreditación automática en `registrar_venta_pos`, `saldo_puntos`,
   `canjear_premio`; página `/panel/fidelizacion` (config + premios + canje + movimientos) y saldo/estimado en el POS.
-- ⬜ Cupones (código, % o monto, mínimo, usos, vencimiento) aplicables en el POS.
+- ✅ **Cupones** (código, % o monto, mínimo, usos, vencimiento): tabla `cupones`, `validar_cupon`,
+  aplicación atómica en `registrar_venta_pos` (suma uso, guarda código en la venta), página `/panel/cupones` y campo de cupón en el POS.
 - ⬜ Encuestas NPS por orden (token público, estrellas/rapidez/atención) + reactivación de clientes.
 
 ### Fase H — vidriera y B2B
