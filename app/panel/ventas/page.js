@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, METODOS_PAGO, formatMoney, formatFecha } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
+import { usePerfil } from '@/lib/panel-context';
 
 const LOTE = 50;
 
@@ -14,7 +15,9 @@ const PRESETS = [
 ];
 
 export default function VentasPage() {
+  const { esDueno } = usePerfil();
   const [ventas, setVentas] = useState(null);
+  const [anulandoId, setAnulandoId] = useState(null);
   const [total, setTotal] = useState(0);
   const [preset, setPreset] = useState('30d');
   const [metodo, setMetodo] = useState('todos');
@@ -54,6 +57,22 @@ export default function VentasPage() {
       setError(e.message);
     }
     setFacturandoId(null);
+  }
+
+  async function anular(v) {
+    const motivo = window.prompt(
+      `Anular la venta #${v.numero}. Se repone el stock de los productos.\nMotivo (opcional):`
+    );
+    if (motivo === null) return;
+    setAnulandoId(v.id);
+    setError(null);
+    const { error: err } = await supabase.rpc('anular_venta', {
+      p_venta_id: v.id,
+      p_motivo: motivo,
+    });
+    setAnulandoId(null);
+    if (err) setError(err.message);
+    else cargar();
   }
 
   const cargar = useCallback(async () => {
@@ -166,7 +185,14 @@ export default function VentasPage() {
               onClick={() => setAbierta(abierta === v.id ? null : v.id)}
             >
               <div className="info">
-                <div className="numero">#{v.numero}</div>
+                <div className="numero">
+                  #{v.numero}
+                  {v.anulada && (
+                    <span className="badge" style={{ marginLeft: 8, background: '#ef444422', color: '#ef4444', border: '1px solid #ef444455' }}>
+                      Anulada
+                    </span>
+                  )}
+                </div>
                 <div className="titulo">
                   {v.clientes?.nombre || 'Consumidor final'}
                   {v.venta_items?.length
@@ -181,7 +207,10 @@ export default function VentasPage() {
                   {formatFecha(v.created_at)} · {METODOS_PAGO[v.metodo_pago] || v.metodo_pago}
                 </div>
               </div>
-              <div className="subtotal" style={{ fontSize: '1rem' }}>
+              <div
+                className="subtotal"
+                style={{ fontSize: '1rem', textDecoration: v.anulada ? 'line-through' : 'none', opacity: v.anulada ? 0.6 : 1 }}
+              >
                 {formatMoney(v.total)}
               </div>
             </div>
@@ -208,6 +237,31 @@ export default function VentasPage() {
                     Pago Mercado Pago: {v.mp_payment_id}
                   </p>
                 )}
+                {v.anulada && (
+                  <p className="lbl2" style={{ marginTop: 8, color: '#ef4444' }}>
+                    Anulada {v.anulada_at ? `el ${formatFecha(v.anulada_at)}` : ''}
+                    {v.anulada_motivo ? ` — ${v.anulada_motivo}` : ''}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                  <a
+                    className="btn btn-secondary btn-sm"
+                    href={`/panel/imprimir-venta/${v.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Reimprimir
+                  </a>
+                  {esDueno && !v.anulada && (
+                    <button
+                      className="btn btn-danger btn-sm"
+                      disabled={anulandoId === v.id}
+                      onClick={() => anular(v)}
+                    >
+                      {anulandoId === v.id ? <span className="spinner" /> : 'Anular venta'}
+                    </button>
+                  )}
+                </div>
                 {facturaConectada && (
                   <div style={{ marginTop: 10 }}>
                     {v.facturada_en ? (

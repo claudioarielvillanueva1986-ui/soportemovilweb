@@ -9,15 +9,22 @@ import {
 } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
+const CATEGORIAS_MOV = {
+  egreso: ['insumos', 'servicios', 'sueldos', 'alquiler', 'proveedor', 'otro'],
+  ingreso: ['aporte', 'cobro', 'otro'],
+};
+
 export default function CajaPage() {
   const [turno, setTurno] = useState(undefined);
   const [ventas, setVentas] = useState([]);
   const [retiros, setRetiros] = useState([]);
+  const [movimientos, setMovimientos] = useState([]);
   const [facturas, setFacturas] = useState({});
   const [historial, setHistorial] = useState([]);
   const [montoInicial, setMontoInicial] = useState('');
   const [retMonto, setRetMonto] = useState('');
   const [retMotivo, setRetMotivo] = useState('');
+  const [mov, setMov] = useState({ tipo: 'egreso', categoria: 'insumos', monto: '', motivo: '' });
   const [declarado, setDeclarado] = useState('');
   const [cierre, setCierre] = useState(null);
   const [error, setError] = useState(null);
@@ -28,7 +35,7 @@ export default function CajaPage() {
     const t = resumen?.turno || null;
     setTurno(t);
     if (t) {
-      const [{ data: vs }, { data: rs }] = await Promise.all([
+      const [{ data: vs }, { data: rs }, { data: ms }] = await Promise.all([
         supabase
           .from('ventas')
           .select('*')
@@ -39,9 +46,15 @@ export default function CajaPage() {
           .select('*')
           .eq('turno_id', t.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('movimientos_caja')
+          .select('*')
+          .eq('turno_id', t.id)
+          .order('created_at', { ascending: false }),
       ]);
       setVentas(vs || []);
       setRetiros(rs || []);
+      setMovimientos(ms || []);
       if (vs?.length) {
         const { data: fs } = await supabase
           .from('facturas')
@@ -97,6 +110,22 @@ export default function CajaPage() {
     cargar();
   }
 
+  async function registrarMov(e) {
+    e.preventDefault();
+    setError(null);
+    setOcupado(true);
+    const { error: err } = await supabase.rpc('registrar_movimiento', {
+      p_tipo: mov.tipo,
+      p_categoria: mov.categoria,
+      p_monto: Number(mov.monto),
+      p_motivo: mov.motivo,
+    });
+    setOcupado(false);
+    if (err) return setError(err.message);
+    setMov({ tipo: 'egreso', categoria: 'insumos', monto: '', motivo: '' });
+    cargar();
+  }
+
   async function cerrar(e) {
     e.preventDefault();
     setError(null);
@@ -118,13 +147,20 @@ export default function CajaPage() {
   let totalVentas = 0;
   let ventasEfectivo = 0;
   for (const v of ventas) {
+    if (v.anulada) continue;
     porMetodo[v.metodo_pago] = (porMetodo[v.metodo_pago] || 0) + Number(v.total);
     totalVentas += Number(v.total);
     if (v.metodo_pago === 'efectivo') ventasEfectivo += Number(v.total);
   }
   const totalRetiros = retiros.reduce((s, r) => s + Number(r.monto), 0);
+  const movIngresos = movimientos
+    .filter((m) => m.tipo === 'ingreso')
+    .reduce((s, m) => s + Number(m.monto), 0);
+  const movEgresos = movimientos
+    .filter((m) => m.tipo === 'egreso')
+    .reduce((s, m) => s + Number(m.monto), 0);
   const esperado = turno
-    ? Number(turno.monto_inicial) + ventasEfectivo - totalRetiros
+    ? Number(turno.monto_inicial) + ventasEfectivo + movIngresos - totalRetiros - movEgresos
     : 0;
 
   return (
@@ -144,6 +180,18 @@ export default function CajaPage() {
               <dt>Retiros</dt>
               <dd>{formatMoney(cierre.total_retiros)}</dd>
             </div>
+            {(Number(cierre.mov_ingreso) > 0 || Number(cierre.mov_egreso) > 0) && (
+              <>
+                <div>
+                  <dt>Ingresos de caja</dt>
+                  <dd style={{ color: '#22c55e' }}>{formatMoney(cierre.mov_ingreso)}</dd>
+                </div>
+                <div>
+                  <dt>Gastos de caja</dt>
+                  <dd style={{ color: '#f59e0b' }}>{formatMoney(cierre.mov_egreso)}</dd>
+                </div>
+              </>
+            )}
             <div>
               <dt>Efectivo esperado</dt>
               <dd>{formatMoney(cierre.efectivo_esperado)}</dd>
@@ -309,6 +357,93 @@ export default function CajaPage() {
                 </div>
                 <button className="btn btn-secondary btn-sm" disabled={ocupado}>
                   Registrar retiro
+                </button>
+              </form>
+
+              <h2 style={{ marginTop: 20 }}>Movimientos de caja</h2>
+              {movimientos.length === 0 ? (
+                <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+                  Registrá gastos (insumos, servicios) o ingresos manuales.
+                </p>
+              ) : (
+                movimientos.map((m) => (
+                  <div className="carrito-item" key={m.id}>
+                    <div className="info">
+                      <div>
+                        {m.motivo}{' '}
+                        <span className="lbl2" style={{ textTransform: 'capitalize' }}>
+                          · {m.categoria}
+                        </span>
+                      </div>
+                      <div className="meta">{formatFecha(m.created_at)}</div>
+                    </div>
+                    <div
+                      className="subtotal"
+                      style={{ color: m.tipo === 'ingreso' ? '#22c55e' : '#f59e0b' }}
+                    >
+                      {m.tipo === 'ingreso' ? '+' : '−'}
+                      {formatMoney(m.monto)}
+                    </div>
+                  </div>
+                ))
+              )}
+              <form onSubmit={registrarMov} style={{ marginTop: 10 }}>
+                <div className="grid-2">
+                  <div className="field">
+                    <label>Tipo</label>
+                    <select
+                      value={mov.tipo}
+                      onChange={(e) => {
+                        const tipo = e.target.value;
+                        setMov((m) => ({
+                          ...m,
+                          tipo,
+                          categoria: (tipo === 'ingreso' ? CATEGORIAS_MOV.ingreso : CATEGORIAS_MOV.egreso)[0],
+                        }));
+                      }}
+                    >
+                      <option value="egreso">Gasto / egreso</option>
+                      <option value="ingreso">Ingreso</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Categoría</label>
+                    <select
+                      value={mov.categoria}
+                      onChange={(e) => setMov({ ...mov, categoria: e.target.value })}
+                    >
+                      {(mov.tipo === 'ingreso' ? CATEGORIAS_MOV.ingreso : CATEGORIAS_MOV.egreso).map((c) => (
+                        <option key={c} value={c} style={{ textTransform: 'capitalize' }}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="field">
+                    <label>Monto ($)</label>
+                    <input
+                      required
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={mov.monto}
+                      onChange={(e) => setMov({ ...mov, monto: e.target.value })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Motivo</label>
+                    <input
+                      required
+                      value={mov.motivo}
+                      onChange={(e) => setMov({ ...mov, motivo: e.target.value })}
+                      placeholder="Detalle del movimiento"
+                    />
+                  </div>
+                </div>
+                <button className="btn btn-secondary btn-sm" disabled={ocupado}>
+                  Registrar movimiento
                 </button>
               </form>
             </div>
