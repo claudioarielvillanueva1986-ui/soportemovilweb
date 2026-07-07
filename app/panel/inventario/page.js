@@ -2,7 +2,74 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, CATEGORIAS, formatMoney, formatFecha } from '@/lib/supabase';
+import { comprimirImagen } from '@/lib/imagen';
 import { usePerfil } from '@/lib/panel-context';
+
+function FotosProducto({ productoId }) {
+  const [fotos, setFotos] = useState([]);
+  const [negocioId, setNegocioId] = useState(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [error, setError] = useState(null);
+
+  const cargar = useCallback(async () => {
+    const { data } = await supabase.from('producto_fotos').select('id, path, url').eq('producto_id', productoId);
+    setFotos(data || []);
+  }, [productoId]);
+
+  useEffect(() => {
+    cargar();
+    supabase.from('negocios').select('id').maybeSingle().then(({ data }) => setNegocioId(data?.id));
+  }, [cargar]);
+
+  async function subir(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !negocioId) return;
+    setSubiendo(true);
+    setError(null);
+    for (const file of files) {
+      try {
+        const blob = await comprimirImagen(file);
+        const path = `${negocioId}/productos/${productoId}/${crypto.randomUUID()}.jpg`;
+        const { error: errUp } = await supabase.storage.from('ordenes-fotos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if (errUp) throw new Error(errUp.message);
+        const url = supabase.storage.from('ordenes-fotos').getPublicUrl(path).data.publicUrl;
+        const { error: errRpc } = await supabase.rpc('registrar_foto_producto', { p_producto_id: productoId, p_path: path, p_url: url });
+        if (errRpc) throw new Error(errRpc.message);
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+    setSubiendo(false);
+    e.target.value = '';
+    cargar();
+  }
+
+  async function eliminar(foto) {
+    const { data: path, error: errRpc } = await supabase.rpc('eliminar_foto_producto', { p_id: foto.id });
+    if (errRpc) return setError(errRpc.message);
+    if (path) await supabase.storage.from('ordenes-fotos').remove([path]);
+    cargar();
+  }
+
+  return (
+    <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+      <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Fotos del producto</label>
+      {error && <div className="alert alert-error">{error}</div>}
+      <div className="fotos-grid">
+        {fotos.map((f) => (
+          <div className="foto-item" key={f.id}>
+            <img src={f.url} alt="" />
+            <button type="button" className="foto-del" onClick={() => eliminar(f)}>×</button>
+          </div>
+        ))}
+      </div>
+      <label className="btn btn-secondary btn-sm" style={{ marginTop: 10, cursor: 'pointer' }}>
+        {subiendo ? <span className="spinner" /> : '+ Agregar fotos'}
+        <input type="file" accept="image/*" multiple onChange={subir} style={{ display: 'none' }} disabled={subiendo} />
+      </label>
+    </div>
+  );
+}
 
 const TIPOS_STOCK = {
   ingreso: 'Ingreso (compra)',
@@ -256,7 +323,12 @@ export default function InventarioPage() {
                 </label>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            {form.id ? (
+              <FotosProducto productoId={form.id} />
+            ) : (
+              <p className="lbl2" style={{ marginTop: 4 }}>Guardá el producto para poder agregarle fotos.</p>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
               <button className="btn" disabled={ocupado}>
                 {ocupado ? <span className="spinner" /> : 'Guardar'}
               </button>

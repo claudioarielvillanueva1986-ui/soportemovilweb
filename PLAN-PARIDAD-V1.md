@@ -59,7 +59,8 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 - ✅ **Gestión de usuarios/operadores** — Edge Function `equipo` (alta con email+contraseña, sin depender de SMTP), rol/activar por RLS, baja; `/panel/usuarios` (dueño). Trigger `proteger_ultimo_dueno` impide dejar el negocio sin dueño activo; `mi_negocio()`/`es_dueno()` bloquean a usuarios inactivos.
 - ⬜ **Workflow de aprobaciones** (cambios que requieren OK del dueño) — evaluar si aporta sobre RLS.
 - ✅ **Ajuste de stock con motivo + historial** (merma, recuento, ingreso) — `movimientos_stock` + `ajustar_stock`.
-- ⬜ **Fotos y categorías de producto** (categorías ya existen; faltan fotos).
+- ✅ **Fotos y categorías de producto**: categorías ya existían; fotos con `producto_fotos` +
+  `registrar_foto_producto`/`eliminar_foto_producto` (bucket `ordenes-fotos`), subida con compresión y galería en el editor de Inventario.
 
 ### Fase E — facturación AFIP/ARCA
 - ✅ **Emisión real** delegada en Facturá (ARCA WSFE + PDF + CAE).
