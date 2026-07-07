@@ -19,6 +19,35 @@ export default function TiendaPage() {
   const [pagado, setPagado] = useState(false);
   const [pollPago, setPollPago] = useState(false);
   const [pagoErr, setPagoErr] = useState(null);
+  const [det, setDet] = useState(undefined); // undefined=cerrado, null=cargando, obj=datos
+  const [rev, setRev] = useState({ nombre: '', estrellas: 0, comentario: '' });
+  const [revOk, setRevOk] = useState(false);
+  const [revErr, setRevErr] = useState(null);
+
+  async function abrirDetalle(p) {
+    setDet(null);
+    setRevOk(false);
+    setRevErr(null);
+    setRev({ nombre: '', estrellas: 0, comentario: '' });
+    const { data } = await supabase.rpc('producto_tienda', { p_slug: slug, p_producto_id: p.id });
+    setDet(data || { producto: p, fotos: [], resenas: [], rating: {} });
+  }
+
+  async function enviarResena(e) {
+    e.preventDefault();
+    setRevErr(null);
+    if (!rev.nombre.trim()) return setRevErr('Ingresá tu nombre.');
+    if (!rev.estrellas) return setRevErr('Elegí una puntuación.');
+    const { error: err } = await supabase.rpc('crear_resena', {
+      p_slug: slug,
+      p_producto_id: det.producto.id,
+      p_nombre: rev.nombre,
+      p_estrellas: rev.estrellas,
+      p_comentario: rev.comentario,
+    });
+    if (err) return setRevErr(err.message);
+    setRevOk(true);
+  }
 
   useEffect(() => {
     supabase.rpc('tienda_publica', { p_slug: slug }).then(({ data }) => setData(data ?? null));
@@ -167,12 +196,12 @@ export default function TiendaPage() {
         <div className="store-grid">
           {data.productos.map((p) => (
             <div className="store-card" key={p.id}>
-              <div className="store-foto">
+              <div className="store-foto" style={{ cursor: 'pointer' }} onClick={() => abrirDetalle(p)}>
                 {p.foto ? <img src={p.foto} alt={p.nombre} /> : <span className="ph">📦</span>}
               </div>
               <div className="store-body">
                 {p.categoria && <span className="store-cat">{p.categoria}</span>}
-                <span className="store-nom">{p.nombre}</span>
+                <span className="store-nom" style={{ cursor: 'pointer' }} onClick={() => abrirDetalle(p)}>{p.nombre}</span>
                 <span className="store-precio">{formatMoney(p.precio)}</span>
                 <button className="btn btn-sm" style={{ marginTop: 4 }} disabled={p.agotado} onClick={() => agregar(p)}>
                   {p.agotado ? 'Sin stock' : 'Agregar'}
@@ -187,6 +216,69 @@ export default function TiendaPage() {
         <button className="cart-fab" onClick={() => setAbierto(true)}>
           🛒 <span className="cart-badge">{count}</span> {formatMoney(total)}
         </button>
+      )}
+
+      {det !== undefined && (
+        <div className="cart-drawer-ov" style={{ justifyContent: 'center', alignItems: 'center', padding: 16 }} onClick={() => setDet(undefined)}>
+          <div className="card" style={{ maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            {det === null ? (
+              <p style={{ color: 'var(--text-dim)' }}>Cargando…</p>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <h2 style={{ margin: 0 }}>{det.producto.nombre}</h2>
+                  <button className="chip" onClick={() => setDet(undefined)}>×</button>
+                </div>
+                {det.fotos?.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px 0' }}>
+                    {det.fotos.map((f, i) => (
+                      <img key={i} src={f} alt="" style={{ height: 180, borderRadius: 10, objectFit: 'cover' }} />
+                    ))}
+                  </div>
+                )}
+                <div className="store-precio" style={{ fontSize: '1.4rem' }}>{formatMoney(det.producto.precio)}</div>
+                {det.rating?.cantidad > 0 && (
+                  <div style={{ margin: '6px 0', color: '#f59e0b' }}>{'⭐'.repeat(Math.round(det.rating.promedio))} {det.rating.promedio} ({det.rating.cantidad})</div>
+                )}
+                {det.producto.descripcion && <p style={{ color: 'var(--text-dim)', marginTop: 8 }}>{det.producto.descripcion}</p>}
+                <button className="btn" style={{ width: '100%', marginTop: 10 }} disabled={det.producto.agotado} onClick={() => { agregar({ ...det.producto, foto: det.fotos?.[0] }); setDet(undefined); setAbierto(true); }}>
+                  {det.producto.agotado ? 'Sin stock' : 'Agregar al carrito'}
+                </button>
+
+                <h2 style={{ fontSize: '1rem', marginTop: 20 }}>Reseñas</h2>
+                {det.resenas?.length > 0 ? (
+                  det.resenas.map((r, i) => (
+                    <div className="carrito-item" key={i} style={{ alignItems: 'flex-start' }}>
+                      <div className="info">
+                        <div>{'⭐'.repeat(r.estrellas)} <strong>{r.nombre}</strong></div>
+                        {r.comentario && <div className="meta" style={{ marginTop: 2 }}>{r.comentario}</div>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: 'var(--text-dim)', fontSize: '.85rem' }}>Sé el primero en dejar una reseña.</p>
+                )}
+
+                {revOk ? (
+                  <div className="alert alert-ok" style={{ marginTop: 12 }}>¡Gracias! Tu reseña queda pendiente de aprobación.</div>
+                ) : (
+                  <form onSubmit={enviarResena} style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                    <div className="rate-lbl">Dejá tu reseña</div>
+                    {revErr && <div className="alert alert-error">{revErr}</div>}
+                    <div className="stars" style={{ marginBottom: 8 }}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button type="button" key={n} className={`star ${n <= rev.estrellas ? 'on' : ''}`} onClick={() => setRev({ ...rev, estrellas: n })}>⭐</button>
+                      ))}
+                    </div>
+                    <div className="field"><input placeholder="Tu nombre" value={rev.nombre} onChange={(e) => setRev({ ...rev, nombre: e.target.value })} /></div>
+                    <div className="field"><textarea placeholder="Tu opinión (opcional)" value={rev.comentario} onChange={(e) => setRev({ ...rev, comentario: e.target.value })} style={{ minHeight: 50 }} /></div>
+                    <button className="btn btn-sm">Enviar reseña</button>
+                  </form>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {abierto && (

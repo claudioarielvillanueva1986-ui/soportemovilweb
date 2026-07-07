@@ -39,6 +39,32 @@ export default function TiendaConfigPage() {
   const url = typeof window !== 'undefined' ? `${window.location.origin}/tienda/${slug}` : '';
 
   return (
+    <TiendaBody form={form} setForm={setForm} slug={slug} url={url} cuantos={cuantos} aviso={aviso} guardando={guardando} guardar={guardar} esDueno={esDueno} />
+  );
+}
+
+function TiendaBody({ form, setForm, slug, url, cuantos, aviso, guardando, guardar, esDueno }) {
+  const [pend, setPend] = useState([]);
+
+  const cargarPend = () => supabase
+    .from('producto_resenas')
+    .select('*, productos(nombre)')
+    .eq('aprobada', false)
+    .order('created_at', { ascending: false })
+    .then(({ data }) => setPend(data || []));
+
+  useEffect(() => { cargarPend(); }, []);
+
+  async function aprobar(r) {
+    await supabase.from('producto_resenas').update({ aprobada: true }).eq('id', r.id);
+    cargarPend();
+  }
+  async function rechazar(r) {
+    await supabase.from('producto_resenas').delete().eq('id', r.id);
+    cargarPend();
+  }
+
+  return (
     <main>
       <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Tienda online</h1>
 
@@ -71,6 +97,24 @@ export default function TiendaConfigPage() {
           </form>
         )}
       </div>
+
+      {esDueno && pend.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h2>Reseñas por aprobar ({pend.length})</h2>
+          {pend.map((r) => (
+            <div className="carrito-item" key={r.id} style={{ alignItems: 'flex-start' }}>
+              <div className="info">
+                <div>{'⭐'.repeat(r.estrellas)} <strong>{r.nombre}</strong> <span className="lbl2">· {r.productos?.nombre}</span></div>
+                {r.comentario && <div className="meta" style={{ marginTop: 2 }}>{r.comentario}</div>}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn btn-sm" onClick={() => aprobar(r)}>Aprobar</button>
+                <button className="chip" style={{ color: '#ef4444' }} onClick={() => rechazar(r)}>Rechazar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

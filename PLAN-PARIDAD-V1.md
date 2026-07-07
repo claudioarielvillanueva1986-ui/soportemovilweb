@@ -94,7 +94,10 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
   (`pedido_para_pago`/`pedido_set_cobro`/`pedido_marcar_pagado`); rutas públicas `/api/tienda/pagar`
   (crea el cobro con `facturaFetch → /api/partners/cobros`) y `/api/tienda/pago-estado` (polling que marca
   pagado); botón "Pagar online" en el checkout con polling. Requiere el MP del taller conectado en Facturá.
-- ⬜ Reseñas de producto, catálogo Meta (CSV/JSON), gremio mayorista (B2B), dominios propios.
+- ✅ **Reseñas de producto**: `producto_resenas` + RPCs `producto_tienda` (detalle con galería + reseñas
+  aprobadas + rating) y `crear_resena` (queda pendiente); modal de detalle en la tienda con galería,
+  reseñas y formulario; moderación (aprobar/rechazar) en `/panel/tienda`.
+- ⬜ Catálogo Meta (CSV/JSON), gremio mayorista (B2B), dominios propios.
 
 ### Fase I — extras y pulido
 - ✅ **Centro de notificaciones en tiempo real** (Realtime): `tickets` y `pedidos_tienda` en la
