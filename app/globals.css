@@ -2233,3 +2233,22 @@ main {
 .pos-resumen-pill { display:flex; justify-content:space-between; font-size:.82rem; padding:9px 11px; background:var(--bg-input, rgba(255,255,255,.03)); border:1px solid var(--border); border-radius:8px; margin-top:8px; }
 .pos-autocompletar { width:100%; padding:9px; font-size:.78rem; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent); border:1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius:8px; cursor:pointer; margin-bottom:8px; }
 @media (max-width:600px){ .pos-tiles { grid-template-columns:repeat(3,1fr); } }
+
+/* ===== Caja (rediseño con riqueza de v1, tema v2) ===== */
+.caja-kpis { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+@media (min-width:820px){ .caja-kpis { grid-template-columns:repeat(4,1fr); } }
+.caja-kpi { border:1px solid var(--border); border-radius:14px; padding:16px 18px; background:var(--card); position:relative; overflow:hidden; }
+.caja-kpi .k-lbl { font-size:.66rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+.caja-kpi .k-val { font-size:1.5rem; font-weight:800; letter-spacing:-.5px; line-height:1; }
+.caja-kpi .k-sub { font-size:.72rem; color:var(--text-dim); margin-top:8px; }
+.caja-desglose-row { display:flex; justify-content:space-between; padding:11px 16px; border-bottom:1px solid var(--border); font-size:.88rem; }
+.caja-desglose-row span:first-child { color:var(--text-dim); }
+.caja-desglose-total { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:color-mix(in srgb, var(--accent) 12%, transparent); }
+.caja-desglose-total .val { font-size:1.4rem; font-weight:800; color:var(--accent); }
+.gasto-bar-track { height:5px; background:var(--bg-input, rgba(255,255,255,.06)); border-radius:3px; overflow:hidden; }
+.gasto-bar-fill { height:100%; background:#f59e0b; border-radius:3px; transition:width .5s; }
+.seg-toggle { display:flex; gap:8px; margin-bottom:10px; }
+.seg-btn { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-weight:600; font-size:.85rem; background:none; color:var(--text-dim); }
+.seg-btn.on-ing { border-color:#22c55e; background:#22c55e1a; color:#22c55e; }
+.seg-btn.on-egr { border-color:#ef4444; background:#ef44441a; color:#ef4444; }
+.mp-badge { font-size:.7rem; font-weight:700; padding:2px 9px; border-radius:999px; border:1px solid; }
