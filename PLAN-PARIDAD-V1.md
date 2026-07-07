@@ -65,9 +65,13 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 - ✅ **Emisión real** delegada en Facturá (ARCA WSFE + PDF + CAE).
 - ⬜ **Point/posnet** integrado: pendiente **en Facturá** (cobros API), luego enchufar al POS.
 
-### Fase F — comunicación · bot PACHE
-- ⬜ Bot WhatsApp (Cloud API) con IA (Claude), escalamiento a humano, respuestas rápidas,
-  avisos de orden por WA, chat IA para el staff.
+### Fase F — comunicación
+- ✅ **Avisar cliente por WhatsApp** (TODOS los talleres): botones "recibido" y "listo"
+  que abren WhatsApp con el mensaje armado (wa.me, gratis, sin API). Plantillas
+  configurables por negocio (`wa_aviso_recibido`/`wa_aviso_listo`, `set_avisos_whatsapp`).
+- 🔒 **PACHE (bot IA, Cloud API + Claude)**: SOLO para el negocio dueño — gateado por
+  `negocios.bot_ia` (true solo en el negocio del dueño). Escalamiento a humano, respuestas
+  rápidas, chat IA para el staff. Los demás clientes solo tienen el botón de avisar. ⬜ Construir.
 
 ### Fase G — fidelización y marketing
 - ⬜ Puntos/fidelización (acumular, premios, canje), cupones, encuestas NPS, reactivación de clientes.
