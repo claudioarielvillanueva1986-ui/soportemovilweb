@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, ESTADOS, formatFecha, formatMoney } from '@/lib/supabase';
+import { telWhatsApp } from '@/lib/whatsapp';
 
 const FLOW = [
   ['nuevo', 'Recibido', '📥'],
@@ -180,6 +181,21 @@ export default function ConsultaPage() {
             </div>
           )}
 
+          {/* Avisar al taller por WhatsApp cuando está listo */}
+          {ticket.estado === 'listo' && telWhatsApp(ticket.taller?.whatsapp) && (
+            <a
+              className="btn"
+              style={{ width: '100%', marginTop: 14, background: '#25D366', borderColor: '#25D366', color: '#fff' }}
+              target="_blank"
+              rel="noreferrer"
+              href={`https://wa.me/${telWhatsApp(ticket.taller.whatsapp)}?text=${encodeURIComponent(
+                `¡Hola! Voy a pasar a buscar mi equipo (orden ${ticket.numero} — ${ticket.nombre}). ¿Están disponibles?`
+              )}`}
+            >
+              Avisar que voy a buscar el equipo
+            </a>
+          )}
+
           {/* Problema reportado */}
           <div style={{ marginTop: 16 }}>
             <dt style={{ color: 'var(--text-dim)', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase' }}>
@@ -202,6 +218,23 @@ export default function ConsultaPage() {
                 ))}
               </div>
             </>
+          )}
+
+          {/* Contacto del taller */}
+          {ticket.taller && (ticket.taller.direccion || ticket.taller.horario || ticket.taller.whatsapp) && (
+            <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <div style={{ fontWeight: 700 }}>{ticket.taller.nombre}</div>
+              {ticket.taller.direccion && <div className="meta" style={{ marginTop: 4 }}>📍 {ticket.taller.direccion}</div>}
+              {ticket.taller.horario && <div className="meta">🕐 {ticket.taller.horario}</div>}
+              {telWhatsApp(ticket.taller.whatsapp) && (
+                <div className="meta">
+                  📱{' '}
+                  <a href={`https://wa.me/${telWhatsApp(ticket.taller.whatsapp)}`} target="_blank" rel="noreferrer">
+                    Escribinos por WhatsApp
+                  </a>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

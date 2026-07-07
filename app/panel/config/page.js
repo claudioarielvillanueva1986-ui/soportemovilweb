@@ -458,6 +458,60 @@ function TarjetaComprobantes({ esDueno }) {
   );
 }
 
+function TarjetaDatosTaller({ negocio, esDueno }) {
+  const [wa, setWa] = useState('');
+  const [dir, setDir] = useState('');
+  const [hor, setHor] = useState('');
+  const [aviso, setAviso] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    if (!negocio) return;
+    setWa(negocio.wa_publico || '');
+    setDir(negocio.direccion || '');
+    setHor(negocio.horario || '');
+  }, [negocio]);
+
+  async function guardar(e) {
+    e.preventDefault();
+    setAviso(null);
+    setGuardando(true);
+    const { error } = await supabase.rpc('set_datos_taller', { p_whatsapp: wa, p_direccion: dir, p_horario: hor });
+    setGuardando(false);
+    if (error) setAviso({ tipo: 'error', texto: error.message });
+    else setAviso({ tipo: 'ok', texto: 'Datos guardados. Se muestran a tus clientes en el seguimiento.' });
+  }
+
+  return (
+    <div className="card">
+      <h2>Datos del taller (públicos)</h2>
+      <p style={{ color: 'var(--text-dim)', marginBottom: 12, fontSize: '.88rem' }}>
+        Se muestran a tus clientes en la página de seguimiento de la orden, junto al botón de WhatsApp.
+      </p>
+      {aviso && <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>{aviso.texto}</div>}
+      {!esDueno ? (
+        <p style={{ color: 'var(--text-dim)' }}>Solo el dueño puede editar estos datos.</p>
+      ) : (
+        <form onSubmit={guardar}>
+          <div className="field">
+            <label>WhatsApp de contacto (con código de área)</label>
+            <input value={wa} onChange={(e) => setWa(e.target.value)} placeholder="11 5555-5555" />
+          </div>
+          <div className="field">
+            <label>Dirección</label>
+            <input value={dir} onChange={(e) => setDir(e.target.value)} placeholder="Av. Siempre Viva 123" />
+          </div>
+          <div className="field">
+            <label>Horario de atención</label>
+            <input value={hor} onChange={(e) => setHor(e.target.value)} placeholder="Lun a Sáb 9 a 18" />
+          </div>
+          <button className="btn" disabled={guardando}>{guardando ? <span className="spinner" /> : 'Guardar datos'}</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function TarjetaAvisos({ negocio, esDueno }) {
   const [recibido, setRecibido] = useState('');
   const [listo, setListo] = useState('');
@@ -542,7 +596,10 @@ export default function ConfigPage() {
         <TarjetaComprobantes esDueno={esDueno} />
       </div>
       <div className="grid-2" style={{ alignItems: 'start' }}>
+        <TarjetaDatosTaller negocio={negocio} esDueno={esDueno} />
         <TarjetaAvisos negocio={negocio} esDueno={esDueno} />
+      </div>
+      <div className="grid-2" style={{ alignItems: 'start' }}>
         <TarjetaCuenta />
       </div>
       <div className="grid-2" style={{ alignItems: 'start' }}>
