@@ -108,3 +108,45 @@ búsqueda-primero, mobile (sin overflow horizontal, inputs sin zoom en iOS).
 
 ## Fuera de paridad (obsoleto)
 Backups manuales (Supabase los hace), `touch` al WSGI, landings de marketing (van a la web comercial).
+
+---
+
+## Auditoría v1 → v2 (2026-07, con el repo v1 completo a la vista)
+
+v1 = 235 rutas en `app.py`. Comparado contra las páginas/RPCs de v2. Estado real:
+
+### ✅ Con paridad (núcleo completo)
+Órdenes (alta, detalle, estados, técnicos, tags, costos, **repuestos**, **notas internas**,
+**fotos del equipo** `registrar_foto_ticket`, pagos, seña, entregar-y-cobrar, devolver seña,
+devolver equipo, comprobante público con token), POS (venta atómica, validar stock, cupón,
+fidelización, QR de cobro por Facturá), caja (arqueo, movimientos, gastos, efectivo disponible),
+ventas (anular, reimprimir, editar), inventario (fotos, ajuste de stock con motivo, categorías),
+clientes, servicios, presupuestos (+ convertir), reportes + margen, dashboard + realtime,
+buscador global, usuarios/equipo (Edge Function), fidelización + cupones + encuestas,
+**tienda pública (ahora idéntica a v1, con fotos migradas)**, pedidos de tienda, pago online,
+reseñas, WhatsApp/PACHE (bandeja, toma humana, escalaciones, respuestas rápidas, bloquear),
+facturación ARCA (delegada a Facturá), planes/suscripción, PWA + web push.
+
+### 🔶 Parcial (existe pero incompleto)
+- **Editar orden completa**: v2 edita notas y costos; falta editor completo de contacto/equipo/presupuesto (`/editar-orden`).
+- **Caja QR pantalla dedicada** (`/caja-qr`): el cobro QR está, falta la pantalla de espera a pantalla completa.
+
+### ⬜ Falta (verificado, ordenado por impacto)
+1. **Gremio / Mayorista B2B** — login gremio, tienda mayorista con precios B2B, pedidos, panel admin gremio (`/gremio*`, `/admin/gremio*`). Módulo entero.
+2. **/pantallas** — landing “Consulta por cambio de módulos 100% originales” (linkeada desde el nav de la tienda).
+3. **Recordatorios de retiro** — bandeja de órdenes listas sin retirar N días + avisar (`/admin/recordatorios`).
+4. **Exportar a CSV** — órdenes y reportes (`/exportar/ordenes/csv`, `/reportes/exportar/csv`).
+5. **Inteligencia de ventas** — analítica avanzada (`/admin/inteligencia-ventas`).
+6. **Buzón de mensajes + form de contacto** — el formulario de la tienda entra a un inbox (`/contacto`, `/admin/mensajes`).
+7. **Página pública “Mis puntos”** — el cliente ve su saldo de fidelización (`tienda_premios`/`/puntos`).
+8. **Catálogo Meta** (CSV/JSON) para Facebook/Instagram Shopping (`/tienda/catalogo-meta.*`).
+9. **Chat IA para staff** (`/chat-ia`) y **sugerir presupuesto con IA** (`/api/sugerir-presupuesto`).
+10. **Páginas legales** — privacidad/términos (`/privacidad`).
+11. **Datos demo** (`/admin/generar-demo`) y **multi-tema / modo claro** (`toggle-fondo`/`cambiar-tema`).
+12. **Autocompletar DNI** de cliente (`/api/buscar-cliente-dni`), **imagen de teléfono** (`/api/imagen-telefono`) — menores.
+13. **Point (posnet) físico** de Mercado Pago — pendiente en Facturá, luego enchufar al POS.
+14. **Dominios propios** para la tienda.
+
+### 🚫 Fuera de plan / resuelto distinto
+Reactivación de clientes (excluida por decisión), backups manuales (Supabase),
+wizard de certificados ARCA y wizard de cuentas MP (se hacen **dentro de Facturá**, no en Soporte Móvil).
