@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 // Envuelve el contenido con un header/footer institucional simple, EXCEPTO en
-// la tienda pública ("/" y "/tienda/[slug]", que van a pantalla completa con
-// su propio nav). El panel sigue envuelto en .container: esa clase es la que
-// le da su ancho máximo y padding (ver .container:has(.panel-shell) en
-// globals.css); el CSS ya oculta el header/footer de marketing cuando el
-// panel-shell está presente.
+// la tienda pública ("/" y "/tienda/[slug]") y en landings puntuales
+// ("/pantallas"), que van a pantalla completa con su propio nav. El panel
+// sigue envuelto en .container: esa clase es la que le da su ancho máximo y
+// padding (ver .container:has(.panel-shell) en globals.css); el CSS ya oculta
+// el header/footer de marketing cuando el panel-shell está presente.
 export function SiteChrome({ children }) {
   const pathname = usePathname() || '';
-  const fullBleed = pathname === '/' || pathname.startsWith('/tienda/');
+  const fullBleed = pathname === '/' || pathname.startsWith('/tienda/') || pathname === '/pantallas';
 
   if (fullBleed) return children;
 

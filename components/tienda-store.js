@@ -222,6 +222,7 @@ export function TiendaStore({ slug }) {
           <a href="#productos" className="nav-link"><Ic n="bag" /> Tienda</a>
           {cfg.mostrar_contacto && <a href="#contacto" className="nav-link"><Ic n="pin" /> Contacto</a>}
           <a href="/consulta" className="nav-link"><Ic n="package" /> Mi orden</a>
+          <a href="/pantallas" className="nav-link"><Ic n="phone" /> Pantallas originales</a>
           <a href={waLink('¡Hola! Quiero traer mi equipo para reparar.')} target="_blank" rel="noreferrer" className="nav-link"><Ic n="tools" /> Reparar</a>
           <a href={waLink('¡Hola! Quiero hacer una consulta.')} target="_blank" rel="noreferrer" className="nav-cta"><Ic n="whatsapp" /> Consultar</a>
         </div>
