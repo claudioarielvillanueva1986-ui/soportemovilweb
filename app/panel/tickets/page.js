@@ -922,8 +922,13 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
     setActualizaciones(data || []);
   }
 
+  const colorEstado = ESTADOS[estado]?.color || '#64748b';
+
   return (
-    <div className="card" style={{ marginBottom: 18 }}>
+    <div
+      className="card ticket-detalle"
+      style={{ marginBottom: 18, borderTop: `4px solid ${colorEstado}` }}
+    >
       <div
         style={{
           display: 'flex',
@@ -1113,10 +1118,21 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         </div>
       )}
 
-      <div className="grid-2" style={{ marginTop: 16 }}>
-        <div className="field">
-          <label>Estado</label>
-          <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+      <div
+        className="estado-banner"
+        style={{
+          marginTop: 16,
+          background: `${colorEstado}18`,
+          borderColor: `${colorEstado}55`,
+        }}
+      >
+        <div className="field" style={{ marginBottom: 0, flex: 1 }}>
+          <label style={{ color: colorEstado }}>Estado de la orden</label>
+          <select
+            value={estado}
+            onChange={(e) => setEstado(e.target.value)}
+            style={{ borderColor: `${colorEstado}88`, fontWeight: 700, color: colorEstado }}
+          >
             {Object.entries(ESTADOS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
@@ -1124,6 +1140,14 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
             ))}
           </select>
         </div>
+        {estado === 'listo' && (
+          <span className="estado-banner-nota" style={{ color: colorEstado }}>
+            📲 Al guardar, se avisa solo por WhatsApp
+          </span>
+        )}
+      </div>
+
+      <div className="grid-2" style={{ marginTop: 14 }}>
         <div className="field">
           <label>Prioridad</label>
           <select
@@ -1149,8 +1173,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         </div>
       </div>
 
-      <div className="field">
-        <label>Notas internas (no las ve el cliente)</label>
+      <div className="field seccion-notas">
+        <label>📝 Notas internas (no las ve el cliente)</label>
         <textarea
           value={notas}
           onChange={(e) => setNotas(e.target.value)}
@@ -1158,8 +1182,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         />
       </div>
 
-      <div className="field">
-        <label>Nueva actualización pública (la ve el cliente al consultar)</label>
+      <div className="field seccion-publica">
+        <label>💬 Nueva actualización pública (la ve el cliente al consultar)</label>
         <textarea
           value={mensaje}
           onChange={(e) => setMensaje(e.target.value)}
@@ -1186,10 +1210,16 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
 
       {actualizaciones.length > 0 && (
         <>
-          <h2 style={{ marginTop: 24, fontSize: '1rem' }}>Historial</h2>
+          <h2 className="historial-tit" style={{ marginTop: 24, fontSize: '1rem' }}>
+            🕓 Historial
+          </h2>
           <div className="timeline">
             {actualizaciones.map((a) => (
-              <div className="timeline-item" key={a.id}>
+              <div
+                className="timeline-item"
+                key={a.id}
+                style={a.estado ? { '--dot-color': ESTADOS[a.estado]?.color || 'var(--accent)' } : undefined}
+              >
                 <div className="fecha">{formatFecha(a.created_at)}</div>
                 <div>{a.mensaje}</div>
                 {a.estado && <BadgeEstado estado={a.estado} />}
