@@ -1,8 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import { supabase, formatMoney } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
+
+const CUOTAS_TC = [
+  [1, 10],
+  [2, 20],
+  [3, 30],
+  [6, 40],
+];
+const METODOS_ELECTRONICOS = ['debito', 'credito', 'mercadopago_qr'];
 
 const CONFETTI_COLORES = ['#0097d9', '#7DD3FC', '#F59E0B', '#34d399', '#ffffff'];
 
@@ -122,7 +131,7 @@ export default function PosPage() {
   const [cupon, setCupon] = useState(null); // {id, codigo, tipo, valor}
   const [cuponCod, setCuponCod] = useState('');
   const [cuponErr, setCuponErr] = useState(null);
-  const [pagos, setPagos] = useState([{ metodo: 'efectivo', monto: '' }]);
+  const [pagos, setPagos] = useState([{ metodo: 'efectivo', monto: '', mp_payment_id: null }]);
   const [clienteId, setClienteId] = useState('');
   const [busqCliente, setBusqCliente] = useState('');
   const [manualAbierto, setManualAbierto] = useState(false);
@@ -136,6 +145,10 @@ export default function PosPage() {
   const [facturaConectada, setFacturaConectada] = useState(false);
   const [fidPpm, setFidPpm] = useState(0);
   const [saldoPts, setSaldoPts] = useState(null);
+  const [cuotas, setCuotas] = useState(1);
+  const [interes, setInteres] = useState(0);
+  const [cobro, setCobro] = useState(null); // { pagoIndex, cobroId, qrImg, initPoint, estado, error, monto }
+  const pollingRef = useRef(null);
 
   async function cargar() {
     const [{ data: resumen, error: errR }, { data: prods }, { data: clis }, { data: neg }, { data: conex }] =
@@ -201,7 +214,9 @@ export default function PosPage() {
       ? Math.round(subtotal * cupon.valor) / 100
       : Math.min(cupon.valor, subtotal)
     : 0;
-  const total = Math.round(Math.max(0, subtotal * (1 - desc / 100) - cuponDesc) * 100) / 100;
+  const baseTotal = Math.round(Math.max(0, subtotal * (1 - desc / 100) - cuponDesc) * 100) / 100;
+  const interesMonto = Math.round((baseTotal * interes) / 100 * 100) / 100;
+  const total = Math.round((baseTotal + interesMonto) * 100) / 100;
   const pagado = pagos.reduce((s, p) => s + (Number(p.monto) || 0), 0);
   const resta = Math.round(Math.max(0, total - pagado) * 100) / 100;
 
@@ -279,15 +294,19 @@ export default function PosPage() {
   }
 
   function setPagoMetodo(i, metodo) {
+    if (metodo !== 'credito') {
+      setCuotas(1);
+      setInteres(0);
+    }
     setPagos((prev) =>
-      prev.map((p, j) => (j === i ? { ...p, metodo, monto: prev.length === 1 ? total : p.monto } : p))
+      prev.map((p, j) => (j === i ? { ...p, metodo, monto: prev.length === 1 ? total : p.monto, mp_payment_id: null } : p))
     );
   }
   function setPagoMonto(i, v) {
     setPagos((prev) => prev.map((p, j) => (j === i ? { ...p, monto: v } : p)));
   }
   function agregarMedio() {
-    setPagos((prev) => (prev.length < 5 ? [...prev, { metodo: '', monto: resta > 0 ? resta : '' }] : prev));
+    setPagos((prev) => (prev.length < 5 ? [...prev, { metodo: '', monto: resta > 0 ? resta : '', mp_payment_id: null }] : prev));
   }
   function quitarPago(i) {
     setPagos((prev) => (prev.length > 1 ? prev.filter((_, j) => j !== i) : prev));
@@ -317,17 +336,101 @@ export default function PosPage() {
     setFacturando(false);
   }
 
+  function detenerPolling() {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }
+
+  // Cobro real por Mercado Pago (vía Facturá): genera un link/QR de Checkout
+  // Pro y sondea el estado hasta que se aprueba, se rechaza o se cancela.
+  async function iniciarCobro(pagoIndex) {
+    const p = pagos[pagoIndex];
+    const monto = Number(p.monto) || total;
+    if (monto <= 0) return setError('Ingresá un monto antes de elegir ese medio de pago.');
+
+    setCobro({ pagoIndex, cobroId: null, qrImg: null, initPoint: null, estado: 'creando', error: null, monto, token: null });
+
+    const { data: sesion } = await supabase.auth.getSession();
+    const token = sesion?.session?.access_token || '';
+    const descripcion =
+      lineas.length === 1 ? lineas[0].nombre : `Venta en mostrador (${lineas.length} ítems)`;
+
+    try {
+      const res = await fetch('/api/facturacion/cobro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ monto, descripcion }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCobro((c) => (c ? { ...c, estado: 'error', error: data.error || 'No se pudo generar el cobro' } : c));
+        return;
+      }
+      const qrImg = await QRCode.toDataURL(data.init_point, { width: 220, margin: 1 }).catch(() => null);
+      setCobro((c) =>
+        c ? { ...c, cobroId: data.cobro_id, initPoint: data.init_point, qrImg, estado: 'pendiente', token } : c
+      );
+      pollingRef.current = setInterval(async () => {
+        try {
+          const r = await fetch(
+            `/api/facturacion/cobro/estado?cobro_id=${data.cobro_id}&token=${encodeURIComponent(token)}`
+          );
+          const d = await r.json();
+          if (d.estado === 'aprobado') {
+            detenerPolling();
+            setCobro((c) => (c ? { ...c, estado: 'aprobado', mpPaymentId: d.mp_payment_id } : c));
+          } else if (d.estado === 'rechazado') {
+            detenerPolling();
+            setCobro((c) => (c ? { ...c, estado: 'error', error: 'El pago fue rechazado.' } : c));
+          }
+        } catch {
+          /* reintenta en el próximo tick */
+        }
+      }, 2500);
+    } catch (e) {
+      setCobro((c) => (c ? { ...c, estado: 'error', error: 'Error de conexión: ' + e.message } : c));
+    }
+  }
+
+  function cancelarCobro() {
+    detenerPolling();
+    setCobro(null);
+  }
+
+  function continuarTrasCobro() {
+    detenerPolling();
+    setPagos((prev) =>
+      prev.map((p, j) => (j === cobro.pagoIndex ? { ...p, monto: cobro.monto, mp_payment_id: cobro.mpPaymentId } : p))
+    );
+    setCobro(null);
+  }
+
+  useEffect(() => () => detenerPolling(), []);
+
   async function confirmar() {
     setError(null);
     if (lineas.length === 0) return setError('El carrito está vacío.');
     if (pagos.some((p) => Number(p.monto) > 0 && !p.metodo))
       return setError('Elegí el medio de pago en cada fila.');
+    const pagadoLimpio = pagos.reduce((s, p) => s + (Number(p.monto) || 0), 0);
+    if (pagadoLimpio + 0.01 < total) return setError('El pago no cubre el total.');
+
+    // Si hay un medio electrónico sin confirmar todavía y el negocio tiene
+    // Facturá conectado, cobramos de verdad (QR/link de MP) antes de cerrar la venta.
+    if (facturaConectada) {
+      const pendienteIdx = pagos.findIndex(
+        (p) => METODOS_ELECTRONICOS.includes(p.metodo) && Number(p.monto) > 0 && !p.mp_payment_id
+      );
+      if (pendienteIdx >= 0) return iniciarCobro(pendienteIdx);
+    }
+
     const pagosLimpios = pagos
       .filter((p) => Number(p.monto) > 0 && p.metodo)
       .map((p) => ({ metodo: p.metodo, monto: Number(p.monto) }));
     if (pagosLimpios.length === 0) return setError('Agregá al menos un medio de pago.');
-    const pagadoLimpio = pagosLimpios.reduce((s, p) => s + p.monto, 0);
-    if (pagadoLimpio + 0.01 < total) return setError('El pago no cubre el total.');
+    const mpPagoConfirmado = pagos.find((p) => p.mp_payment_id);
 
     setCobrando(true);
     const items = lineas.map((l) =>
@@ -341,6 +444,9 @@ export default function PosPage() {
       p_descuento: desc,
       p_cliente_id: clienteId || null,
       p_cupon_id: cupon?.id || null,
+      p_mp_payment_id: mpPagoConfirmado?.mp_payment_id || null,
+      p_interes: interes,
+      p_cuotas: cuotas,
     });
     setCobrando(false);
     if (err) return setError(err.message);
@@ -348,8 +454,11 @@ export default function PosPage() {
     setVentaOk(data);
     setFactura(null);
     setLineas([]);
-    setPagos([{ metodo: 'efectivo', monto: '' }]);
+    setPagos([{ metodo: 'efectivo', monto: '', mp_payment_id: null }]);
     setDescuento('');
+    setCuotas(1);
+    setInteres(0);
+    setCobro(null);
     quitarCupon();
     setClienteId('');
     setBusqCliente('');
@@ -634,10 +743,41 @@ export default function PosPage() {
                 {cuponErr && <div style={{ color: '#ef4444', fontSize: '.78rem', marginTop: 4 }}>{cuponErr}</div>}
               </div>
 
+              {pagos.some((p) => p.metodo === 'credito') && (
+                <div className="pos-cuotas">
+                  <div className="pos-cuotas-lbl">💳 Cuotas con Tarjeta de Crédito</div>
+                  <div className="pos-cuotas-grid">
+                    {CUOTAS_TC.map(([n, pct]) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className={`cuota-btn ${cuotas === n ? 'active' : ''}`}
+                        onClick={() => { setCuotas(n); setInteres(pct); }}
+                      >
+                        {n}x<br />
+                        <span>+{pct}%</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {interes > 0 && (
+                <div className="pos-interes-pill">
+                  <span>💳 Interés {interes}%</span>
+                  <strong>+{formatMoney(interesMonto)}</strong>
+                </div>
+              )}
+
               <div className="pos-total-box">
                 <span className="lbl">Total a cobrar</span>
                 <span className="val">{formatMoney(total)}</span>
               </div>
+              {cuotas > 1 && (
+                <div className="pos-cuotas-detalle">
+                  {cuotas} cuotas de {formatMoney(total / cuotas)}
+                </div>
+              )}
             </div>
           </div>
 
@@ -678,6 +818,13 @@ export default function PosPage() {
                 </div>
               ))}
 
+              {!facturaConectada && pagos.some((p) => METODOS_ELECTRONICOS.includes(p.metodo)) && (
+                <div className="pos-hint-factura">
+                  Conectá Facturá en Configuración para cobrar de verdad con QR o tarjeta — por ahora este monto se
+                  registra manualmente.
+                </div>
+              )}
+
               {resta > 0.01 && (
                 <button type="button" className="pos-autocompletar" onClick={autocompletar}>
                   ↙ Completar {formatMoney(resta)} en el último medio
@@ -707,6 +854,79 @@ export default function PosPage() {
           </button>
         </div>
       </div>
+
+      {cobro && (
+        <div className="mp-cobro-overlay" onClick={cobro.estado === 'aprobado' ? undefined : cancelarCobro}>
+          <div className="mp-cobro-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="mp-cobro-head">
+              <span>📲 Cobro con Mercado Pago</span>
+              {cobro.estado !== 'aprobado' && (
+                <button className="mp-cobro-x" onClick={cancelarCobro} aria-label="Cerrar">×</button>
+              )}
+            </div>
+            <div className="mp-cobro-monto">{formatMoney(cobro.monto)}</div>
+
+            {cobro.estado === 'creando' && (
+              <div className="mp-cobro-estado">
+                <span className="spinner" />
+                <p>Generando el link de pago...</p>
+              </div>
+            )}
+
+            {cobro.estado === 'pendiente' && (
+              <>
+                {cobro.qrImg && <img className="mp-cobro-qr" src={cobro.qrImg} alt="QR de pago" />}
+                <div className="mp-cobro-info">
+                  <div className="tit">¿Cómo cobra?</div>
+                  <p>📱 El cliente escanea el QR con la cámara del celular</p>
+                  <p>🔗 O abrí el link y enviáselo por WhatsApp</p>
+                </div>
+                <a
+                  className="mp-cobro-wa"
+                  href={`https://wa.me/?text=${encodeURIComponent('Pagá acá: ' + cobro.initPoint)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  📱 Enviar link por WhatsApp
+                </a>
+                <button
+                  type="button"
+                  className="mp-cobro-copiar"
+                  onClick={() => navigator.clipboard?.writeText(cobro.initPoint)}
+                >
+                  🔗 Copiar link de pago
+                </button>
+                <div className="mp-cobro-esperando">Esperando confirmación del pago…</div>
+              </>
+            )}
+
+            {cobro.estado === 'aprobado' && (
+              <div className="mp-cobro-estado ok">
+                <div className="ico">✅</div>
+                <p>Pago aprobado</p>
+                <button className="btn" style={{ marginTop: 14 }} onClick={continuarTrasCobro}>
+                  Continuar venta
+                </button>
+              </div>
+            )}
+
+            {cobro.estado === 'error' && (
+              <div className="mp-cobro-estado error">
+                <p>{cobro.error}</p>
+                <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={cancelarCobro}>
+                  Cerrar
+                </button>
+              </div>
+            )}
+
+            {cobro.estado !== 'aprobado' && cobro.estado !== 'error' && (
+              <button type="button" className="mp-cobro-cancelar" onClick={cancelarCobro}>
+                ✕ Cancelar pago
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

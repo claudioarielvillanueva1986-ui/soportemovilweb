@@ -668,14 +668,14 @@ textarea {
 /* ---------- POS ---------- */
 .pos-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
 
 @media (max-width: 800px) {
   .pos-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2285,6 +2285,37 @@ main {
 .pos-resumen-pill { display:flex; justify-content:space-between; font-size:.82rem; padding:9px 11px; background:var(--bg-input, rgba(255,255,255,.03)); border:1px solid var(--border); border-radius:8px; margin-top:8px; }
 .pos-autocompletar { width:100%; padding:9px; font-size:.78rem; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent); border:1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius:8px; cursor:pointer; margin-bottom:8px; }
 @media (max-width:600px){ .pos-tiles { grid-template-columns:repeat(3,1fr); } }
+.pos-hint-factura { font-size:.76rem; color:var(--text-dim); background:var(--bg-input, rgba(255,255,255,.03)); border:1px dashed var(--border); border-radius:8px; padding:8px 10px; margin-bottom:8px; line-height:1.4; }
+
+/* Cuotas con tarjeta de crédito (recargo, igual a v1) */
+.pos-cuotas { border-top:1px solid var(--border); padding-top:10px; margin-top:10px; }
+.pos-cuotas-lbl { font-size:.66rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+.pos-cuotas-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+.cuota-btn { padding:8px 4px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--text-dim); font-size:.78rem; font-weight:700; cursor:pointer; text-align:center; line-height:1.3; }
+.cuota-btn span { font-size:.62rem; font-weight:600; }
+.cuota-btn.active { border-color:#f0b429; background:color-mix(in srgb, #f0b429 14%, transparent); color:#f0b429; }
+.pos-interes-pill { display:flex; justify-content:space-between; font-size:.82rem; padding:8px 11px; margin-top:10px; background:rgba(240,180,41,.08); border:1px solid rgba(240,180,41,.3); border-radius:8px; color:#f0b429; }
+.pos-cuotas-detalle { text-align:right; font-size:.75rem; color:var(--text-dim); margin-top:6px; }
+
+/* ===== Cobro real por Mercado Pago (QR / link, vía Facturá) ===== */
+.mp-cobro-overlay { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.82); display:flex; align-items:center; justify-content:center; padding:20px; }
+.mp-cobro-modal { width:100%; max-width:380px; background:#0e1e28; border:1.5px solid rgba(29,158,117,.4); border-radius:20px; padding:26px 22px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+.mp-cobro-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:15px; font-weight:800; color:#fff; }
+.mp-cobro-x { background:none; border:none; color:#8bacc8; font-size:24px; cursor:pointer; line-height:1; padding:0 4px; }
+.mp-cobro-monto { font-size:26px; font-weight:900; color:#1d9e75; margin-bottom:16px; letter-spacing:-.5px; }
+.mp-cobro-estado { padding:18px 0; display:flex; flex-direction:column; align-items:center; gap:8px; color:#8bacc8; font-size:13px; }
+.mp-cobro-estado .spinner { border-color: rgba(29,158,117,.25); border-top-color:#1d9e75; }
+.mp-cobro-estado.ok .ico { font-size:52px; line-height:1; }
+.mp-cobro-estado.ok p { color:#1d9e75; font-weight:700; font-size:16px; }
+.mp-cobro-estado.error p { color:#fca5a5; font-size:13px; line-height:1.5; }
+.mp-cobro-qr { width:190px; height:190px; border-radius:12px; background:#fff; padding:6px; margin:4px auto 14px; display:block; }
+.mp-cobro-info { background:rgba(29,158,117,.08); border:1px solid rgba(29,158,117,.2); border-radius:10px; padding:12px; margin-bottom:12px; text-align:left; }
+.mp-cobro-info .tit { font-size:12px; font-weight:700; color:#7dd3fc; margin-bottom:6px; }
+.mp-cobro-info p { font-size:12px; color:#8bacc8; line-height:1.6; margin:0; }
+.mp-cobro-wa { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; background:#25d366; border-radius:10px; color:#fff; font-size:14px; font-weight:700; text-decoration:none; margin-bottom:8px; }
+.mp-cobro-copiar { width:100%; padding:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:8px; color:#8bacc8; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:10px; }
+.mp-cobro-esperando { font-size:12px; color:#4a7090; margin-bottom:6px; }
+.mp-cobro-cancelar { width:100%; padding:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:8px; color:#4a7090; font-size:13px; cursor:pointer; margin-top:6px; }
 
 /* ===== Caja (rediseño con riqueza de v1, tema v2) ===== */
 .caja-kpis { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
