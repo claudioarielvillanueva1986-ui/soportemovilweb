@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { supabase, ESTADOS, formatMoney, formatFecha } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
@@ -109,6 +109,8 @@ function Talon({ tipo, ticket, negocio, config, senas }) {
 
 export default function ImprimirPage() {
   const { id } = useParams();
+  const searchParams = useSearchParams();
+  const autoprint = searchParams.get('autoprint') === '1';
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState(null);
 
@@ -133,6 +135,15 @@ export default function ImprimirPage() {
       });
     })();
   }, [id]);
+
+  // Al venir de "crear orden e imprimir", dispara la impresión sola
+  // (igual que v1: el operador no tiene que ir a buscar el botón).
+  useEffect(() => {
+    if (autoprint && datos) {
+      const t = setTimeout(() => window.print(), 600);
+      return () => clearTimeout(t);
+    }
+  }, [autoprint, datos]);
 
   if (error) return <main><div className="alert alert-error">{error}</div></main>;
   if (!datos) return <PantallaCarga />;

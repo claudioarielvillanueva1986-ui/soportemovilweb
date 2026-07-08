@@ -183,6 +183,21 @@ function idemKey() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Aviso automático real por WhatsApp (Cloud API) — no bloquea ni interrumpe
+// el flujo si falla o si el negocio no tiene la Cloud API conectada.
+async function notificarOrden(ticketId, tipo) {
+  try {
+    const { data: sesion } = await supabase.auth.getSession();
+    await fetch('/api/whatsapp/notificar-orden', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion?.session?.access_token || ''}` },
+      body: JSON.stringify({ ticket_id: ticketId, tipo }),
+    });
+  } catch {
+    /* best-effort */
+  }
+}
+
 function PagosTicket({ ticketId, presupuesto, onCambio }) {
   const [pagos, setPagos] = useState([]);
   const [monto, setMonto] = useState('');
@@ -863,6 +878,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   async function guardar() {
     setGuardando(true);
     setAviso(null);
+    const pasaAListo = estado === 'listo' && ticket.estado !== 'listo';
 
     const { error: errUpd } = await supabase
       .from('tickets')
@@ -895,6 +911,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
     }
     setAviso({ tipo: 'ok', texto: 'Cambios guardados.' });
     setMensaje('');
+    // Aviso automático al cliente cuando el equipo queda listo (no bloquea el guardado).
+    if (pasaAListo) notificarOrden(ticket.id, 'listo');
     onGuardado();
     const { data } = await supabase
       .from('ticket_actualizaciones')
@@ -1218,6 +1236,7 @@ export default function TicketsPage() {
       window.alert(err.message);
       return;
     }
+    if (destino === 'listo' && anterior !== 'listo') notificarOrden(id, 'listo');
     cargar();
   }
   const timerRef = useRef(null);

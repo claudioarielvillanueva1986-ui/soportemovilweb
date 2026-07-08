@@ -185,7 +185,17 @@ export default function NuevaOrdenPage() {
         p_sena_mp_payment_id: senaMpPaymentId,
       });
       if (err) throw new Error(err.message);
-      router.push(`/panel/imprimir/${data.id}`);
+
+      // Aviso automático al cliente (no bloquea el alta si falla o no está conectado).
+      supabase.auth.getSession().then(({ data: sesion }) => {
+        fetch('/api/whatsapp/notificar-orden', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion?.session?.access_token || ''}` },
+          body: JSON.stringify({ ticket_id: data.id, tipo: 'recibido' }),
+        }).catch(() => {});
+      });
+
+      router.push(`/panel/imprimir/${data.id}?autoprint=1`);
     } catch (err) {
       setError(err.message);
       setCreando(false);
