@@ -770,39 +770,6 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [equipo, setEquipo] = useState([]);
   const [tecnicoId, setTecnicoId] = useState(ticket.tecnico_id || '');
   const [etiquetas, setEtiquetas] = useState(ticket.etiquetas || []);
-  const [datos, setDatos] = useState({
-    nombre: ticket.nombre || '',
-    telefono: ticket.telefono || '',
-    email: ticket.email || '',
-    dispositivo: ticket.dispositivo || '',
-    marca_modelo: ticket.marca_modelo || '',
-    equipo_password: ticket.equipo_password || '',
-  });
-  const [guardandoDatos, setGuardandoDatos] = useState(false);
-
-  const setDato = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
-
-  async function guardarDatos() {
-    setGuardandoDatos(true);
-    setAviso(null);
-    const { error } = await supabase
-      .from('tickets')
-      .update({
-        nombre: datos.nombre.trim(),
-        telefono: datos.telefono.trim() || null,
-        email: datos.email.trim() || null,
-        dispositivo: datos.dispositivo.trim(),
-        marca_modelo: datos.marca_modelo.trim() || null,
-        equipo_password: datos.equipo_password.trim() || null,
-      })
-      .eq('id', ticket.id);
-    setGuardandoDatos(false);
-    if (error) setAviso({ tipo: 'error', texto: error.message });
-    else {
-      setAviso({ tipo: 'ok', texto: 'Datos actualizados.' });
-      onGuardado();
-    }
-  }
 
   useEffect(() => {
     supabase
@@ -954,6 +921,12 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           )}
           <a
             className="btn btn-secondary btn-sm"
+            href={`/panel/tickets/${ticket.id}/editar`}
+          >
+            ✏️ Editar
+          </a>
+          <a
+            className="btn btn-secondary btn-sm"
             href={`/panel/imprimir/${ticket.id}`}
           >
             Comprobante
@@ -1048,41 +1021,6 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       >
         {ticket.descripcion}
       </p>
-
-      <details style={{ marginTop: 14 }}>
-        <summary style={{ cursor: 'pointer', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-          Editar datos del cliente y equipo
-        </summary>
-        <div className="grid-2" style={{ marginTop: 12 }}>
-          <div className="field">
-            <label>Nombre</label>
-            <input value={datos.nombre} onChange={setDato('nombre')} />
-          </div>
-          <div className="field">
-            <label>Teléfono</label>
-            <input value={datos.telefono} onChange={setDato('telefono')} />
-          </div>
-          <div className="field">
-            <label>Email</label>
-            <input type="email" value={datos.email} onChange={setDato('email')} />
-          </div>
-          <div className="field">
-            <label>Equipo</label>
-            <input value={datos.dispositivo} onChange={setDato('dispositivo')} />
-          </div>
-          <div className="field">
-            <label>Marca / modelo</label>
-            <input value={datos.marca_modelo} onChange={setDato('marca_modelo')} />
-          </div>
-          <div className="field">
-            <label>Clave / patrón del equipo</label>
-            <input value={datos.equipo_password} onChange={setDato('equipo_password')} />
-          </div>
-        </div>
-        <button className="btn btn-secondary btn-sm" onClick={guardarDatos} disabled={guardandoDatos}>
-          {guardandoDatos ? <span className="spinner" /> : 'Guardar datos'}
-        </button>
-      </details>
 
       <div className="grid-2" style={{ marginTop: 14 }}>
         <div className="field" style={{ marginBottom: 0 }}>
@@ -1255,11 +1193,17 @@ export default function TicketsPage() {
 
   const [limite, setLimite] = useState(100);
   const [totalServer, setTotalServer] = useState(0);
-  const [stats, setStats] = useState({ total: 0, abiertos: 0, nuevo: 0, en_reparacion: 0, listo: 0 });
+  const [stats, setStats] = useState({ total: 0, abiertos: 0, porEstado: {} });
   const [userId, setUserId] = useState(null);
   const [vista, setVista] = useState('cards');
   const [dragId, setDragId] = useState(null);
   const [overCol, setOverCol] = useState(null);
+  const [tecnicos, setTecnicos] = useState([]);
+  const [tecnicoFiltro, setTecnicoFiltro] = useState('');
+
+  useEffect(() => {
+    supabase.rpc('equipo_negocio').then(({ data }) => setTecnicos(data || []));
+  }, []);
 
   useEffect(() => {
     const v = typeof window !== 'undefined' && localStorage.getItem('ordenes_vista');
@@ -1305,6 +1249,7 @@ export default function TicketsPage() {
         if (userId) q = q.eq('tecnico_id', userId);
       } else if (filtro !== 'todos') q = q.eq('estado', filtro);
     }
+    if (tecnicoFiltro) q = q.eq('tecnico_id', tecnicoFiltro);
     if (busqueda.trim()) {
       const t = busqueda.trim().replace(/[%,()]/g, '');
       q = q.or(
@@ -1315,21 +1260,21 @@ export default function TicketsPage() {
     setTickets(data || []);
     setTotalServer(count || 0);
     setCargando(false);
-  }, [filtro, busqueda, limite, userId]);
+  }, [filtro, busqueda, limite, userId, tecnicoFiltro]);
 
   const cargarStats = useCallback(async () => {
     const contar = (mod) => {
       let q = supabase.from('tickets').select('id', { count: 'exact', head: true });
       return mod(q).then(({ count }) => count || 0);
     };
-    const [total, abiertos, nuevo, en_reparacion, listo] = await Promise.all([
+    const claves = Object.keys(ESTADOS);
+    const [total, abiertos, ...porEstadoArr] = await Promise.all([
       contar((q) => q),
       contar((q) => q.not('estado', 'in', '(entregado,cancelado)')),
-      contar((q) => q.eq('estado', 'nuevo')),
-      contar((q) => q.eq('estado', 'en_reparacion')),
-      contar((q) => q.eq('estado', 'listo')),
+      ...claves.map((k) => contar((q) => q.eq('estado', k))),
     ]);
-    setStats({ total, abiertos, nuevo, en_reparacion, listo });
+    const porEstado = Object.fromEntries(claves.map((k, i) => [k, porEstadoArr[i]]));
+    setStats({ total, abiertos, porEstado });
   }, []);
 
   useEffect(() => {
@@ -1443,19 +1388,19 @@ export default function TicketsPage() {
         </div>
         <div className="stat">
           <div className="num" style={{ color: '#3b82f6' }}>
-            {stats.nuevo}
+            {stats.porEstado.nuevo || 0}
           </div>
           <div className="lbl">Nuevos</div>
         </div>
         <div className="stat">
           <div className="num" style={{ color: '#f59e0b' }}>
-            {stats.en_reparacion}
+            {stats.porEstado.en_reparacion || 0}
           </div>
           <div className="lbl">En reparación</div>
         </div>
         <div className="stat">
           <div className="num" style={{ color: '#22c55e' }}>
-            {stats.listo}
+            {stats.porEstado.listo || 0}
           </div>
           <div className="lbl">Listos</div>
         </div>
@@ -1480,12 +1425,12 @@ export default function TicketsPage() {
 
       <div className="filters">
         {[
-          ['abiertos', 'Abiertos'],
-          ['mias', 'Mías'],
-          ['sin_retirar', 'Sin retirar'],
-          ['todos', 'Todos'],
-          ...Object.entries(ESTADOS).map(([k, v]) => [k, v.label]),
-        ].map(([k, label]) => (
+          ['abiertos', 'Abiertos', stats.abiertos],
+          ['mias', 'Mías', null],
+          ['sin_retirar', 'Sin retirar', null],
+          ['todos', 'Todos', stats.total],
+          ...Object.entries(ESTADOS).map(([k, v]) => [k, v.label, stats.porEstado[k] || 0]),
+        ].map(([k, label, count]) => (
           <button
             key={k}
             className={`chip ${filtro === k ? 'active' : ''}`}
@@ -1495,9 +1440,30 @@ export default function TicketsPage() {
             }}
           >
             {label}
+            {count != null && <span style={{ opacity: 0.65 }}> · {count}</span>}
           </button>
         ))}
       </div>
+
+      {tecnicos.length > 0 && (
+        <div className="filters" style={{ marginTop: 8 }}>
+          <button
+            className={`chip ${!tecnicoFiltro ? 'active' : ''}`}
+            onClick={() => { setTecnicoFiltro(''); setLimite(100); }}
+          >
+            👨‍🔧 Todos los técnicos
+          </button>
+          {tecnicos.map((p) => (
+            <button
+              key={p.user_id}
+              className={`chip ${tecnicoFiltro === p.user_id ? 'active' : ''}`}
+              onClick={() => { setTecnicoFiltro(p.user_id); setLimite(100); }}
+            >
+              {p.nombre}
+            </button>
+          ))}
+        </div>
+      )}
 
       {cargando ? (
         <p style={{ color: 'var(--text-dim)' }}>Cargando tickets...</p>

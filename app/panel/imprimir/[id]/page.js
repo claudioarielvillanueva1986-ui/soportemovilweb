@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import QRCode from 'qrcode';
 import { supabase, ESTADOS, formatMoney, formatFecha } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
 // Un talón del comprobante (se usa para cliente y para copia del taller)
-function Talon({ tipo, ticket, negocio, config, senas }) {
+function Talon({ tipo, ticket, negocio, config, senas, qr }) {
   const lineas = (config?.encabezado || '').split('\n').filter(Boolean);
   const esTaller = tipo === 'taller';
   return (
@@ -42,11 +43,18 @@ function Talon({ tipo, ticket, negocio, config, senas }) {
           <span className="comp-lbl">Equipo</span>
           {ticket.dispositivo}
           {ticket.marca_modelo ? ` — ${ticket.marca_modelo}` : ''}
+          {ticket.color ? ` (${ticket.color})` : ''}
         </div>
         <div>
           <span className="comp-lbl">Estado</span>
           {ESTADOS[ticket.estado]?.label || ticket.estado}
         </div>
+        {esTaller && ticket.imei_serial && (
+          <div>
+            <span className="comp-lbl">IMEI / Serial</span>
+            {ticket.imei_serial}
+          </div>
+        )}
         {esTaller && ticket.equipo_password && (
           <div>
             <span className="comp-lbl">Clave equipo</span>
@@ -80,16 +88,30 @@ function Talon({ tipo, ticket, negocio, config, senas }) {
         {ticket.descripcion}
       </div>
 
-      {!esTaller && (
-        <div className="comp-seguimiento">
+      {esTaller && ticket.condicion_fisica && (
+        <div className="comp-falla">
+          <span className="comp-lbl">Condición física al recibir</span>
+          {ticket.condicion_fisica}
+        </div>
+      )}
+
+      <div className="comp-seguimiento" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {qr && (
+          <img
+            src={qr}
+            alt="QR seguimiento"
+            style={{ width: esTaller ? 56 : 84, height: esTaller ? 56 : 84, flexShrink: 0 }}
+          />
+        )}
+        <span>
           Seguí tu reparación online:{' '}
           <strong>
             {typeof window !== 'undefined' ? window.location.host : ''}/consulta
           </strong>
           {' '}con el número <strong>{ticket.numero}</strong>
           {ticket.email ? ` y tu email` : ''}
-        </div>
-      )}
+        </span>
+      </div>
 
       {config?.pie && <div className="comp-pie">{config.pie}</div>}
 
@@ -112,6 +134,7 @@ export default function ImprimirPage() {
   const searchParams = useSearchParams();
   const autoprint = searchParams.get('autoprint') === '1';
   const [datos, setDatos] = useState(null);
+  const [qr, setQr] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -133,6 +156,10 @@ export default function ImprimirPage() {
         config: cfg || { plantilla: 'a4_doble', mostrar_montos: true },
         senas: (pagos || []).reduce((s, p) => s + Number(p.monto), 0),
       });
+      if (t.public_token) {
+        const url = `${window.location.origin}/r/${t.public_token}`;
+        QRCode.toDataURL(url, { margin: 1, width: 200 }).then(setQr).catch(() => {});
+      }
     })();
   }, [id]);
 
@@ -171,14 +198,14 @@ export default function ImprimirPage() {
       <div className={`comprobante ${plantilla === 'ticket_80mm' ? 'comp-80mm' : 'comp-a4'}`}>
         {plantilla === 'a4_doble' ? (
           <>
-            <Talon tipo="cliente" ticket={ticket} negocio={negocio} config={config} senas={senas} />
+            <Talon tipo="cliente" ticket={ticket} negocio={negocio} config={config} senas={senas} qr={qr} />
             <div className="comp-corte">
               <span>✂</span> — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — cortar aquí
             </div>
-            <Talon tipo="taller" ticket={ticket} negocio={negocio} config={config} senas={senas} />
+            <Talon tipo="taller" ticket={ticket} negocio={negocio} config={config} senas={senas} qr={qr} />
           </>
         ) : (
-          <Talon tipo="cliente" ticket={ticket} negocio={negocio} config={config} senas={senas} />
+          <Talon tipo="cliente" ticket={ticket} negocio={negocio} config={config} senas={senas} qr={qr} />
         )}
       </div>
     </main>
