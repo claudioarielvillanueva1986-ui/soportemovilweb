@@ -19,9 +19,7 @@ export function SiteChrome({ children }) {
     <div className="container">
       <header className="header">
         <Link href="/" className="logo">
-          <span className="logo-plate">
-            <img src="/logo.png" alt="Soporte Móvil" style={{ height: 28, width: 'auto' }} />
-          </span>
+          <img src="/logo-dark.png" alt="Soporte Móvil" style={{ height: 28, width: 'auto', display: 'block' }} />
         </Link>
         <nav className="nav">
           <Link href="/consulta">Consultar orden</Link>

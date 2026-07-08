@@ -2371,15 +2371,6 @@ main {
 .saldo-pub .lbl { font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#f87171; }
 .saldo-pub .val { font-size:1.7rem; font-weight:800; color:#f87171; }
 
-/* Placa blanca para el logo (tiene fondo blanco sólido) sobre fondos oscuros */
-.logo-plate {
-  display: inline-flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 8px;
-  padding: 4px 10px;
-}
-
 /* ===== Login (branded, tema v2) ===== */
 .login-wrap { min-height: 82vh; display:flex; align-items:center; justify-content:center; padding: 20px; }
 .login-card { width:100%; max-width: 400px; background: var(--card); border:1px solid var(--border); border-radius: 20px; overflow:hidden; box-shadow: 0 30px 70px rgba(0,0,0,.5); }
