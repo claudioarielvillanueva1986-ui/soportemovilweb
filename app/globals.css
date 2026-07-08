@@ -1,17 +1,19 @@
 :root {
-  --bg: #0e100c;
-  --bg-card: #191c16;
-  --bg-input: #14160f;
-  --bg-hover: #22261c;
-  --border: #2a2f22;
-  --border-strong: #3a4030;
-  --text: #eef2e6;
-  --text-dim: #9aa389;
-  --accent: #c2f04a;
-  --accent-hover: #d2fb63;
-  --accent-ink: #14200a;
-  --accent-soft: rgba(194, 240, 74, 0.13);
-  --ok: #c2f04a;
+  /* Identidad real de marca: azul #0097D9 (del logo), sobre neutros azul-noche.
+     Antes: verde-lima heredado, sin relación con el local real. */
+  --bg: #0a0e14;
+  --bg-card: #131a24;
+  --bg-input: #0e131c;
+  --bg-hover: #1a2330;
+  --border: #202a38;
+  --border-strong: #2e3c4e;
+  --text: #eef2f6;
+  --text-dim: #8b9bb0;
+  --accent: #0097d9;
+  --accent-hover: #2cb2ef;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(0, 151, 217, 0.14);
+  --ok: #34d399;
   --warn: #f0b429;
   --error: #f87171;
   --error-soft: #f87171;
@@ -21,7 +23,7 @@
   --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
 
   /* Los controles nativos (menús de select, date pickers, scrollbars,
-     autocompletado) se dibujan en oscuro; checkboxes/radios en lima. */
+     autocompletado) se dibujan en oscuro; checkboxes/radios en azul. */
   color-scheme: dark;
   accent-color: var(--accent);
 }
@@ -138,7 +140,7 @@ a {
   inset: -60px -10% 0;
   background: radial-gradient(
     620px 300px at 50% 0%,
-    rgba(194, 240, 74, 0.14),
+    rgba(0, 151, 217, 0.14),
     transparent 70%
   );
   pointer-events: none;
@@ -257,7 +259,7 @@ textarea {
 
 .btn:hover {
   background: var(--accent-hover);
-  box-shadow: 0 6px 22px rgba(194, 240, 74, 0.3);
+  box-shadow: 0 6px 22px rgba(0, 151, 217, 0.3);
 }
 
 .btn:active {
@@ -303,9 +305,9 @@ textarea {
 }
 
 .alert-ok {
-  background: rgba(194, 240, 74, 0.1);
-  border: 1px solid rgba(194, 240, 74, 0.4);
-  color: #d2fb63;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: var(--ok);
 }
 
 .alert-error {
@@ -1376,7 +1378,7 @@ main {
 
 .sk-line,
 .sk-circle {
-  background: linear-gradient(90deg, #1c2016 25%, #262b1d 50%, #1c2016 75%);
+  background: linear-gradient(90deg, #182230 25%, #24303f 50%, #182230 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease infinite;
   border-radius: 6px;
@@ -1777,7 +1779,7 @@ main {
 
 /* Tarjeta destacada tipo balance */
 .cl-hero-card {
-  background: linear-gradient(150deg, #1d2117 0%, #171a13 60%, #14160f 100%);
+  background: linear-gradient(150deg, #16202c 0%, #121a24 60%, #0e131c 100%);
   border: 1px solid var(--border-strong);
   border-radius: 22px;
   padding: 22px 24px;
@@ -1794,7 +1796,7 @@ main {
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(194, 240, 74, 0.22), transparent 70%);
+  background: radial-gradient(circle, rgba(0, 151, 217, 0.22), transparent 70%);
   pointer-events: none;
 }
 

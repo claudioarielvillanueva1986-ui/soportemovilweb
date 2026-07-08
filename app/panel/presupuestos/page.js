@@ -8,7 +8,7 @@ const ESTADOS_P = {
   enviado: ['Enviado', '#3b82f6'],
   aceptado: ['Aceptado', '#22c55e'],
   rechazado: ['Rechazado', '#ef4444'],
-  convertido: ['Convertido a orden', '#c2f04a'],
+  convertido: ['Convertido a orden', '#f59e0b'],
 };
 
 function Badge({ estado }) {

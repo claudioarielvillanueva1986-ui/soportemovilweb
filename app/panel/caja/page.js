@@ -15,7 +15,7 @@ const COLOR_METODO = {
   debito: '#94a3b8',
   credito: '#a855f7',
   mercadopago_qr: '#14b8a6',
-  mixto: '#c2f04a',
+  mixto: '#f59e0b',
 };
 
 function badgeMetodo(m) {

@@ -28,6 +28,28 @@ Es el sistema de gestión de este negocio, con la tienda pública como frontend 
   `precio_plan`, `actualizar_plan`, `saas_actualizar_suscripcion` — inofensivas, se pueden
   limpiar más adelante si hace falta.
 
+## 🎨 Identidad de marca real (2026-07)
+
+El usuario pasó una foto del local físico y el archivo original del logo (alta resolución,
+"SP" en negro/cian + "Soporte Móvil"). Se detectó que **tienda y panel usaban paletas
+distintas y ninguna era la marca real**: la tienda tenía un cian genérico (`#00E5FF`,
+heredado del HTML de v1) y el panel un verde-lima (`#c2f04a`) sin relación con el negocio.
+
+- **Logo real integrado**: se le quitó el fondo blanco de verdad (des-matteo sobre blanco
+  conocido) → `public/logo.png` con transparencia real. Se recortó además solo la marca
+  "SP" para favicon/PWA (mucho más legible a tamaño chico que el logo completo).
+- **Color de marca unificado**: `#0097D9` (azul/cian exacto, muestreado por píxel del logo
+  real) como `--accent` único en toda la app (tienda + panel), reemplazando el cian
+  genérico y el lima. Decisión del usuario: sin amarillo, "colorido y que se distinga bien
+  todo" → se separó `--ok` (verde `#34d399`, éxito) de `--accent` (antes eran el mismo
+  color en el panel, confundía estados con marca); colores categóricos (métodos de pago,
+  estados de presupuesto) mantienen su paleta multicolor existente.
+- **Bug de fondo corregido**: varios botones/badges de la tienda tenían el cian
+  **hardcodeado** (`#00E5FF` directo, no `var(--accent)`), por lo que el `color_acento`
+  personalizable desde `/panel/tienda` no los afectaba. Ahora todo pasa por la variable.
+- Fondos neutros del panel pasaron de tinte oliva (`#191c16`, `#22261c`...) a tinte
+  azul-noche (`#131a24`, `#1a2330`...), coherente con el navy de la tienda.
+
 ---
 
 ## ✅ Ya hecho (base + esta tanda)

@@ -196,7 +196,7 @@ export function TiendaStore({ slug }) {
 
   const cfg = data.config || {};
   const neg = data.negocio || {};
-  const accent = cfg.color_acento || '#00E5FF';
+  const accent = cfg.color_acento || '#0097D9';
   const wa = telWhatsApp(neg.whatsapp);
   const waLink = (msg) => (wa ? `https://wa.me/${wa}?text=${encodeURIComponent(msg)}` : '#');
   const nombrePartes = (neg.nombre || 'Soporte Móvil').split(' ');
@@ -279,7 +279,7 @@ export function TiendaStore({ slug }) {
 
       {/* TICKER */}
       {productos.length > 0 && (
-        <div style={{ background: 'linear-gradient(90deg,#005580,#00E5FF)', padding: '8px 0', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ background: 'linear-gradient(90deg,#004D73,#0097D9)', padding: '8px 0', overflow: 'hidden', position: 'relative' }}>
           <div style={{ whiteSpace: 'nowrap', animation: 'ticker 25s linear infinite', display: 'inline-block' }}>
             {Array.from({ length: 4 }).map((_, k) => (
               <span key={k}>
@@ -305,7 +305,7 @@ export function TiendaStore({ slug }) {
             <div className="pache-card">
               <div style={{ flexShrink: 0 }}>
                 <svg viewBox="0 0 80 80" style={{ width: 54, height: 54, animation: 'pacheIdleT 3s ease-in-out infinite' }}>
-                  <ellipse cx="40" cy="52" rx="20" ry="18" fill="#00A8C0" />
+                  <ellipse cx="40" cy="52" rx="20" ry="18" fill="#006FA3" />
                   <circle cx="40" cy="30" r="18" fill="#7DD3FC" />
                   <ellipse cx="33" cy="27" rx="3.5" ry="4.5" fill="#0A1628" />
                   <ellipse cx="47" cy="27" rx="3.5" ry="4.5" fill="#0A1628" />
