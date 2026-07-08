@@ -177,7 +177,8 @@ facturación ARCA (delegada a Facturá), planes/suscripción, PWA + web push.
 
 ### ⬜ Falta (verificado, ordenado por impacto)
 1. ~~Gremio / Mayorista B2B~~ — **🚫 EXCLUIDO por decisión del usuario.**
-2. **/pantallas** — landing “Consulta por cambio de módulos 100% originales” (linkeada desde el nav de la tienda).
+2. ✅ **/pantallas** — landing "Ver para creer" (cambio de pantalla con módulos originales), con comparador
+   interactivo, specs, catálogo Samsung/Motorola, garantía, testimonios, FAQ y ubicación; linkeada desde el nav de la tienda.
 3. **Recordatorios de retiro** — bandeja de órdenes listas sin retirar N días + avisar (`/admin/recordatorios`).
 4. **Exportar a CSV** — órdenes y reportes (`/exportar/ordenes/csv`, `/reportes/exportar/csv`).
 5. **Inteligencia de ventas** — analítica avanzada (`/admin/inteligencia-ventas`).
