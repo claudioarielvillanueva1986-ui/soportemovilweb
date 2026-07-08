@@ -4,6 +4,60 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, formatMoney } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
+const CONFETTI_COLORES = ['#0097d9', '#7DD3FC', '#F59E0B', '#34d399', '#ffffff'];
+
+function Confetti() {
+  const piezas = useMemo(
+    () =>
+      Array.from({ length: 26 }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        color: CONFETTI_COLORES[i % CONFETTI_COLORES.length],
+        delay: Math.random() * 0.3,
+        duracion: 1.1 + Math.random() * 0.7,
+        ancho: 5 + Math.random() * 4,
+        rotar: Math.random() > 0.5,
+      })),
+    []
+  );
+  return (
+    <div className="confetti-caja" aria-hidden="true">
+      {piezas.map((p) => (
+        <span
+          key={p.id}
+          className="confetti-pieza"
+          style={{
+            left: `${p.left}%`,
+            background: p.color,
+            width: p.ancho,
+            height: p.rotar ? p.ancho : p.ancho * 2.2,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duracion}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PacheCelebra() {
+  return (
+    <svg viewBox="0 0 80 80" className="pos-pache" style={{ width: 72, height: 72 }}>
+      <ellipse cx="40" cy="52" rx="20" ry="18" fill="#006FA3" />
+      <circle cx="40" cy="30" r="18" fill="#7DD3FC" />
+      <path d="M29 25 Q33 20 37 25" stroke="#0A1628" strokeWidth="2.3" fill="none" strokeLinecap="round" />
+      <path d="M43 25 Q47 20 51 25" stroke="#0A1628" strokeWidth="2.3" fill="none" strokeLinecap="round" />
+      <path d="M31 34 Q40 43 49 34" stroke="#0A1628" strokeWidth="2.3" fill="none" strokeLinecap="round" />
+      <line x1="36" y1="14" x2="30" y2="3" stroke="#7DD3FC" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="30" cy="2.5" r="2.8" fill="#F59E0B" />
+      <line x1="44" y1="14" x2="50" y2="3" stroke="#7DD3FC" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="50" cy="2.5" r="2.8" fill="#F59E0B" />
+      <path d="M8 34 l4 -4 M8 34 l4 4 M8 34 h7" stroke="#F59E0B" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      <path d="M72 34 l-4 -4 M72 34 l-4 4 M72 34 h-7" stroke="#F59E0B" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const METODOS_POS = [
   ['efectivo', 'Efectivo', '💵'],
   ['transferencia', 'Transfer.', '🏦'],
@@ -319,10 +373,11 @@ export default function PosPage() {
   if (ventaOk) {
     return (
       <main>
-        <div className="card" style={{ maxWidth: 460, margin: '30px auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 44, lineHeight: 1 }}>✅</div>
-          <h2 style={{ margin: '8px 0' }}>Venta #{ventaOk.numero} registrada</h2>
-          <div className="pos-total-box" style={{ justifyContent: 'center' }}>
+        <div className="card pos-celebracion" style={{ maxWidth: 460, margin: '30px auto', textAlign: 'center' }}>
+          <Confetti />
+          <PacheCelebra />
+          <h2 style={{ margin: '8px 0' }}>¡Venta #{ventaOk.numero} registrada!</h2>
+          <div className="pos-total-box pos-total-celebra" style={{ justifyContent: 'center' }}>
             <span className="val">{formatMoney(ventaOk.total)}</span>
           </div>
 
