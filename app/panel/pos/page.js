@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { supabase, formatMoney } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
+import { armarLinkPago } from '@/components/cobro-real';
 
 const CUOTAS_TC = [
   [1, 10],
@@ -368,9 +369,10 @@ export default function PosPage() {
         setCobro((c) => (c ? { ...c, estado: 'error', error: data.error || 'No se pudo generar el cobro' } : c));
         return;
       }
-      const qrImg = await QRCode.toDataURL(data.init_point, { width: 220, margin: 1 }).catch(() => null);
+      const linkPago = armarLinkPago(data.init_point);
+      const qrImg = await QRCode.toDataURL(linkPago, { width: 220, margin: 1 }).catch(() => null);
       setCobro((c) =>
-        c ? { ...c, cobroId: data.cobro_id, initPoint: data.init_point, qrImg, estado: 'pendiente', token } : c
+        c ? { ...c, cobroId: data.cobro_id, initPoint: linkPago, qrImg, estado: 'pendiente', token } : c
       );
       pollingRef.current = setInterval(async () => {
         try {
@@ -878,7 +880,7 @@ export default function PosPage() {
                 {cobro.qrImg && <img className="mp-cobro-qr" src={cobro.qrImg} alt="QR de pago" />}
                 <div className="mp-cobro-info">
                   <div className="tit">¿Cómo cobra?</div>
-                  <p>📱 El cliente escanea el QR con la cámara del celular</p>
+                  <p>📱 El cliente escanea el QR con la cámara del celular (no con el lector de la app de Mercado Pago)</p>
                   <p>🔗 O abrí el link y enviáselo por WhatsApp</p>
                 </div>
                 <a

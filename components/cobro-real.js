@@ -6,6 +6,16 @@ import { supabase, formatMoney } from '@/lib/supabase';
 
 export const METODOS_ELECTRONICOS_ORDEN = ['tarjeta', 'mercadopago_qr', 'mercadopago_point'];
 
+// El QR y los links de cobro nunca deben apuntar directo a mercadopago.com:
+// la app de Mercado Pago instalada reclama ese dominio y, si el cliente
+// escanea con SU lector de QR (no con la cámara), interpreta el link de
+// Checkout Pro como un código inválido y muestra "QR inválido". Pasar
+// primero por nuestro propio dominio evita que la app lo intercepte.
+export function armarLinkPago(initPoint) {
+  if (typeof window === 'undefined') return initPoint;
+  return `${window.location.origin}/pagar?ir=${encodeURIComponent(initPoint)}`;
+}
+
 // Cobro real por Mercado Pago (vía Facturá): genera un link/QR de Checkout
 // Pro y sondea el estado hasta que se aprueba o se rechaza. Compartido por
 // el POS y por los pagos de órdenes (seña, saldo).
@@ -36,8 +46,9 @@ export function useCobroReal() {
         setCobro((c) => (c ? { ...c, estado: 'error', error: data.error || 'No se pudo generar el cobro' } : c));
         return;
       }
-      const qrImg = await QRCode.toDataURL(data.init_point, { width: 220, margin: 1 }).catch(() => null);
-      setCobro((c) => (c ? { ...c, cobroId: data.cobro_id, initPoint: data.init_point, qrImg, estado: 'pendiente' } : c));
+      const linkPago = armarLinkPago(data.init_point);
+      const qrImg = await QRCode.toDataURL(linkPago, { width: 220, margin: 1 }).catch(() => null);
+      setCobro((c) => (c ? { ...c, cobroId: data.cobro_id, initPoint: linkPago, qrImg, estado: 'pendiente' } : c));
       pollingRef.current = setInterval(async () => {
         try {
           const r = await fetch(`/api/facturacion/cobro/estado?cobro_id=${data.cobro_id}&token=${encodeURIComponent(token)}`);
@@ -99,7 +110,7 @@ export function ModalCobroReal({ cobro, cancelarCobro, continuarTrasCobro }) {
             {cobro.qrImg && <img className="mp-cobro-qr" src={cobro.qrImg} alt="QR de pago" />}
             <div className="mp-cobro-info">
               <div className="tit">¿Cómo cobra?</div>
-              <p>📱 El cliente escanea el QR con la cámara del celular</p>
+              <p>📱 El cliente escanea el QR con la cámara del celular (no con el lector de la app de Mercado Pago)</p>
               <p>🔗 O abrí el link y enviáselo por WhatsApp</p>
             </div>
             <a
