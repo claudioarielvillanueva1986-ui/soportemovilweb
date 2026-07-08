@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, ESTADOS, formatFecha, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 
-const VACIO = { nombre: '', telefono: '', email: '', notas: '' };
+const VACIO = { nombre: '', dni: '', telefono: '', email: '', notas: '' };
 
 function HistorialCliente({ clienteId }) {
   const [datos, setDatos] = useState(null);
@@ -117,6 +117,7 @@ export default function ClientesPage() {
     setOcupado(true);
     const datos = {
       nombre: form.nombre.trim(),
+      dni: form.dni?.trim() || null,
       telefono: form.telefono?.trim() || null,
       email: form.email?.trim() || null,
       notas: form.notas?.trim() || null,
@@ -170,6 +171,10 @@ export default function ClientesPage() {
                 <input required value={form.nombre} onChange={set('nombre')} />
               </div>
               <div className="field">
+                <label>DNI</label>
+                <input value={form.dni || ''} onChange={set('dni')} />
+              </div>
+              <div className="field">
                 <label>Teléfono</label>
                 <input
                   value={form.telefono || ''}
@@ -220,7 +225,7 @@ export default function ClientesPage() {
           <div className="info">
             <div className="titulo">{c.nombre}</div>
             <div className="meta">
-              {[c.telefono, c.email].filter(Boolean).join(' · ') ||
+              {[c.dni && `DNI ${c.dni}`, c.telefono, c.email].filter(Boolean).join(' · ') ||
                 'Sin contacto'}
               {c.notas ? ` — ${c.notas}` : ''}
             </div>

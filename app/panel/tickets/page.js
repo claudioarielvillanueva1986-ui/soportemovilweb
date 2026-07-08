@@ -989,7 +989,21 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       <dl className="detalle-grid">
         <div>
           <dt>Cliente</dt>
-          <dd>{ticket.nombre}</dd>
+          <dd>
+            {ticket.nombre}
+            {ticket.cliente_id && (
+              <>
+                {' · '}
+                <a href={`/panel/clientes?buscar=${encodeURIComponent(ticket.telefono || ticket.nombre)}`} style={{ fontSize: '0.85rem' }}>
+                  ver historial
+                </a>
+              </>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>DNI</dt>
+          <dd style={{ fontFamily: 'var(--mono)' }}>{ticket.clientes?.dni || '—'}</dd>
         </div>
         <div>
           <dt>Contacto</dt>
@@ -1279,7 +1293,7 @@ export default function TicketsPage() {
     setCargando(true);
     let q = supabase
       .from('tickets')
-      .select('*', { count: 'exact' })
+      .select('*, clientes(dni)', { count: 'exact' })
       .range(0, limite - 1);
     if (filtro === 'sin_retirar') {
       // Bandeja de retiros: listas, la que espera hace más tiempo primero
