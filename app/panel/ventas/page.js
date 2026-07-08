@@ -28,6 +28,7 @@ export default function VentasPage() {
   const [facturaConectada, setFacturaConectada] = useState(false);
   const [facturandoId, setFacturandoId] = useState(null);
   const [kpis, setKpis] = useState(null);
+  const [kpisTruncado, setKpisTruncado] = useState(false);
   const timer = useRef(null);
 
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function VentasPage() {
     setTotal(count || 0);
 
     // KPIs del período (todas las ventas del rango, sin anuladas)
-    let kq = supabase.from('ventas').select('total, metodo_pago').eq('anulada', false).limit(5000);
+    let kq = supabase.from('ventas').select('id, total, metodo_pago').eq('anulada', false).limit(5000);
     if (p[2] !== null) {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
@@ -125,15 +126,38 @@ export default function VentasPage() {
     }
     const { data: agg } = await kq;
     const acc = { total: 0, efectivo: 0, transferencia: 0, tarjetas: 0 };
+    // Ventas con pago mixto no tienen un único método: su desglose real vive
+    // en venta_pagos (una fila por método usado). Sin esto, la parte en
+    // efectivo de una venta mixta desaparecía del KPI "Efectivo".
+    const idsMixtos = (agg || []).filter((v) => v.metodo_pago === 'mixto').map((v) => v.id);
+    let pagosMixtos = [];
+    if (idsMixtos.length) {
+      const { data: vp } = await supabase.from('venta_pagos').select('venta_id, metodo, monto').in('venta_id', idsMixtos);
+      pagosMixtos = vp || [];
+    }
+    const pagosPorVenta = pagosMixtos.reduce((acc2, p) => {
+      (acc2[p.venta_id] ||= []).push(p);
+      return acc2;
+    }, {});
     for (const v of agg || []) {
-      const m = v.metodo_pago;
       const t = Number(v.total) || 0;
       acc.total += t;
+      if (v.metodo_pago === 'mixto') {
+        for (const p of pagosPorVenta[v.id] || []) {
+          const m2 = Number(p.monto) || 0;
+          if (p.metodo === 'efectivo') acc.efectivo += m2;
+          else if (p.metodo === 'transferencia') acc.transferencia += m2;
+          else acc.tarjetas += m2;
+        }
+        continue;
+      }
+      const m = v.metodo_pago;
       if (m === 'efectivo') acc.efectivo += t;
       else if (m === 'transferencia') acc.transferencia += t;
       else if (['debito', 'credito', 'tarjeta', 'mercadopago_qr', 'mercadopago_point'].includes(m)) acc.tarjetas += t;
     }
     setKpis(acc);
+    setKpisTruncado((agg || []).length >= 5000);
   }, [preset, metodo, limite, busqueda]);
 
   useEffect(() => {
@@ -170,6 +194,12 @@ export default function VentasPage() {
             <div className="k-val">{formatMoney(kpis.tarjetas)}</div>
           </div>
         </div>
+      )}
+      {kpisTruncado && (
+        <p style={{ color: 'var(--warn)', fontSize: '.82rem', marginTop: -8, marginBottom: 16 }}>
+          ⚠️ Hay más de 5.000 ventas en este período — los totales de arriba solo contemplan las primeras 5.000.
+          Elegí un rango más corto para un total exacto.
+        </p>
       )}
 
       <div className="field">

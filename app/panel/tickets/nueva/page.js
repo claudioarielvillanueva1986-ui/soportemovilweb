@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, PRIORIDADES, METODOS_PAGO, formatMoney } from '@/lib/supabase';
+import { useCobroReal, ModalCobroReal, METODOS_ELECTRONICOS_ORDEN } from '@/components/cobro-real';
 
 const DISPOSITIVOS = ['Celular', 'Tablet', 'Notebook', 'PC de escritorio', 'Consola', 'Otro'];
 
@@ -37,6 +38,16 @@ export default function NuevaOrdenPage() {
 
   const [error, setError] = useState(null);
   const [creando, setCreando] = useState(false);
+  const [facturaConectada, setFacturaConectada] = useState(false);
+  const { cobro, iniciarCobro, cancelarCobro, continuarTrasCobro } = useCobroReal();
+
+  useEffect(() => {
+    supabase
+      .from('facturacion_conexion')
+      .select('conectado')
+      .maybeSingle()
+      .then(({ data }) => setFacturaConectada(!!data?.conectado));
+  }, []);
 
   useEffect(() => {
     supabase
@@ -98,6 +109,15 @@ export default function NuevaOrdenPage() {
       return;
     }
 
+    const senaMonto = equipo.sena === '' ? 0 : Number(equipo.sena);
+    if (facturaConectada && senaMonto > 0 && METODOS_ELECTRONICOS_ORDEN.includes(equipo.sena_metodo)) {
+      iniciarCobro(senaMonto, 'Seña de orden nueva', (mpPaymentId) => crearOrden(marcaFinal, modeloFinal, mpPaymentId));
+      return;
+    }
+    await crearOrden(marcaFinal, modeloFinal, null);
+  }
+
+  async function crearOrden(marcaFinal, modeloFinal, senaMpPaymentId) {
     setCreando(true);
     try {
       const { data: neg } = await supabase.from('negocios').select('id').maybeSingle();
@@ -162,6 +182,7 @@ export default function NuevaOrdenPage() {
         p_equipo_password: equipo.equipo_password,
         p_sena: equipo.sena === '' ? null : Number(equipo.sena),
         p_sena_metodo: equipo.sena_metodo,
+        p_sena_mp_payment_id: senaMpPaymentId,
       });
       if (err) throw new Error(err.message);
       router.push(`/panel/imprimir/${data.id}`);
@@ -398,6 +419,8 @@ export default function NuevaOrdenPage() {
           </div>
         </form>
       )}
+
+      <ModalCobroReal cobro={cobro} cancelarCobro={cancelarCobro} continuarTrasCobro={continuarTrasCobro} />
     </main>
   );
 }

@@ -11,6 +11,7 @@ import {
 } from '@/lib/supabase';
 import { linkAvisoWhatsApp } from '@/lib/whatsapp';
 import { usePerfil } from '@/lib/panel-context';
+import { useCobroReal, ModalCobroReal, METODOS_ELECTRONICOS_ORDEN } from '@/components/cobro-real';
 
 // Etiquetas disponibles para las órdenes (color por etiqueta)
 const ETIQUETAS = [
@@ -189,7 +190,9 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
   // cobro de saldo con pago mixto
-  const [cobro, setCobro] = useState(null); // null | [{monto, metodo}]
+  const [desglose, setDesglose] = useState(null); // null | [{monto, metodo, mp_payment_id}]
+  const [facturaConectada, setFacturaConectada] = useState(false);
+  const { cobro, iniciarCobro, cancelarCobro, continuarTrasCobro } = useCobroReal();
 
   const cargar = useCallback(async () => {
     const { data } = await supabase
@@ -204,6 +207,14 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
     cargar();
   }, [cargar]);
 
+  useEffect(() => {
+    supabase
+      .from('facturacion_conexion')
+      .select('conectado')
+      .maybeSingle()
+      .then(({ data }) => setFacturaConectada(!!data?.conectado));
+  }, []);
+
   const abonado = pagos.reduce((s, p) => s + Number(p.monto), 0);
   const presu = Number(presupuesto) || 0;
   const saldo = Math.max(0, presu - abonado);
@@ -213,10 +224,32 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
     e.preventDefault();
     if (ocupado) return;
     setError(null);
+    const montoNum = Number(monto);
+
+    if (facturaConectada && METODOS_ELECTRONICOS_ORDEN.includes(metodo)) {
+      iniciarCobro(montoNum, 'Seña de orden', async (mpPaymentId) => {
+        setOcupado(true);
+        const { error: err } = await supabase.rpc('registrar_pago_orden', {
+          p_ticket_id: ticketId,
+          p_monto: montoNum,
+          p_metodo: metodo,
+          p_tipo: 'sena',
+          p_mp_payment_id: mpPaymentId,
+          p_idempotency_key: idemKey(),
+        });
+        setOcupado(false);
+        if (err) return setError(err.message);
+        setMonto('');
+        cargar();
+        onCambio?.();
+      });
+      return;
+    }
+
     setOcupado(true);
     const { error: err } = await supabase.rpc('registrar_pago_orden', {
       p_ticket_id: ticketId,
-      p_monto: Number(monto),
+      p_monto: montoNum,
       p_metodo: metodo,
       p_tipo: 'sena',
       p_idempotency_key: idemKey(),
@@ -231,10 +264,24 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
   // cobrar saldo y entregar (pago mixto atómico)
   async function cobrarYEntregar() {
     setError(null);
+
+    if (facturaConectada) {
+      const pendienteIdx = desglose.findIndex(
+        (p) => METODOS_ELECTRONICOS_ORDEN.includes(p.metodo) && Number(p.monto) > 0 && !p.mp_payment_id
+      );
+      if (pendienteIdx >= 0) {
+        const montoLinea = Number(desglose[pendienteIdx].monto);
+        iniciarCobro(montoLinea, 'Saldo de orden', (mpPaymentId) => {
+          setDesglose((prev) => prev.map((p, j) => (j === pendienteIdx ? { ...p, mp_payment_id: mpPaymentId } : p)));
+        });
+        return;
+      }
+    }
+
     setOcupado(true);
-    const pagosLimpios = cobro
+    const pagosLimpios = desglose
       .filter((p) => Number(p.monto) > 0)
-      .map((p) => ({ monto: Number(p.monto), metodo: p.metodo }));
+      .map((p) => ({ monto: Number(p.monto), metodo: p.metodo, mp_payment_id: p.mp_payment_id || null }));
     if (pagosLimpios.length === 0) {
       setOcupado(false);
       setError('Ingresá al menos un pago.');
@@ -248,7 +295,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
     });
     setOcupado(false);
     if (err) return setError(err.message);
-    setCobro(null);
+    setDesglose(null);
     cargar();
     onCambio?.();
     if (data?.entregado) {
@@ -277,7 +324,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
     onCambio?.();
   }
 
-  const totalCobro = (cobro || []).reduce((s, p) => s + (Number(p.monto) || 0), 0);
+  const totalCobro = (desglose || []).reduce((s, p) => s + (Number(p.monto) || 0), 0);
 
   return (
     <div style={{ marginTop: 24 }}>
@@ -327,10 +374,10 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
       {/* Cobrar saldo y entregar */}
       {saldo > 0 && (
         <div style={{ marginTop: 14 }}>
-          {cobro === null ? (
+          {desglose === null ? (
             <button
               className="btn"
-              onClick={() => setCobro([{ monto: saldo, metodo: 'efectivo' }])}
+              onClick={() => setDesglose([{ monto: saldo, metodo: 'efectivo', mp_payment_id: null }])}
             >
               Cobrar saldo y entregar ({formatMoney(saldo)})
             </button>
@@ -340,7 +387,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
               <p className="lbl2" style={{ marginBottom: 10 }}>
                 Podés dividir el pago en varios métodos.
               </p>
-              {cobro.map((p, i) => (
+              {desglose.map((p, i) => (
                 <div className="grid-2" key={i} style={{ marginBottom: 8 }}>
                   <div className="field" style={{ marginBottom: 0 }}>
                     <input
@@ -349,9 +396,9 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
                       step="0.01"
                       value={p.monto}
                       onChange={(e) => {
-                        const c = [...cobro];
-                        c[i] = { ...c[i], monto: e.target.value };
-                        setCobro(c);
+                        const c = [...desglose];
+                        c[i] = { ...c[i], monto: e.target.value, mp_payment_id: null };
+                        setDesglose(c);
                       }}
                       placeholder="Monto"
                     />
@@ -360,9 +407,9 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
                     <select
                       value={p.metodo}
                       onChange={(e) => {
-                        const c = [...cobro];
-                        c[i] = { ...c[i], metodo: e.target.value };
-                        setCobro(c);
+                        const c = [...desglose];
+                        c[i] = { ...c[i], metodo: e.target.value, mp_payment_id: null };
+                        setDesglose(c);
                       }}
                     >
                       {Object.entries(METODOS_PAGO).map(([k, v]) => (
@@ -371,11 +418,11 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
                         </option>
                       ))}
                     </select>
-                    {cobro.length > 1 && (
+                    {desglose.length > 1 && (
                       <button
                         type="button"
                         className="chip"
-                        onClick={() => setCobro(cobro.filter((_, j) => j !== i))}
+                        onClick={() => setDesglose(desglose.filter((_, j) => j !== i))}
                       >
                         ×
                       </button>
@@ -387,7 +434,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
                 type="button"
                 className="chip"
                 style={{ marginBottom: 12 }}
-                onClick={() => setCobro([...cobro, { monto: '', metodo: 'efectivo' }])}
+                onClick={() => setDesglose([...desglose, { monto: '', metodo: 'efectivo', mp_payment_id: null }])}
               >
                 + Otro método
               </button>
@@ -399,7 +446,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
                 <button className="btn" onClick={cobrarYEntregar} disabled={ocupado}>
                   {ocupado ? <span className="spinner" /> : 'Cobrar y entregar'}
                 </button>
-                <button className="btn btn-secondary" onClick={() => setCobro(null)}>
+                <button className="btn btn-secondary" onClick={() => setDesglose(null)}>
                   Cancelar
                 </button>
               </div>
@@ -465,6 +512,15 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
           </div>
         )}
       </details>
+
+      {!facturaConectada && (metodo !== 'efectivo' && metodo !== 'transferencia') && (
+        <p style={{ fontSize: '.78rem', color: 'var(--text-dim)', marginTop: 8 }}>
+          Conectá Facturá en Configuración para cobrar de verdad con tarjeta o QR — por ahora este monto se
+          registra manualmente.
+        </p>
+      )}
+
+      <ModalCobroReal cobro={cobro} cancelarCobro={cancelarCobro} continuarTrasCobro={continuarTrasCobro} />
     </div>
   );
 }
@@ -1154,8 +1210,14 @@ export default function TicketsPage() {
   }
 
   async function moverEstado(id, destino) {
+    const anterior = tickets.find((t) => t.id === id)?.estado;
     setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, estado: destino } : t)));
-    await supabase.from('tickets').update({ estado: destino }).eq('id', id);
+    const { error: err } = await supabase.from('tickets').update({ estado: destino }).eq('id', id);
+    if (err) {
+      setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, estado: anterior } : t)));
+      window.alert(err.message);
+      return;
+    }
     cargar();
   }
   const timerRef = useRef(null);

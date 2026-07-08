@@ -14,7 +14,9 @@ const COLOR_METODO = {
   transferencia: '#3b82f6',
   debito: '#94a3b8',
   credito: '#a855f7',
+  tarjeta: '#a855f7',
   mercadopago_qr: '#14b8a6',
+  mercadopago_point: '#14b8a6',
   mixto: '#f59e0b',
 };
 
@@ -38,6 +40,8 @@ function hora(iso) {
 export default function CajaPage() {
   const [turno, setTurno] = useState(undefined);
   const [ventas, setVentas] = useState([]);
+  const [ventaPagos, setVentaPagos] = useState([]);
+  const [pagosOrdenes, setPagosOrdenes] = useState([]);
   const [retiros, setRetiros] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [facturaConectada, setFacturaConectada] = useState(false);
@@ -55,14 +59,26 @@ export default function CajaPage() {
     const t = resumen?.turno || null;
     setTurno(t);
     if (t) {
-      const [{ data: vs }, { data: rs }, { data: ms }] = await Promise.all([
+      const [{ data: vs }, { data: rs }, { data: ms }, { data: tp }] = await Promise.all([
         supabase.from('ventas').select('*').eq('turno_id', t.id).order('created_at', { ascending: false }),
         supabase.from('retiros_caja').select('*').eq('turno_id', t.id).order('created_at', { ascending: false }),
         supabase.from('movimientos_caja').select('*').eq('turno_id', t.id).order('created_at', { ascending: false }),
+        supabase.from('ticket_pagos').select('*, tickets(numero, nombre)').eq('turno_id', t.id).order('created_at', { ascending: false }),
       ]);
       setVentas(vs || []);
       setRetiros(rs || []);
       setMovimientos(ms || []);
+      setPagosOrdenes(tp || []);
+      // Pagos mixtos: cada venta puede tener su desglose real en venta_pagos
+      // (registrar_venta_pos siempre inserta ahí); sin esto, una venta "mixta"
+      // no se contaba ni como efectivo ni como electrónico en esta pantalla.
+      const idsVentas = (vs || []).map((v) => v.id);
+      if (idsVentas.length) {
+        const { data: vp } = await supabase.from('venta_pagos').select('*').in('venta_id', idsVentas);
+        setVentaPagos(vp || []);
+      } else {
+        setVentaPagos([]);
+      }
     } else {
       const { data: hs } = await supabase
         .from('turnos_caja')
@@ -147,14 +163,36 @@ export default function CajaPage() {
   if (turno === undefined) return <PantallaCarga />;
 
   // ── Cálculos del turno ──
+  // Fuente de verdad del efectivo esperado: resumen_panel() ya suma turno,
+  // pagos mixtos (venta_pagos), cobros de órdenes (ticket_pagos), movimientos
+  // y retiros exactamente igual que cerrar_turno — no se recalcula acá para
+  // evitar que esta pantalla "en vivo" diverja del cierre real.
+  const esperado = turno ? Number(turno.efectivo_esperado) : 0;
+
   const ventasActivas = ventas.filter((v) => !v.anulada);
+  const idsVentasActivas = new Set(ventasActivas.map((v) => v.id));
+  const pagosVentasActivas = ventaPagos.filter((p) => idsVentasActivas.has(p.venta_id));
+  const ventasConDesglose = new Set(pagosVentasActivas.map((p) => p.venta_id));
+
   let totalVentas = 0;
   let ventasEfectivo = 0;
+  let ventasElectronico = 0;
   for (const v of ventasActivas) {
     totalVentas += Number(v.total);
-    if (v.metodo_pago === 'efectivo') ventasEfectivo += Number(v.total);
+    // Ventas sin fila en venta_pagos (legado): usar metodo_pago + total tal cual.
+    if (!ventasConDesglose.has(v.id)) {
+      if (v.metodo_pago === 'efectivo') ventasEfectivo += Number(v.total);
+      else ventasElectronico += Number(v.total);
+    }
   }
-  const totalElectronico = Math.round((totalVentas - ventasEfectivo) * 100) / 100;
+  for (const p of pagosVentasActivas) {
+    if (p.metodo === 'efectivo') ventasEfectivo += Number(p.monto);
+    else ventasElectronico += Number(p.monto);
+  }
+
+  const pagosOrdenesEfectivo = pagosOrdenes.filter((p) => p.metodo === 'efectivo').reduce((s, p) => s + Number(p.monto), 0);
+  const pagosOrdenesElectronico = pagosOrdenes.filter((p) => p.metodo !== 'efectivo').reduce((s, p) => s + Number(p.monto), 0);
+  const totalElectronico = Math.round((ventasElectronico + pagosOrdenesElectronico) * 100) / 100;
 
   // retiros = egresos categoría "retiro"; se muestran junto a los movimientos
   const movsTodos = [
@@ -171,9 +209,6 @@ export default function CajaPage() {
 
   const movIngresos = movsTodos.filter((m) => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0);
   const movEgresos = movsTodos.filter((m) => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0);
-  const esperado = turno
-    ? Number(turno.monto_inicial) + ventasEfectivo + movIngresos - movEgresos
-    : 0;
 
   const gastosPorCat = Object.entries(
     movsTodos
@@ -276,12 +311,12 @@ export default function CajaPage() {
             <div className="caja-kpi">
               <div className="k-lbl" style={{ color: '#a855f7' }}>Total electrónico</div>
               <div className="k-val">{formatMoney(totalElectronico)}</div>
-              <div className="k-sub">Transfer. + tarjetas + QR</div>
+              <div className="k-sub">Transfer. + tarjetas + QR (ventas y órdenes)</div>
             </div>
             <div className="caja-kpi">
               <div className="k-lbl" style={{ color: '#f59e0b' }}>Efectivo esperado</div>
               <div className="k-val" style={{ color: 'var(--accent)' }}>{formatMoney(esperado)}</div>
-              <div className="k-sub">Inicial + ventas − gastos</div>
+              <div className="k-sub">Inicial + ventas + órdenes − gastos</div>
             </div>
           </div>
 
@@ -292,6 +327,9 @@ export default function CajaPage() {
                 <div className="pos-card-header">📊 Desglose del turno</div>
                 <div className="caja-desglose-row"><span>Saldo inicial</span><strong>{formatMoney(turno.monto_inicial)}</strong></div>
                 <div className="caja-desglose-row"><span>+ Ventas efectivo</span><strong style={{ color: '#22c55e' }}>{formatMoney(ventasEfectivo)}</strong></div>
+                {pagosOrdenesEfectivo > 0 && (
+                  <div className="caja-desglose-row"><span>+ Cobros de órdenes (efectivo)</span><strong style={{ color: '#22c55e' }}>{formatMoney(pagosOrdenesEfectivo)}</strong></div>
+                )}
                 <div className="caja-desglose-row"><span>+ Ingresos de caja</span><strong style={{ color: '#22c55e' }}>{formatMoney(movIngresos)}</strong></div>
                 <div className="caja-desglose-row"><span>− Gastos / retiros</span><strong style={{ color: '#ef4444' }}>{formatMoney(movEgresos)}</strong></div>
                 <div className="caja-desglose-total">
@@ -453,6 +491,37 @@ export default function CajaPage() {
               </div>
             )}
           </div>
+
+          {/* Cobros de órdenes del turno (señas, saldos) */}
+          {pagosOrdenes.length > 0 && (
+            <div className="card" style={{ overflow: 'hidden', padding: 0, marginTop: 16 }}>
+              <div className="pos-card-header">
+                🔧 Cobros de órdenes <span className="count">{pagosOrdenes.length}</span>
+                <span style={{ marginLeft: 'auto', fontWeight: 800, color: 'var(--text)' }}>
+                  {formatMoney(pagosOrdenesEfectivo + pagosOrdenesElectronico)}
+                </span>
+              </div>
+              <div className="tabla-scroll">
+                <table className="tabla">
+                  <thead><tr><th>Orden</th><th>Hora</th><th>Tipo</th><th>Medio</th><th style={{ textAlign: 'right' }}>Monto</th></tr></thead>
+                  <tbody>
+                    {pagosOrdenes.slice(0, 30).map((p) => (
+                      <tr key={p.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                          {p.tickets?.numero ? `#${p.tickets.numero}` : '—'}
+                          {p.tickets?.nombre && <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}> · {p.tickets.nombre}</span>}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{hora(p.created_at)}</td>
+                        <td style={{ textTransform: 'capitalize', color: 'var(--text-dim)' }}>{p.tipo}</td>
+                        <td>{badgeMetodo(p.metodo)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatMoney(p.monto)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </main>
