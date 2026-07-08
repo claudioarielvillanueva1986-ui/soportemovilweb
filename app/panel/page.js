@@ -94,14 +94,8 @@ export default function DashboardPage() {
 
   return (
     <main className="cloop">
-      {/* Encabezado: saludo + campana + avatar */}
+      {/* Encabezado: saludo + avatar (la campana de notificaciones ya está en la topbar) */}
       <div className="cl-top">
-        <div className="cl-bell">
-          <Icon name="bell" size={20} />
-          {datos.tickets_abiertos > 0 && (
-            <span className="cl-bell-badge">{datos.tickets_abiertos}</span>
-          )}
-        </div>
         <div className="cl-saludo">
           <span className="cl-hola">¡Hola</span>
           <strong>{(perfil?.nombre || '').split(' ')[0] || 'equipo'}!</strong>
