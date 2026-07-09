@@ -8,6 +8,7 @@ import {
   ETIQUETAS_TICKET,
   PRIORIDADES,
   formatFecha,
+  formatMoney,
 } from '@/lib/supabase';
 
 // Etiquetas disponibles para las órdenes (color por etiqueta)
@@ -34,6 +35,10 @@ const KANBAN_COLS = [
 function diasDesde(fecha) {
   if (!fecha) return null;
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
+}
+
+function abonadoDe(t) {
+  return (t.ticket_pagos || []).reduce((s, p) => s + Number(p.monto), 0);
 }
 
 function ChipsEtiquetas({ etiquetas }) {
@@ -138,7 +143,7 @@ export default function TicketsPage() {
     setCargando(true);
     let q = supabase
       .from('tickets')
-      .select('*, clientes(dni)', { count: 'exact' })
+      .select('*, clientes(dni), ticket_pagos(monto)', { count: 'exact' })
       .range(0, limite - 1);
     if (filtro === 'sin_retirar') {
       // Bandeja de retiros: listas, la que espera hace más tiempo primero
@@ -307,7 +312,10 @@ export default function TicketsPage() {
         </div>
       </div>
 
-      <div className="field">
+      <div className="field search-wrap">
+        <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="var(--text-dim)">
+          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+        </svg>
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
@@ -360,9 +368,16 @@ export default function TicketsPage() {
       {cargando ? (
         <p style={{ color: 'var(--text-dim)' }}>Cargando tickets...</p>
       ) : visibles.length === 0 ? (
-        <p style={{ color: 'var(--text-dim)' }}>
-          No hay tickets que coincidan con el filtro.
-        </p>
+        <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔍</div>
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-dim)' }}>No hay órdenes</div>
+          <div style={{ fontSize: '.85rem', color: 'var(--text-dim)', marginTop: 6 }}>
+            Intentá con otros filtros o creá una nueva orden.
+          </div>
+          <a className="btn" style={{ marginTop: 16, display: 'inline-flex' }} href="/panel/tickets/nueva">
+            + Nueva orden
+          </a>
+        </div>
       ) : vista === 'kanban' ? (
         <div className="kanban">
           {KANBAN_COLS.map((col) => {
@@ -398,7 +413,11 @@ export default function TicketsPage() {
                     >
                       <div style={{ color: 'var(--text-dim)', fontSize: '.7rem' }}>{t.numero}</div>
                       <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nombre}</div>
-                      <div style={{ color: 'var(--text-dim)', fontSize: '.72rem' }}>{t.marca_modelo || t.dispositivo}</div>
+                      <div style={{ color: 'var(--text-dim)', fontSize: '.72rem', marginBottom: 6 }}>{t.marca_modelo || t.dispositivo}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-dim)', fontSize: '.7rem' }}>{formatFecha(t.created_at)}</span>
+                        {t.presupuesto != null && <span style={{ fontWeight: 700, fontSize: '.78rem' }}>{formatMoney(t.presupuesto)}</span>}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -410,18 +429,27 @@ export default function TicketsPage() {
         <div className="tabla-scroll">
           <table className="ord-tabla">
             <thead>
-              <tr><th>#</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th>Fecha</th></tr>
+              <tr><th>#</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th>Técnico</th><th>Fecha</th><th style={{ textAlign: 'right' }}>Monto</th></tr>
             </thead>
             <tbody>
-              {visibles.map((t) => (
-                <tr key={t.id} onClick={() => router.push(`/panel/tickets/${t.id}`)}>
-                  <td style={{ fontWeight: 700, color: 'var(--accent)' }}>{t.numero}</td>
-                  <td>{t.nombre}</td>
-                  <td style={{ color: 'var(--text-dim)' }}>{t.dispositivo}{t.marca_modelo ? ` ${t.marca_modelo}` : ''}</td>
-                  <td><BadgeEstado estado={t.estado} /></td>
-                  <td style={{ color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{formatFecha(t.created_at)}</td>
-                </tr>
-              ))}
+              {visibles.map((t) => {
+                const abonado = abonadoDe(t);
+                const saldo = t.presupuesto != null ? Number(t.presupuesto) - abonado : 0;
+                return (
+                  <tr key={t.id} onClick={() => router.push(`/panel/tickets/${t.id}`)}>
+                    <td style={{ fontWeight: 700, color: 'var(--accent)' }}>{t.numero}</td>
+                    <td>{t.nombre}</td>
+                    <td style={{ color: 'var(--text-dim)' }}>{t.dispositivo}{t.marca_modelo ? ` ${t.marca_modelo}` : ''}</td>
+                    <td><BadgeEstado estado={t.estado} /></td>
+                    <td style={{ color: 'var(--text-dim)', fontSize: '.8rem' }}>{tecnicos.find((p) => p.user_id === t.tecnico_id)?.nombre || '—'}</td>
+                    <td style={{ color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{formatFecha(t.created_at)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                      {t.presupuesto != null ? formatMoney(t.presupuesto) : '—'}
+                      {saldo > 0 && <div style={{ fontSize: '.68rem', color: '#F87171' }}>Saldo {formatMoney(saldo)}</div>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -430,6 +458,8 @@ export default function TicketsPage() {
           {visibles.map((t) => {
             const color = ESTADOS[t.estado]?.color || '#94a3b8';
             const urgente = ['alta', 'urgente'].includes(t.prioridad);
+            const abonado = abonadoDe(t);
+            const saldo = t.presupuesto != null ? Number(t.presupuesto) - abonado : 0;
             return (
               <div className="ord-card" key={t.id} onClick={() => router.push(`/panel/tickets/${t.id}`)}>
                 <div className="ord-stripe" style={{ background: color }} />
@@ -450,9 +480,20 @@ export default function TicketsPage() {
                       {t.estado === 'reparado' && t.listo_desde != null && (
                         <span style={{ fontSize: '.72rem', color: 'var(--warn)' }}>· sin retirar {diasDesde(t.listo_desde)}d</span>
                       )}
+                      {saldo > 0 && (
+                        <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#F87171' }}>💰 Saldo {formatMoney(saldo)}</span>
+                      )}
                     </div>
                     <ChipsEtiquetas etiquetas={t.etiquetas} />
                   </div>
+                  {t.presupuesto != null && (
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontWeight: 800 }}>{formatMoney(t.presupuesto)}</div>
+                      {abonado > 0 && (
+                        <div style={{ fontSize: '.68rem', color: 'var(--text-dim)' }}>Seña {formatMoney(abonado)}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
