@@ -9,6 +9,44 @@ const DISPOSITIVOS = ['Celular', 'Tablet', 'Notebook', 'PC de escritorio', 'Cons
 
 const NUEVA = '__nueva__';
 
+// Checklist de recepción — igual que v1: queda impreso en la copia del
+// técnico del comprobante y respalda cómo llegó el equipo ante un reclamo.
+const ESTADOS_PANTALLA = ['Sin daños', 'Rayada', 'Rajada', 'Rota', 'Sin pantalla', 'Táctil fallando', 'Imagen fallando'];
+const CONDICIONES_GENERALES = ['Excelente', 'Bueno', 'Regular', 'Malo', 'Muy malo'];
+const MODOS_INGRESO = ['Solo teléfono', 'Con caja', 'En bolsa', 'Con funda', 'Desmontado', 'Con pantalla rota suelta', 'Mojado', 'Con golpe visible'];
+const ACCESORIOS_OPCIONES = ['Carcasa', 'Cargador', 'Cable USB', 'Auriculares', 'Bandeja SIM', 'SIM Card', 'MicroSD', 'Caja original', 'Batería suelta', 'Lápiz/Stylus', 'Manual', 'Vidrio templado'];
+const TIPOS_REPARACION = ['Cambio de pantalla', 'Batería', 'Puerto de carga', 'Software/Formateo', 'Cámara', 'Botones', 'Conector audio', 'Placa/Soldadura', 'Carcasa/Chasis', 'Desgabinete', 'Altavoz/Micrófono', 'Vibrador', 'WiFi/Antena', 'Mojado/Corrosión', 'Diagnóstico', 'Otro'];
+
+function toggleEnArray(arr, valor) {
+  return arr.includes(valor) ? arr.filter((v) => v !== valor) : [...arr, valor];
+}
+
+function ChipsMulti({ opciones, valor, onToggle }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {opciones.map((op) => {
+        const activo = valor.includes(op);
+        return (
+          <button
+            key={op}
+            type="button"
+            className="chip"
+            onClick={() => onToggle(op)}
+            style={{
+              background: activo ? 'var(--accent-soft)' : 'transparent',
+              color: activo ? 'var(--accent)' : 'var(--text-dim)',
+              borderColor: activo ? 'var(--accent)' : 'var(--border)',
+            }}
+          >
+            {activo ? '✓ ' : ''}
+            {op}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function NuevaOrdenPage() {
   const router = useRouter();
 
@@ -28,18 +66,35 @@ export default function NuevaOrdenPage() {
     marcaNueva: '',
     modelo: '',
     modeloNuevo: '',
+    color: '',
     descripcion: '',
     equipo_password: '',
+    condicion_fisica: '',
+    estado_pantalla: '',
+    condicion_general: '',
+    modo_ingreso: [],
+    accesorios: [],
+    tipo_reparacion: [],
     presupuesto: '',
     prioridad: 'normal',
     sena: '',
     sena_metodo: 'efectivo',
   });
 
+  const [servicios, setServicios] = useState([]);
   const [error, setError] = useState(null);
   const [creando, setCreando] = useState(false);
   const [facturaConectada, setFacturaConectada] = useState(false);
   const { cobro, iniciarCobro, cancelarCobro, continuarTrasCobro } = useCobroReal();
+
+  useEffect(() => {
+    supabase
+      .from('servicios')
+      .select('id, nombre, precio')
+      .eq('activo', true)
+      .order('nombre')
+      .then(({ data }) => setServicios(data || []));
+  }, []);
 
   useEffect(() => {
     supabase
@@ -98,6 +153,26 @@ export default function NuevaOrdenPage() {
   const setEq = (campo) => (e) => setEquipo({ ...equipo, [campo]: e.target.value });
   const setNc = (campo) => (e) => setNuevoCli({ ...nuevoCli, [campo]: e.target.value });
 
+  function agregarServicioRapido(s) {
+    setEquipo((eq) => ({
+      ...eq,
+      descripcion: eq.descripcion
+        ? `${eq.descripcion}${/[.\n]\s*$/.test(eq.descripcion) ? '' : '.'} ${s.nombre}`
+        : s.nombre,
+      presupuesto: String((Number(eq.presupuesto) || 0) + Number(s.precio)),
+    }));
+  }
+
+  // Mismo cliente + mismo equipo dado de alta hace menos de 3 minutos:
+  // probablemente un doble click/doble carga por accidente.
+  async function hayDuplicadoReciente(nombreCheck) {
+    const desde = new Date(Date.now() - 3 * 60000).toISOString();
+    let q = supabase.from('tickets').select('id, numero').gte('created_at', desde).limit(1);
+    q = cliente ? q.eq('cliente_id', cliente.id) : q.eq('nombre', nombreCheck.trim());
+    const { data } = await q;
+    return data?.[0] || null;
+  }
+
   async function crear(e) {
     e.preventDefault();
     setError(null);
@@ -106,6 +181,12 @@ export default function NuevaOrdenPage() {
     const modeloFinal = equipo.modelo === NUEVA ? equipo.modeloNuevo.trim() : equipo.modelo;
     if (!marcaFinal) {
       setError('Elegí o agregá la marca del equipo.');
+      return;
+    }
+
+    const nombreCheck = cliente ? cliente.nombre : nuevoCli.nombre;
+    const dup = await hayDuplicadoReciente(nombreCheck);
+    if (dup && !window.confirm(`Ya se cargó la orden ${dup.numero} para este cliente hace menos de 3 minutos. ¿Creás otra igual de todos modos?`)) {
       return;
     }
 
@@ -183,6 +264,13 @@ export default function NuevaOrdenPage() {
         p_sena: equipo.sena === '' ? null : Number(equipo.sena),
         p_sena_metodo: equipo.sena_metodo,
         p_sena_mp_payment_id: senaMpPaymentId,
+        p_color: equipo.color,
+        p_condicion_fisica: equipo.condicion_fisica,
+        p_estado_pantalla: equipo.estado_pantalla,
+        p_condicion_general: equipo.condicion_general,
+        p_modo_ingreso: equipo.modo_ingreso,
+        p_accesorios: equipo.accesorios,
+        p_tipo_reparacion: equipo.tipo_reparacion,
       });
       if (err) throw new Error(err.message);
 
@@ -341,6 +429,10 @@ export default function NuevaOrdenPage() {
                 )}
               </div>
               <div className="field">
+                <label>Color</label>
+                <input value={equipo.color} onChange={setEq('color')} placeholder="Ej: negro" />
+              </div>
+              <div className="field">
                 <label>Clave / patrón del equipo</label>
                 <input
                   value={equipo.equipo_password}
@@ -369,6 +461,58 @@ export default function NuevaOrdenPage() {
                 </select>
               </div>
             </div>
+
+            <p className="lbl2" style={{ margin: '10px 0 6px', fontWeight: 700 }}>
+              Checklist de recepción (queda en el talón del técnico)
+            </p>
+            <div className="grid-2">
+              <div className="field">
+                <label>Estado de la pantalla</label>
+                <select value={equipo.estado_pantalla} onChange={setEq('estado_pantalla')}>
+                  <option value="">— Sin especificar —</option>
+                  {ESTADOS_PANTALLA.map((op) => (
+                    <option key={op} value={op}>
+                      {op}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Condición general</label>
+                <select value={equipo.condicion_general} onChange={setEq('condicion_general')}>
+                  <option value="">— Sin especificar —</option>
+                  {CONDICIONES_GENERALES.map((op) => (
+                    <option key={op} value={op}>
+                      {op}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="field">
+              <label>Cómo ingresa el equipo</label>
+              <ChipsMulti
+                opciones={MODOS_INGRESO}
+                valor={equipo.modo_ingreso}
+                onToggle={(op) => setEquipo((eq) => ({ ...eq, modo_ingreso: toggleEnArray(eq.modo_ingreso, op) }))}
+              />
+            </div>
+            <div className="field">
+              <label>Accesorios que deja</label>
+              <ChipsMulti
+                opciones={ACCESORIOS_OPCIONES}
+                valor={equipo.accesorios}
+                onToggle={(op) => setEquipo((eq) => ({ ...eq, accesorios: toggleEnArray(eq.accesorios, op) }))}
+              />
+            </div>
+            <div className="field">
+              <label>Condición física (rayones, golpes, detalles a mano)</label>
+              <textarea
+                value={equipo.condicion_fisica}
+                onChange={setEq('condicion_fisica')}
+                placeholder="Ej: rayón en el marco superior derecho"
+              />
+            </div>
             <div className="field">
               <label>Falla reportada *</label>
               <textarea
@@ -381,7 +525,31 @@ export default function NuevaOrdenPage() {
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>
-            <h2>3 · Seña (opcional)</h2>
+            <h2>3 · Diagnóstico y servicio</h2>
+            <div className="field">
+              <label>Tipo de reparación</label>
+              <ChipsMulti
+                opciones={TIPOS_REPARACION}
+                valor={equipo.tipo_reparacion}
+                onToggle={(op) => setEquipo((eq) => ({ ...eq, tipo_reparacion: toggleEnArray(eq.tipo_reparacion, op) }))}
+              />
+            </div>
+            {servicios.length > 0 && (
+              <div className="field">
+                <label>Servicios rápidos (suman a la falla y al presupuesto)</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {servicios.map((s) => (
+                    <button key={s.id} type="button" className="chip" onClick={() => agregarServicioRapido(s)}>
+                      + {s.nombre} ({formatMoney(s.precio)})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h2>4 · Seña (opcional)</h2>
             <p className="lbl2" style={{ marginBottom: 12 }}>
               Si el cliente deja una seña al dejar el equipo, registrala acá. El
               saldo se cobra al entregar. Entra a la caja del turno.

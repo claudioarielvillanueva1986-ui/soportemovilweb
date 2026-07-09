@@ -6,6 +6,42 @@ import { supabase, ESTADOS, ESTADOS_SELECCIONABLES, PRIORIDADES, formatMoney } f
 import { usePerfil } from '@/lib/panel-context';
 import { PantallaCarga } from '@/components/cargando';
 
+const ESTADOS_PANTALLA = ['Sin daños', 'Rayada', 'Rajada', 'Rota', 'Sin pantalla', 'Táctil fallando', 'Imagen fallando'];
+const CONDICIONES_GENERALES = ['Excelente', 'Bueno', 'Regular', 'Malo', 'Muy malo'];
+const MODOS_INGRESO = ['Solo teléfono', 'Con caja', 'En bolsa', 'Con funda', 'Desmontado', 'Con pantalla rota suelta', 'Mojado', 'Con golpe visible'];
+const ACCESORIOS_OPCIONES = ['Carcasa', 'Cargador', 'Cable USB', 'Auriculares', 'Bandeja SIM', 'SIM Card', 'MicroSD', 'Caja original', 'Batería suelta', 'Lápiz/Stylus', 'Manual', 'Vidrio templado'];
+const TIPOS_REPARACION = ['Cambio de pantalla', 'Batería', 'Puerto de carga', 'Software/Formateo', 'Cámara', 'Botones', 'Conector audio', 'Placa/Soldadura', 'Carcasa/Chasis', 'Desgabinete', 'Altavoz/Micrófono', 'Vibrador', 'WiFi/Antena', 'Mojado/Corrosión', 'Diagnóstico', 'Otro'];
+
+function toggleEnArray(arr, valor) {
+  return arr.includes(valor) ? arr.filter((v) => v !== valor) : [...arr, valor];
+}
+
+function ChipsMulti({ opciones, valor, onToggle }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {opciones.map((op) => {
+        const activo = valor.includes(op);
+        return (
+          <button
+            key={op}
+            type="button"
+            className="chip"
+            onClick={() => onToggle(op)}
+            style={{
+              background: activo ? 'var(--accent-soft)' : 'transparent',
+              color: activo ? 'var(--accent)' : 'var(--text-dim)',
+              borderColor: activo ? 'var(--accent)' : 'var(--border)',
+            }}
+          >
+            {activo ? '✓ ' : ''}
+            {op}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function EditarOrdenPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -41,6 +77,11 @@ export default function EditarOrdenPage() {
           color: data.color || '',
           equipo_password: data.equipo_password || '',
           condicion_fisica: data.condicion_fisica || '',
+          estado_pantalla: data.estado_pantalla || '',
+          condicion_general: data.condicion_general || '',
+          modo_ingreso: data.modo_ingreso || [],
+          accesorios: data.accesorios || [],
+          tipo_reparacion: data.tipo_reparacion || [],
           descripcion: data.descripcion || '',
           estado: data.estado,
           prioridad: data.prioridad,
@@ -68,6 +109,11 @@ export default function EditarOrdenPage() {
       color: form.color.trim() || null,
       equipo_password: form.equipo_password.trim() || null,
       condicion_fisica: form.condicion_fisica.trim() || null,
+      estado_pantalla: form.estado_pantalla || null,
+      condicion_general: form.condicion_general || null,
+      modo_ingreso: form.modo_ingreso,
+      accesorios: form.accesorios,
+      tipo_reparacion: form.tipo_reparacion,
       descripcion: form.descripcion.trim(),
       estado: form.estado,
       prioridad: form.prioridad,
@@ -164,6 +210,42 @@ export default function EditarOrdenPage() {
               <input value={form.equipo_password} onChange={set('equipo_password')} />
             </div>
           </div>
+          <div className="grid-2">
+            <div className="field">
+              <label>Estado de la pantalla</label>
+              <select value={form.estado_pantalla} onChange={set('estado_pantalla')}>
+                <option value="">— Sin especificar —</option>
+                {ESTADOS_PANTALLA.map((op) => (
+                  <option key={op} value={op}>{op}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Condición general</label>
+              <select value={form.condicion_general} onChange={set('condicion_general')}>
+                <option value="">— Sin especificar —</option>
+                {CONDICIONES_GENERALES.map((op) => (
+                  <option key={op} value={op}>{op}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="field">
+            <label>Cómo ingresó el equipo</label>
+            <ChipsMulti
+              opciones={MODOS_INGRESO}
+              valor={form.modo_ingreso}
+              onToggle={(op) => setForm((f) => ({ ...f, modo_ingreso: toggleEnArray(f.modo_ingreso, op) }))}
+            />
+          </div>
+          <div className="field">
+            <label>Accesorios que dejó</label>
+            <ChipsMulti
+              opciones={ACCESORIOS_OPCIONES}
+              valor={form.accesorios}
+              onToggle={(op) => setForm((f) => ({ ...f, accesorios: toggleEnArray(f.accesorios, op) }))}
+            />
+          </div>
           <div className="field">
             <label>Condición física recibida</label>
             <textarea
@@ -176,6 +258,14 @@ export default function EditarOrdenPage() {
 
         <div className="card" style={{ marginBottom: 16 }}>
           <h2>Servicio</h2>
+          <div className="field">
+            <label>Tipo de reparación</label>
+            <ChipsMulti
+              opciones={TIPOS_REPARACION}
+              valor={form.tipo_reparacion}
+              onToggle={(op) => setForm((f) => ({ ...f, tipo_reparacion: toggleEnArray(f.tipo_reparacion, op) }))}
+            />
+          </div>
           <div className="field">
             <label>Falla reportada</label>
             <textarea value={form.descripcion} onChange={set('descripcion')} required />

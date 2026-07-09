@@ -6,6 +6,18 @@ import QRCode from 'qrcode';
 import { supabase, ESTADOS, formatMoney, formatFecha } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
+// Arma la lista de recepción para el talón del técnico — pantalla,
+// condición general, cómo entró el equipo, accesorios y tipo de trabajo.
+function checklistRecepcion(ticket) {
+  const items = [];
+  if (ticket.estado_pantalla) items.push(`Pantalla: ${ticket.estado_pantalla}`);
+  if (ticket.condicion_general) items.push(`Condición: ${ticket.condicion_general}`);
+  if (ticket.modo_ingreso?.length) items.push(`Ingresa: ${ticket.modo_ingreso.join(', ')}`);
+  if (ticket.accesorios?.length) items.push(`Accesorios: ${ticket.accesorios.join(', ')}`);
+  if (ticket.tipo_reparacion?.length) items.push(`Trabajo: ${ticket.tipo_reparacion.join(', ')}`);
+  return items;
+}
+
 // Un talón del comprobante (se usa para cliente y para copia del taller)
 function Talon({ tipo, ticket, negocio, config, senas, qr }) {
   const lineas = (config?.encabezado || '').split('\n').filter(Boolean);
@@ -92,6 +104,13 @@ function Talon({ tipo, ticket, negocio, config, senas, qr }) {
         <div className="comp-falla">
           <span className="comp-lbl">Condición física al recibir</span>
           {ticket.condicion_fisica}
+        </div>
+      )}
+
+      {esTaller && checklistRecepcion(ticket).length > 0 && (
+        <div className="comp-falla">
+          <span className="comp-lbl">Checklist de recepción</span>
+          {checklistRecepcion(ticket).join(' · ')}
         </div>
       )}
 
