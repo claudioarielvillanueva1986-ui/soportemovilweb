@@ -351,7 +351,7 @@ export default function PosPage() {
     const monto = Number(p.monto) || total;
     if (monto <= 0) return setError('Ingresá un monto antes de elegir ese medio de pago.');
 
-    setCobro({ pagoIndex, cobroId: null, qrImg: null, initPoint: null, estado: 'creando', error: null, monto, token: null });
+    setCobro({ pagoIndex, cobroId: null, qrImg: null, initPoint: null, qrReal: false, estado: 'creando', error: null, monto, token: null });
 
     const { data: sesion } = await supabase.auth.getSession();
     const token = sesion?.session?.access_token || '';
@@ -369,10 +369,13 @@ export default function PosPage() {
         setCobro((c) => (c ? { ...c, estado: 'error', error: data.error || 'No se pudo generar el cobro' } : c));
         return;
       }
-      const linkPago = armarLinkPago(data.init_point);
-      const qrImg = await QRCode.toDataURL(linkPago, { width: 220, margin: 1 }).catch(() => null);
+      const esQrReal = data.metodo === 'qr_dinamico' && data.qr_data;
+      const contenidoQr = esQrReal ? data.qr_data : armarLinkPago(data.init_point);
+      const qrImg = await QRCode.toDataURL(contenidoQr, { width: 220, margin: 1 }).catch(() => null);
       setCobro((c) =>
-        c ? { ...c, cobroId: data.cobro_id, initPoint: linkPago, qrImg, estado: 'pendiente', token } : c
+        c
+          ? { ...c, cobroId: data.cobro_id, initPoint: esQrReal ? null : contenidoQr, qrImg, qrReal: esQrReal, estado: 'pendiente', token }
+          : c
       );
       pollingRef.current = setInterval(async () => {
         try {
@@ -880,24 +883,34 @@ export default function PosPage() {
                 {cobro.qrImg && <img className="mp-cobro-qr" src={cobro.qrImg} alt="QR de pago" />}
                 <div className="mp-cobro-info">
                   <div className="tit">¿Cómo cobra?</div>
-                  <p>📱 El cliente escanea el QR con la cámara del celular (no con el lector de la app de Mercado Pago)</p>
-                  <p>🔗 O abrí el link y enviáselo por WhatsApp</p>
+                  {cobro.qrReal ? (
+                    <p>📱 El cliente escanea el QR con la app de Mercado Pago (o la cámara del celular)</p>
+                  ) : (
+                    <>
+                      <p>📱 El cliente escanea el QR con la cámara del celular (no con el lector de la app de Mercado Pago)</p>
+                      <p>🔗 O abrí el link y enviáselo por WhatsApp</p>
+                    </>
+                  )}
                 </div>
-                <a
-                  className="mp-cobro-wa"
-                  href={`https://wa.me/?text=${encodeURIComponent('Pagá acá: ' + cobro.initPoint)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  📱 Enviar link por WhatsApp
-                </a>
-                <button
-                  type="button"
-                  className="mp-cobro-copiar"
-                  onClick={() => navigator.clipboard?.writeText(cobro.initPoint)}
-                >
-                  🔗 Copiar link de pago
-                </button>
+                {!cobro.qrReal && (
+                  <>
+                    <a
+                      className="mp-cobro-wa"
+                      href={`https://wa.me/?text=${encodeURIComponent('Pagá acá: ' + cobro.initPoint)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      📱 Enviar link por WhatsApp
+                    </a>
+                    <button
+                      type="button"
+                      className="mp-cobro-copiar"
+                      onClick={() => navigator.clipboard?.writeText(cobro.initPoint)}
+                    >
+                      🔗 Copiar link de pago
+                    </button>
+                  </>
+                )}
                 <div className="mp-cobro-esperando">Esperando confirmación del pago…</div>
               </>
             )}

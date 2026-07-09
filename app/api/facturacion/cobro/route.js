@@ -31,20 +31,43 @@ export async function POST(request) {
   const { data: negocio } = await supa.from('negocios').select('id').maybeSingle();
   if (!negocio?.id) return errorJson('No autorizado', 403);
 
+  const bodyBase = {
+    monto: Number(monto),
+    descripcion: descripcion || 'Venta en mostrador',
+    external_reference: external_reference || null,
+    facturar: false,
+  };
+
+  // Primero intentamos el QR real de Mercado Pago (metodo="qr_dinamico"):
+  // a diferencia del link de Checkout Pro, ese SÍ lo reconoce el lector de
+  // la app de MP. Si el negocio todavía no tiene Tienda/Caja configurada en
+  // Facturá (falta la dirección), caemos al link de Checkout Pro de
+  // siempre — no rompe nada, solo no tiene el QR real hasta que la carguen.
   try {
     const cobro = await facturaFetch(negocio.id, '/api/partners/cobros', {
       method: 'POST',
-      body: {
-        monto: Number(monto),
-        descripcion: descripcion || 'Venta en mostrador',
-        external_reference: external_reference || null,
-        facturar: false,
-      },
+      body: { ...bodyBase, metodo: 'qr_dinamico' },
+    });
+    return Response.json({
+      cobro_id: cobro.cobro_id,
+      estado: cobro.estado,
+      metodo: 'qr_dinamico',
+      qr_data: cobro.qr_data,
+    });
+  } catch (e) {
+    console.warn('Facturá qr_dinamico no disponible, usando Checkout Pro:', e.message);
+  }
+
+  try {
+    const cobro = await facturaFetch(negocio.id, '/api/partners/cobros', {
+      method: 'POST',
+      body: bodyBase,
     });
     return Response.json({
       cobro_id: cobro.cobro_id,
       init_point: cobro.init_point,
       estado: cobro.estado,
+      metodo: 'qr',
     });
   } catch (e) {
     return errorJson(`Facturá: ${e.message}`, 502);
