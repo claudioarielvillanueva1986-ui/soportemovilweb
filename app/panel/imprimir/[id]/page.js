@@ -73,6 +73,18 @@ function Talon({ tipo, ticket, negocio, config, senas, qr }) {
             {ticket.equipo_password}
           </div>
         )}
+        {esTaller && ticket.tipo_reparacion?.length > 0 && (
+          <div>
+            <span className="comp-lbl">Tipo de reparación</span>
+            {ticket.tipo_reparacion.join(', ')}
+          </div>
+        )}
+        {!esTaller && ticket.accesorios?.length > 0 && (
+          <div>
+            <span className="comp-lbl">Accesorios que ingresa</span>
+            {ticket.accesorios.join(', ')}
+          </div>
+        )}
         {config?.mostrar_montos && ticket.presupuesto != null && (
           <div>
             <span className="comp-lbl">Presupuesto</span>
