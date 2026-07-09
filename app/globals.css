@@ -445,6 +445,23 @@ textarea {
   padding: 12px 14px;
 }
 
+/* Cabecera de la orden (estilo v1): franja de color + avatar + info */
+.orden-header { border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,.12); }
+.orden-header-stripe { height: 4px; width: 100%; }
+.orden-header-body { padding: 18px 20px; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+.orden-header-tags { padding: 10px 20px; border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; background: rgba(255,255,255,.02); }
+.orden-av {
+  width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 800; color: rgba(255,255,255,.75);
+  border: 2px solid var(--border-strong);
+}
+
+/* Detalle de orden: layout de 2 columnas (principal + lateral), igual que v1 */
+.detalle-2col { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .detalle-2col { grid-template-columns: 1fr; } }
+.detalle-col { display: flex; flex-direction: column; gap: 16px; }
+
 .seccion-publica {
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);

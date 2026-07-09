@@ -38,6 +38,20 @@ function idemKey() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function diasDesde(fecha) {
+  if (!fecha) return null;
+  return Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
+}
+
+const ICONO_ETIQUETA = {
+  Urgente: '🔴',
+  Garantía: '🛡️',
+  'Sin pago': '💰',
+  'Esperando repuesto': '⏳',
+  'Cliente avisado': '✅',
+  'Presupuesto enviado': '📩',
+};
+
 function BadgeEstado({ estado }) {
   const info = ESTADOS[estado] || { label: estado, color: '#64748b' };
   return (
@@ -849,164 +863,96 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   }
 
   const colorEstado = ESTADOS[estado]?.color || '#64748b';
+  const diasEnTaller = diasDesde(ticket.created_at);
+  const enTaller = !['entregado', 'entregado_sr', 'no_reparado', 'cancelado'].includes(estado);
 
   return (
-    <div
-      className="card ticket-detalle"
-      style={{ marginBottom: 18, borderTop: `4px solid ${colorEstado}` }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 10,
-        }}
-      >
-        <span className="ticket-numero" style={{ fontSize: '1.15rem' }}>
-          {ticket.numero}
-        </span>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {waRecibido && (
-            <a className="btn btn-sm" href={waRecibido} target="_blank" rel="noreferrer" title="Avisar que recibiste el equipo">
-              WhatsApp: recibido
-            </a>
-          )}
-          {waListo && (
-            <a className="btn btn-sm" href={waListo} target="_blank" rel="noreferrer" title="Avisar que está listo para retirar">
-              WhatsApp: listo
-            </a>
-          )}
-          {!vistaTecnico && (
-            <a
-              className="btn btn-secondary btn-sm"
-              href={`/panel/tickets/${ticket.id}/editar`}
-            >
-              ✏️ Editar
-            </a>
-          )}
-          <a
-            className="btn btn-secondary btn-sm"
-            href={`/panel/imprimir/${ticket.id}`}
-          >
-            Comprobante
-          </a>
-          <a
-            className="btn btn-secondary btn-sm"
-            href={`/panel/etiqueta/${ticket.id}`}
-          >
-            Etiqueta
-          </a>
-          {ticket.public_token && (
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                navigator.clipboard?.writeText(`${window.location.origin}/r/${ticket.public_token}`);
-                setAviso({ tipo: 'ok', texto: 'Link de seguimiento copiado.' });
-              }}
-            >
-              Copiar seguimiento
-            </button>
-          )}
-          {!vistaTecnico && !['entregado', 'entregado_sr', 'no_reparado', 'cancelado'].includes(estado) && (
-            <button className="btn btn-danger btn-sm" onClick={devolverEquipo}>
-              Devolver sin reparar
-            </button>
-          )}
-          <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
-            ← Volver
-          </button>
-        </div>
-      </div>
-
-      <dl className="detalle-grid">
-        {!vistaTecnico && (
-          <>
-            <div>
-              <dt>Cliente</dt>
-              <dd>
-                {ticket.nombre}
-                {ticket.cliente_id && (
-                  <>
-                    {' · '}
-                    <a href={`/panel/clientes?buscar=${encodeURIComponent(ticket.telefono || ticket.nombre)}`} style={{ fontSize: '0.85rem' }}>
-                      ver historial
-                    </a>
-                  </>
+    <div className="ticket-detalle" style={{ marginBottom: 18 }}>
+      {/* ═══ Cabecera ═══ */}
+      <div className="orden-header card" style={{ padding: 0, marginBottom: 16 }}>
+        <div className="orden-header-stripe" style={{ background: colorEstado }} />
+        <div className="orden-header-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+            <div className="orden-av" style={{ background: `${colorEstado}22`, borderColor: `${colorEstado}55` }}>
+              {(ticket.marca_modelo || ticket.dispositivo || '?').slice(0, 3).toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 900 }}>{vistaTecnico ? ticket.numero : ticket.nombre}</span>
+                <span
+                  style={{
+                    fontFamily: 'var(--mono)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)',
+                    background: 'var(--accent-soft)', padding: '2px 10px', borderRadius: 20,
+                  }}
+                >
+                  #{ticket.numero}
+                </span>
+                <BadgeEstado estado={estado} />
+                {diasEnTaller > 14 && enTaller && (
+                  <span style={{ fontSize: '.7rem', fontWeight: 700, color: '#EF4444', background: 'rgba(239,68,68,.1)', padding: '2px 9px', borderRadius: 20 }}>
+                    ⚠ {diasEnTaller} días en taller
+                  </span>
                 )}
-              </dd>
+              </div>
+              <div style={{ fontSize: '.85rem', color: 'var(--text-dim)', marginBottom: 2 }}>
+                📱 {ticket.dispositivo}{ticket.marca_modelo ? ` ${ticket.marca_modelo}` : ''}
+              </div>
+              <div style={{ fontSize: '.78rem', color: 'var(--text-dim)' }}>
+                Ingresado: {formatFecha(ticket.created_at)}
+              </div>
+              {ticket.public_token && !vistaTecnico && (
+                <div style={{ fontSize: '.72rem', marginTop: 3 }}>
+                  🔗{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(`${window.location.origin}/r/${ticket.public_token}`);
+                      setAviso({ tipo: 'ok', texto: 'Link de seguimiento copiado.' });
+                    }}
+                    style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', cursor: 'pointer', fontSize: 'inherit' }}
+                  >
+                    Copiar link de estado público
+                  </button>
+                </div>
+              )}
             </div>
-            <div>
-              <dt>DNI</dt>
-              <dd style={{ fontFamily: 'var(--mono)' }}>{ticket.clientes?.dni || '—'}</dd>
-            </div>
-            <div>
-              <dt>Contacto</dt>
-              <dd>
-                {ticket.email}
-                {ticket.telefono ? ` · ${ticket.telefono}` : ''}
-              </dd>
-            </div>
-          </>
-        )}
-        <div>
-          <dt>Equipo</dt>
-          <dd>
-            {ticket.dispositivo}
-            {ticket.marca_modelo ? ` — ${ticket.marca_modelo}` : ''}
-          </dd>
-        </div>
-        <div>
-          <dt>Ingresado</dt>
-          <dd>{formatFecha(ticket.created_at)}</dd>
-        </div>
-        {ticket.equipo_password && (
-          <div>
-            <dt>Clave / patrón del equipo</dt>
-            <dd style={{ fontFamily: 'var(--mono)' }}>{ticket.equipo_password}</dd>
           </div>
-        )}
-        {ticket.v1_id && (
-          <div>
-            <dt>Origen</dt>
-            <dd>Migrada del sistema anterior (#{ticket.v1_id})</dd>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'flex-start' }}>
+            {waRecibido && (
+              <a className="btn btn-sm" href={waRecibido} target="_blank" rel="noreferrer" title="Avisar que recibiste el equipo">
+                💬 WhatsApp: recibido
+              </a>
+            )}
+            {waListo && (
+              <a className="btn btn-sm" href={waListo} target="_blank" rel="noreferrer" title="Avisar que está listo para retirar">
+                💬 WhatsApp: listo
+              </a>
+            )}
+            {!vistaTecnico && (
+              <a className="btn btn-secondary btn-sm" href={`/panel/tickets/${ticket.id}/editar`}>
+                ✏️ Editar
+              </a>
+            )}
+            <a className="btn btn-secondary btn-sm" href={`/panel/imprimir/${ticket.id}`}>
+              🖨️ Comprobante
+            </a>
+            <a className="btn btn-secondary btn-sm" href={`/panel/etiqueta/${ticket.id}`}>
+              Etiqueta
+            </a>
+            {!vistaTecnico && enTaller && (
+              <button className="btn btn-danger btn-sm" onClick={devolverEquipo}>
+                Devolver sin reparar
+              </button>
+            )}
+            <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
+              ← Volver
+            </button>
           </div>
-        )}
-      </dl>
-
-      <p
-        style={{
-          background: 'var(--bg-input)',
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          padding: '12px 14px',
-          fontSize: '0.92rem',
-        }}
-      >
-        {ticket.descripcion}
-      </p>
-
-      <div className="grid-2" style={{ marginTop: 14 }}>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Técnico asignado</label>
-          {vistaTecnico ? (
-            <p style={{ margin: 0 }}>{equipo.find((p) => p.user_id === tecnicoId)?.nombre || 'Vos'}</p>
-          ) : (
-            <select value={tecnicoId} onChange={(e) => asignarTecnico(e.target.value)}>
-              <option value="">Sin asignar</option>
-              {equipo.map((p) => (
-                <option key={p.user_id} value={p.user_id}>
-                  {p.nombre}
-                  {p.rol === 'dueno' ? ' (dueño)' : ''}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Etiquetas</label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+
+        {!vistaTecnico && (
+          <div className="orden-header-tags">
             {ETIQUETAS.map(([tag, color]) => {
               const activa = etiquetas.includes(tag);
               return (
@@ -1021,138 +967,212 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
                     borderColor: activa ? `${color}88` : 'var(--border)',
                   }}
                 >
-                  {activa ? '✓ ' : ''}
-                  {tag}
+                  {ICONO_ETIQUETA[tag] || ''} {tag}
                 </button>
               );
             })}
           </div>
-        </div>
+        )}
       </div>
 
       {aviso && (
-        <div
-          className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}
-          style={{ marginTop: 14 }}
-        >
+        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`} style={{ marginBottom: 16 }}>
           {aviso.texto}
         </div>
       )}
 
-      <div
-        className="estado-banner"
-        style={{
-          marginTop: 16,
-          background: `${colorEstado}18`,
-          borderColor: `${colorEstado}55`,
-        }}
-      >
-        <div className="field" style={{ marginBottom: 0, flex: 1 }}>
-          <label style={{ color: colorEstado }}>Estado de la orden</label>
-          <select
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
-            style={{ borderColor: `${colorEstado}88`, fontWeight: 700, color: colorEstado }}
-          >
-            {ESTADOS_SELECCIONABLES.map((k) => (
-              <option key={k} value={k}>
-                {ESTADOS[k].label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {estado === 'reparado' && (
-          <span className="estado-banner-nota" style={{ color: colorEstado }}>
-            📲 Al guardar, se avisa solo por WhatsApp
-          </span>
-        )}
-      </div>
+      {/* ═══ 2 columnas: principal + lateral ═══ */}
+      <div className="detalle-2col">
+        <div className="detalle-col">
+          {!vistaTecnico && (
+            <div className="card">
+              <h2 style={{ fontSize: '1rem', marginBottom: 10 }}>Cliente</h2>
+              <dl className="detalle-grid">
+                <div>
+                  <dt>Nombre</dt>
+                  <dd>
+                    {ticket.nombre}
+                    {ticket.cliente_id && (
+                      <>
+                        {' · '}
+                        <a href={`/panel/clientes?buscar=${encodeURIComponent(ticket.telefono || ticket.nombre)}`} style={{ fontSize: '0.85rem' }}>
+                          ver historial
+                        </a>
+                      </>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>DNI</dt>
+                  <dd style={{ fontFamily: 'var(--mono)' }}>{ticket.clientes?.dni || '—'}</dd>
+                </div>
+                <div>
+                  <dt>Contacto</dt>
+                  <dd>
+                    {ticket.email}
+                    {ticket.telefono ? ` · ${ticket.telefono}` : ''}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
 
-      <div className="grid-2" style={{ marginTop: 14 }}>
-        <div className="field">
-          <label>Prioridad</label>
-          <select
-            value={prioridad}
-            onChange={(e) => setPrioridad(e.target.value)}
-          >
-            {Object.entries(PRIORIDADES).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-        {!vistaTecnico && (
-          <div className="field">
-            <label>Presupuesto ($) — con estado "Presupuesto enviado" el cliente puede aprobarlo online</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={presupuesto}
-              onChange={(e) => setPresupuesto(e.target.value)}
-            />
+          <div className="card">
+            <h2 style={{ fontSize: '1rem', marginBottom: 10 }}>Equipo y falla</h2>
+            <dl className="detalle-grid">
+              {ticket.equipo_password && (
+                <div>
+                  <dt>Clave / patrón del equipo</dt>
+                  <dd style={{ fontFamily: 'var(--mono)' }}>{ticket.equipo_password}</dd>
+                </div>
+              )}
+              {ticket.v1_id && (
+                <div>
+                  <dt>Origen</dt>
+                  <dd>Migrada del sistema anterior (#{ticket.v1_id})</dd>
+                </div>
+              )}
+            </dl>
+            <p
+              style={{
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '12px 14px',
+                fontSize: '0.92rem',
+                marginTop: ticket.equipo_password || ticket.v1_id ? 10 : 0,
+              }}
+            >
+              {ticket.descripcion}
+            </p>
+            <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
+              <label>Técnico asignado</label>
+              {vistaTecnico ? (
+                <p style={{ margin: 0 }}>{equipo.find((p) => p.user_id === tecnicoId)?.nombre || 'Vos'}</p>
+              ) : (
+                <select value={tecnicoId} onChange={(e) => asignarTecnico(e.target.value)}>
+                  <option value="">Sin asignar</option>
+                  {equipo.map((p) => (
+                    <option key={p.user_id} value={p.user_id}>
+                      {p.nombre}
+                      {p.rol === 'dueno' ? ' (dueño)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
-        )}
-      </div>
 
-      <div className="field seccion-notas">
-        <label>📝 Notas internas (no las ve el cliente)</label>
-        <textarea
-          value={notas}
-          onChange={(e) => setNotas(e.target.value)}
-          style={{ minHeight: 70 }}
-        />
-      </div>
+          <div className="card">
+            <div className="field seccion-notas" style={{ marginBottom: 0 }}>
+              <label>📝 Notas internas (no las ve el cliente)</label>
+              <textarea value={notas} onChange={(e) => setNotas(e.target.value)} style={{ minHeight: 70 }} />
+            </div>
+          </div>
 
-      <div className="field seccion-publica">
-        <label>💬 Nueva actualización pública (la ve el cliente al consultar)</label>
-        <textarea
-          value={mensaje}
-          onChange={(e) => setMensaje(e.target.value)}
-          style={{ minHeight: 70 }}
-          placeholder="Ej: Presupuesto enviado por email, esperamos tu confirmación."
-        />
-      </div>
+          <div className="card">
+            <FotosTicket ticketId={ticket.id} />
+            <RepuestosTicket ticketId={ticket.id} />
+          </div>
 
-      <button className="btn" onClick={guardar} disabled={guardando}>
-        {guardando ? <span className="spinner" /> : 'Guardar cambios'}
-      </button>
-
-      <FotosTicket ticketId={ticket.id} />
-
-      <RepuestosTicket ticketId={ticket.id} />
-
-      {!vistaTecnico && (
-        <PagosTicket
-          ticketId={ticket.id}
-          presupuesto={ticket.presupuesto}
-          onCambio={onGuardado}
-        />
-      )}
-
-      {esDueno && <CostosOrden ticketId={ticket.id} />}
-
-      {actualizaciones.length > 0 && (
-        <>
-          <h2 className="historial-tit" style={{ marginTop: 24, fontSize: '1rem' }}>
-            🕓 Historial
-          </h2>
-          <div className="timeline">
-            {actualizaciones.map((a) => (
-              <div
-                className="timeline-item"
-                key={a.id}
-                style={a.estado ? { '--dot-color': ESTADOS[a.estado]?.color || 'var(--accent)' } : undefined}
-              >
-                <div className="fecha">{formatFecha(a.created_at)}</div>
-                <div>{a.mensaje}</div>
-                {a.estado && <BadgeEstado estado={a.estado} />}
+          {actualizaciones.length > 0 && (
+            <div className="card">
+              <h2 className="historial-tit" style={{ fontSize: '1rem', marginBottom: 10 }}>
+                🕓 Historial
+              </h2>
+              <div className="timeline">
+                {actualizaciones.map((a) => (
+                  <div
+                    className="timeline-item"
+                    key={a.id}
+                    style={a.estado ? { '--dot-color': ESTADOS[a.estado]?.color || 'var(--accent)' } : undefined}
+                  >
+                    <div className="fecha">{formatFecha(a.created_at)}</div>
+                    <div>{a.mensaje}</div>
+                    {a.estado && <BadgeEstado estado={a.estado} />}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+        </div>
+
+        <div className="detalle-col">
+          <div className="card">
+            <div
+              className="estado-banner"
+              style={{ background: `${colorEstado}18`, borderColor: `${colorEstado}55` }}
+            >
+              <div className="field" style={{ marginBottom: 0, flex: 1 }}>
+                <label style={{ color: colorEstado }}>Estado de la orden</label>
+                <select
+                  value={estado}
+                  onChange={(e) => setEstado(e.target.value)}
+                  style={{ borderColor: `${colorEstado}88`, fontWeight: 700, color: colorEstado }}
+                >
+                  {ESTADOS_SELECCIONABLES.map((k) => (
+                    <option key={k} value={k}>
+                      {ESTADOS[k].label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {estado === 'reparado' && (
+                <span className="estado-banner-nota" style={{ color: colorEstado }}>
+                  📲 Al guardar, se avisa solo por WhatsApp
+                </span>
+              )}
+            </div>
+
+            <div className="field" style={{ marginTop: 14 }}>
+              <label>Prioridad</label>
+              <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)}>
+                {Object.entries(PRIORIDADES).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {!vistaTecnico && (
+              <div className="field">
+                <label>Presupuesto ($) — con estado "Presupuesto enviado" el cliente puede aprobarlo online</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={presupuesto}
+                  onChange={(e) => setPresupuesto(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="field seccion-publica">
+              <label>💬 Nueva actualización pública (la ve el cliente al consultar)</label>
+              <textarea
+                value={mensaje}
+                onChange={(e) => setMensaje(e.target.value)}
+                style={{ minHeight: 60 }}
+                placeholder="Ej: Presupuesto enviado por email, esperamos tu confirmación."
+              />
+            </div>
+            <button className="btn" onClick={guardar} disabled={guardando} style={{ width: '100%' }}>
+              {guardando ? <span className="spinner" /> : 'Guardar cambios'}
+            </button>
           </div>
-        </>
-      )}
+
+          {!vistaTecnico && (
+            <div className="card">
+              <PagosTicket ticketId={ticket.id} presupuesto={ticket.presupuesto} onCambio={onGuardado} />
+            </div>
+          )}
+
+          {esDueno && (
+            <div className="card">
+              <CostosOrden ticketId={ticket.id} />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
