@@ -1177,9 +1177,169 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   );
 }
 
+const AVATAR_ESTADO = { recibido: '📥', en_proceso: '⚙️', reparado: '✅' };
+
+// Vista del técnico asignado a la orden — calcada de orden_tecnico.html en
+// v1: solo lo que necesita para trabajar (equipo, falla, fotos, notas,
+// estado), sin cliente, sin precios, sin cobro. Es un componente aparte
+// (no DetalleTicket con secciones ocultas) para que se vea y se sienta
+// como la pantalla simple que ya conocen los técnicos de v1.
+function DetalleTecnico({ ticket, onCerrar, onGuardado }) {
+  const [estado, setEstado] = useState(ticket.estado);
+  const [notas, setNotas] = useState(ticket.notas_internas || '');
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState(null);
+
+  async function guardar() {
+    setGuardando(true);
+    setAviso(null);
+    const { error: errUpd } = await supabase
+      .from('tickets')
+      .update({ estado, notas_internas: notas })
+      .eq('id', ticket.id);
+    setGuardando(false);
+    if (errUpd) {
+      setAviso({ tipo: 'error', texto: errUpd.message });
+      return;
+    }
+    setAviso({ tipo: 'ok', texto: 'Cambios guardados.' });
+    onGuardado();
+  }
+
+  const colorEstado = ESTADOS[estado]?.color || '#64748b';
+  const datosEquipo = [
+    ['Marca / modelo', ticket.marca_modelo],
+    ['Color', ticket.color],
+    ['IMEI / Serie', ticket.imei_serial],
+    ['Condición física', ticket.condicion_fisica],
+    ['Condición general', ticket.condicion_general],
+    ['Accesorios', ticket.accesorios?.join(', ')],
+    ['Cómo ingresó', ticket.modo_ingreso?.join(', ')],
+  ].filter(([, v]) => v);
+
+  return (
+    <div style={{ marginBottom: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="orden-header card" style={{ padding: 0 }}>
+        <div className="orden-header-stripe" style={{ background: colorEstado }} />
+        <div className="orden-header-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="orden-av" style={{ background: `${colorEstado}22`, borderColor: `${colorEstado}55`, fontSize: '1.4rem' }}>
+              {AVATAR_ESTADO[estado] || '📦'}
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>{ticket.nombre}</span>
+                <span
+                  style={{
+                    fontFamily: 'var(--mono)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)',
+                    background: 'var(--accent-soft)', padding: '2px 10px', borderRadius: 20,
+                  }}
+                >
+                  #{ticket.numero}
+                </span>
+                <BadgeEstado estado={estado} />
+              </div>
+              <div style={{ fontSize: '.85rem', color: 'var(--text-dim)' }}>
+                📱 {ticket.dispositivo}{ticket.marca_modelo ? ` ${ticket.marca_modelo}` : ''}{ticket.color ? ` · ${ticket.color}` : ''}
+              </div>
+              <div style={{ fontSize: '.78rem', color: 'var(--text-dim)', marginTop: 2 }}>
+                Ingresado: {formatFecha(ticket.created_at)}
+              </div>
+            </div>
+          </div>
+          <div>
+            <button className="btn btn-secondary btn-sm" onClick={onCerrar}>
+              ← Mis órdenes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {aviso && (
+        <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>{aviso.texto}</div>
+      )}
+
+      <div className="detalle-2col">
+        <div className="card">
+          <h2 style={{ fontSize: '1rem', marginBottom: 10 }}>📱 Datos del equipo</h2>
+          {datosEquipo.length === 0 ? (
+            <p className="lbl2">Sin datos adicionales cargados.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {datosEquipo.map(([lbl, val]) => (
+                <div key={lbl} style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', minWidth: 110, flexShrink: 0 }}>
+                    {lbl}
+                  </span>
+                  <span style={{ fontSize: '.88rem' }}>{val}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h2 style={{ fontSize: '1rem', marginBottom: 10 }}>🔧 Trabajo a realizar</h2>
+          {ticket.tipo_reparacion?.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div className="lbl2" style={{ marginBottom: 4 }}>Tipo</div>
+              <div style={{ fontWeight: 600 }}>{ticket.tipo_reparacion.join(', ')}</div>
+            </div>
+          )}
+          <div style={{ marginBottom: 12 }}>
+            <div className="lbl2" style={{ marginBottom: 4 }}>Problema reportado</div>
+            <div style={{ lineHeight: 1.5 }}>{ticket.descripcion}</div>
+          </div>
+          {ticket.equipo_password && (
+            <div
+              style={{
+                background: 'rgba(245,158,11,.08)', border: '1.5px solid rgba(245,158,11,.3)',
+                borderRadius: 10, padding: '12px 14px',
+              }}
+            >
+              <div style={{ fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#FBBF24', marginBottom: 5 }}>
+                🔐 Contraseña / Patrón
+              </div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'var(--mono)', letterSpacing: '.05em' }}>
+                {ticket.equipo_password}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <h2 style={{ fontSize: '1rem', marginBottom: 10 }}>Estado</h2>
+        <div className="field" style={{ marginBottom: 12 }}>
+          <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+            {ESTADOS_SELECCIONABLES.map((k) => (
+              <option key={k} value={k}>
+                {ESTADOS[k].label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label>📝 Notas internas</label>
+          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Anotá el diagnóstico, estado del repuesto, observación..." />
+        </div>
+        <button className="btn" onClick={guardar} disabled={guardando}>
+          {guardando ? <span className="spinner" /> : 'Guardar'}
+        </button>
+      </div>
+
+      <div className="card">
+        <FotosTicket ticketId={ticket.id} />
+        <RepuestosTicket ticketId={ticket.id} />
+      </div>
+    </div>
+  );
+}
+
 export default function OrdenDetallePage() {
   const { id } = useParams();
   const router = useRouter();
+  const { esDueno, perfil } = usePerfil();
   const [ticket, setTicket] = useState(null);
   const [error, setError] = useState(null);
 
@@ -1203,9 +1363,16 @@ export default function OrdenDetallePage() {
   if (error) return <main><div className="alert alert-error">{error}</div></main>;
   if (!ticket) return <PantallaCarga />;
 
+  // El técnico asignado a ESTA orden ve la vista simplificada de v1 (sin
+  // cliente, sin precios, sin cobro). No se aplica a todo el rol operador
+  // para no romper caja/mostrador de quienes atienden órdenes que no son
+  // suyas.
+  const vistaTecnico = !esDueno && !!perfil?.user_id && perfil.user_id === ticket.tecnico_id;
+  const Detalle = vistaTecnico ? DetalleTecnico : DetalleTicket;
+
   return (
     <main>
-      <DetalleTicket
+      <Detalle
         key={ticket.id}
         ticket={ticket}
         onCerrar={() => router.push('/panel/tickets')}
