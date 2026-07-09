@@ -16,28 +16,37 @@ function toggleEnArray(arr, valor) {
   return arr.includes(valor) ? arr.filter((v) => v !== valor) : [...arr, valor];
 }
 
+// Chips tipo píldora de v1 (.choice-chip)
 function ChipsMulti({ opciones, valor, onToggle }) {
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {opciones.map((op) => {
-        const activo = valor.includes(op);
-        return (
-          <button
-            key={op}
-            type="button"
-            className="chip"
-            onClick={() => onToggle(op)}
-            style={{
-              background: activo ? 'var(--accent-soft)' : 'transparent',
-              color: activo ? 'var(--accent)' : 'var(--text-dim)',
-              borderColor: activo ? 'var(--accent)' : 'var(--border)',
-            }}
-          >
-            {activo ? '✓ ' : ''}
-            {op}
-          </button>
-        );
-      })}
+    <div className="choice-chips">
+      {opciones.map((op) => (
+        <button
+          key={op}
+          type="button"
+          className={`choice-chip ${valor.includes(op) ? 'active' : ''}`}
+          onClick={() => onToggle(op)}
+        >
+          {op}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChipUnica({ opciones, valor, onElegir }) {
+  return (
+    <div className="choice-chips">
+      {opciones.map((op) => (
+        <button
+          key={op}
+          type="button"
+          className={`choice-chip ${valor === op ? 'active' : ''}`}
+          onClick={() => onElegir(valor === op ? '' : op)}
+        >
+          {op}
+        </button>
+      ))}
     </div>
   );
 }
@@ -210,25 +219,21 @@ export default function EditarOrdenPage() {
               <input value={form.equipo_password} onChange={set('equipo_password')} />
             </div>
           </div>
-          <div className="grid-2">
-            <div className="field">
-              <label>Estado de la pantalla</label>
-              <select value={form.estado_pantalla} onChange={set('estado_pantalla')}>
-                <option value="">— Sin especificar —</option>
-                {ESTADOS_PANTALLA.map((op) => (
-                  <option key={op} value={op}>{op}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Condición general</label>
-              <select value={form.condicion_general} onChange={set('condicion_general')}>
-                <option value="">— Sin especificar —</option>
-                {CONDICIONES_GENERALES.map((op) => (
-                  <option key={op} value={op}>{op}</option>
-                ))}
-              </select>
-            </div>
+          <div className="field">
+            <label>Estado de la pantalla</label>
+            <ChipUnica
+              opciones={ESTADOS_PANTALLA}
+              valor={form.estado_pantalla}
+              onElegir={(v) => setForm((f) => ({ ...f, estado_pantalla: v }))}
+            />
+          </div>
+          <div className="field">
+            <label>Condición general</label>
+            <ChipUnica
+              opciones={CONDICIONES_GENERALES}
+              valor={form.condicion_general}
+              onElegir={(v) => setForm((f) => ({ ...f, condicion_general: v }))}
+            />
           </div>
           <div className="field">
             <label>Cómo ingresó el equipo</label>

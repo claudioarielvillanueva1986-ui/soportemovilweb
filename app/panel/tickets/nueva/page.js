@@ -21,28 +21,120 @@ function toggleEnArray(arr, valor) {
   return arr.includes(valor) ? arr.filter((v) => v !== valor) : [...arr, valor];
 }
 
+// Chips tipo píldora de v1 (.choice-chip): multi-selección.
 function ChipsMulti({ opciones, valor, onToggle }) {
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {opciones.map((op) => {
-        const activo = valor.includes(op);
-        return (
-          <button
-            key={op}
-            type="button"
-            className="chip"
-            onClick={() => onToggle(op)}
-            style={{
-              background: activo ? 'var(--accent-soft)' : 'transparent',
-              color: activo ? 'var(--accent)' : 'var(--text-dim)',
-              borderColor: activo ? 'var(--accent)' : 'var(--border)',
-            }}
-          >
-            {activo ? '✓ ' : ''}
-            {op}
-          </button>
-        );
-      })}
+    <div className="choice-chips">
+      {opciones.map((op) => (
+        <button
+          key={op}
+          type="button"
+          className={`choice-chip ${valor.includes(op) ? 'active' : ''}`}
+          onClick={() => onToggle(op)}
+        >
+          {op}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Igual, pero de una sola opción a la vez (estado de pantalla, condición
+// general) — en v1 son chips exclusivos, no un <select>.
+function ChipUnica({ opciones, valor, onElegir }) {
+  return (
+    <div className="choice-chips">
+      {opciones.map((op) => (
+        <button
+          key={op}
+          type="button"
+          className={`choice-chip ${valor === op ? 'active' : ''}`}
+          onClick={() => onElegir(valor === op ? '' : op)}
+        >
+          {op}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Sugerencia de precio en base al historial (no es una IA real: busca
+// órdenes terminadas parecidas por marca+modelo+palabras clave de la
+// falla y muestra mediana/rango de lo cobrado — igual que v1).
+function SugerenciaPresupuesto({ problema, marca, modelo, onUsar }) {
+  const [cargando, setCargando] = useState(false);
+  const [sugerencia, setSugerencia] = useState(null);
+  const [sinDatos, setSinDatos] = useState(false);
+
+  useEffect(() => {
+    if (!problema || problema.trim().length < 5) {
+      setSugerencia(null);
+      setSinDatos(false);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setCargando(true);
+      const { data, error } = await supabase.rpc('sugerir_presupuesto', {
+        p_problema: problema,
+        p_marca: marca || '',
+        p_modelo: modelo || '',
+      });
+      setCargando(false);
+      if (error || !data?.sugerencia) {
+        setSugerencia(null);
+        setSinDatos(true);
+        return;
+      }
+      setSinDatos(false);
+      setSugerencia(data);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [problema, marca, modelo]);
+
+  if (!cargando && !sugerencia && !sinDatos) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        border: '1px solid var(--border)',
+        borderRadius: 10,
+        padding: '12px 14px',
+        background: 'var(--bg-input)',
+      }}
+    >
+      {cargando ? (
+        <p className="lbl2">🔎 Buscando trabajos similares...</p>
+      ) : sugerencia ? (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <span className="lbl2">Precio sugerido</span>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent)' }}>
+                {formatMoney(sugerencia.sugerencia)}
+              </div>
+              <p className="lbl2" style={{ marginTop: 2 }}>
+                {sugerencia.mensaje} — rango {formatMoney(sugerencia.minimo)} a {formatMoney(sugerencia.maximo)}
+              </p>
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => onUsar(sugerencia.sugerencia)}>
+              Usar este precio
+            </button>
+          </div>
+          {sugerencia.ejemplos?.length > 0 && (
+            <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+              {sugerencia.ejemplos.map((e, i) => (
+                <div key={i} className="lbl2" style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                  <span>{e.equipo} — {e.problema}</span>
+                  <strong>{formatMoney(e.monto)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="lbl2">Sin historial de trabajos parecidos todavía.</p>
+      )}
     </div>
   );
 }
@@ -465,29 +557,21 @@ export default function NuevaOrdenPage() {
             <p className="lbl2" style={{ margin: '10px 0 6px', fontWeight: 700 }}>
               Checklist de recepción (queda en el talón del técnico)
             </p>
-            <div className="grid-2">
-              <div className="field">
-                <label>Estado de la pantalla</label>
-                <select value={equipo.estado_pantalla} onChange={setEq('estado_pantalla')}>
-                  <option value="">— Sin especificar —</option>
-                  {ESTADOS_PANTALLA.map((op) => (
-                    <option key={op} value={op}>
-                      {op}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label>Condición general</label>
-                <select value={equipo.condicion_general} onChange={setEq('condicion_general')}>
-                  <option value="">— Sin especificar —</option>
-                  {CONDICIONES_GENERALES.map((op) => (
-                    <option key={op} value={op}>
-                      {op}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="field">
+              <label>Estado de la pantalla</label>
+              <ChipUnica
+                opciones={ESTADOS_PANTALLA}
+                valor={equipo.estado_pantalla}
+                onElegir={(v) => setEquipo((eq) => ({ ...eq, estado_pantalla: v }))}
+              />
+            </div>
+            <div className="field">
+              <label>Condición general</label>
+              <ChipUnica
+                opciones={CONDICIONES_GENERALES}
+                valor={equipo.condicion_general}
+                onElegir={(v) => setEquipo((eq) => ({ ...eq, condicion_general: v }))}
+              />
             </div>
             <div className="field">
               <label>Cómo ingresa el equipo</label>
@@ -522,6 +606,12 @@ export default function NuevaOrdenPage() {
                 placeholder="Qué le pasa, desde cuándo, estado en que se recibe (rayones, golpes, si enciende)..."
               />
             </div>
+            <SugerenciaPresupuesto
+              problema={equipo.descripcion}
+              marca={equipo.marca === NUEVA ? equipo.marcaNueva : equipo.marca}
+              modelo={equipo.modelo === NUEVA ? equipo.modeloNuevo : equipo.modelo}
+              onUsar={(monto) => setEquipo((eq) => ({ ...eq, presupuesto: String(monto) }))}
+            />
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>

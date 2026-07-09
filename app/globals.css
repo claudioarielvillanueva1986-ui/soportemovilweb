@@ -522,6 +522,45 @@ textarea {
   background: var(--accent-soft);
 }
 
+/* Chip tipo "píldora" de v1 (choice-chip): para elegir una o varias
+   opciones de una lista corta — checklist de recepción de la orden. */
+.choice-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.81rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  font-family: inherit;
+  text-align: center;
+  transition: all 0.12s;
+}
+
+.choice-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.choice-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.choice-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .ticket-row {
   display: flex;
   align-items: center;
