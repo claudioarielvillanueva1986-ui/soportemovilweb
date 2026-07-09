@@ -5,31 +5,29 @@ import { supabase, ESTADOS, formatFecha, formatMoney } from '@/lib/supabase';
 import { telWhatsApp } from '@/lib/whatsapp';
 
 const FLOW = [
-  ['nuevo', 'Recibido', '📥'],
-  ['en_reparacion', 'En proceso', '⚙️'],
-  ['listo', 'Listo', '✅'],
+  ['recibido', 'Recibido', '📥'],
+  ['en_proceso', 'En proceso', '⚙️'],
+  ['reparado', 'Listo', '✅'],
   ['entregado', 'Entregado', '📦'],
 ];
 
 const PASO = {
-  nuevo: 0,
-  en_revision: 1,
-  presupuestado: 1,
-  en_reparacion: 1,
-  esperando_repuesto: 1,
-  listo: 2,
+  recibido: 0,
+  en_proceso: 1,
+  reparado: 2,
   entregado: 3,
+  no_reparado: -1,
+  entregado_sr: -1,
   cancelado: -1,
 };
 
 const MENSAJE = {
-  nuevo: 'Recibimos tu equipo. Te avisamos cuando empecemos a trabajar.',
-  en_revision: 'Estamos revisando tu equipo para diagnosticar la falla.',
-  presupuestado: 'Te enviamos el presupuesto. Necesitamos tu aprobación para avanzar.',
-  en_reparacion: 'Nuestro técnico está trabajando en tu equipo ahora mismo.',
-  esperando_repuesto: 'Estamos esperando un repuesto para poder continuar.',
-  listo: '¡Tu equipo está reparado! Podés pasar a retirarlo cuando quieras.',
+  recibido: 'Recibimos tu equipo. Te avisamos cuando empecemos a trabajar.',
+  en_proceso: 'Nuestro técnico está trabajando en tu equipo ahora mismo.',
+  reparado: '¡Tu equipo está reparado! Podés pasar a retirarlo cuando quieras.',
   entregado: 'Tu equipo fue entregado con éxito. ¡Gracias por elegirnos!',
+  no_reparado: 'Tu equipo no pudo repararse. Comunicate con nosotros por cualquier consulta.',
+  entregado_sr: 'Tu equipo fue devuelto sin reparar.',
   cancelado: 'Esta orden fue cancelada.',
 };
 
@@ -81,7 +79,9 @@ export default function ConsultaPage() {
 
   const paso = ticket ? PASO[ticket.estado] ?? 0 : 0;
   const info = ticket ? ESTADOS[ticket.estado] || { label: ticket.estado, color: '#64748b' } : null;
-  const cancelado = ticket?.estado === 'cancelado';
+  const cancelado = ['cancelado', 'no_reparado', 'entregado_sr'].includes(ticket?.estado);
+  const presupuestoPendiente = ticket?.etiquetas?.includes('Presupuesto enviado')
+    && ['recibido', 'en_proceso'].includes(ticket?.estado);
 
   return (
     <main>
@@ -158,7 +158,7 @@ export default function ConsultaPage() {
           )}
 
           {/* Presupuesto para aprobar */}
-          {ticket.estado === 'presupuestado' && ticket.presupuesto != null && (
+          {presupuestoPendiente && ticket.presupuesto != null && (
             <div style={{ border: '1px solid var(--warn)', borderRadius: 10, padding: '14px 16px', margin: '16px 0 4px' }}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>
                 Presupuesto de la reparación: {formatMoney(ticket.presupuesto)}
@@ -174,7 +174,7 @@ export default function ConsultaPage() {
           )}
 
           {/* Saldo a abonar al retirar */}
-          {ticket.estado === 'listo' && ticket.presupuesto != null && Number(ticket.presupuesto) > 0 && (
+          {ticket.estado === 'reparado' && ticket.presupuesto != null && Number(ticket.presupuesto) > 0 && (
             <div className="saldo-pub">
               <div className="lbl">A abonar al retirar</div>
               <div className="val">{formatMoney(ticket.presupuesto)}</div>
@@ -182,7 +182,7 @@ export default function ConsultaPage() {
           )}
 
           {/* Avisar al taller por WhatsApp cuando está listo */}
-          {ticket.estado === 'listo' && telWhatsApp(ticket.taller?.whatsapp) && (
+          {ticket.estado === 'reparado' && telWhatsApp(ticket.taller?.whatsapp) && (
             <a
               className="btn"
               style={{ width: '100%', marginTop: 14, background: '#25D366', borderColor: '#25D366', color: '#fff' }}

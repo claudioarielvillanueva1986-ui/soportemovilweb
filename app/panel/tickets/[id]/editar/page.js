@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase, ESTADOS, PRIORIDADES, formatMoney } from '@/lib/supabase';
+import { supabase, ESTADOS, ESTADOS_SELECCIONABLES, PRIORIDADES, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 import { PantallaCarga } from '@/components/cargando';
 
@@ -197,20 +197,20 @@ export default function EditarOrdenPage() {
         <div className="card" style={{ marginBottom: 16 }}>
           <h2>Estado</h2>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {Object.entries(ESTADOS).map(([k, v]) => (
+            {ESTADOS_SELECCIONABLES.map((k) => (
               <button
                 key={k}
                 type="button"
                 className="chip"
                 onClick={() => setForm((f) => ({ ...f, estado: k }))}
                 style={{
-                  background: form.estado === k ? `${v.color}22` : 'transparent',
-                  color: form.estado === k ? v.color : 'var(--text-dim)',
-                  borderColor: form.estado === k ? `${v.color}88` : 'var(--border)',
+                  background: form.estado === k ? `${ESTADOS[k].color}22` : 'transparent',
+                  color: form.estado === k ? ESTADOS[k].color : 'var(--text-dim)',
+                  borderColor: form.estado === k ? `${ESTADOS[k].color}88` : 'var(--border)',
                   fontWeight: form.estado === k ? 700 : 400,
                 }}
               >
-                {v.label}
+                {ESTADOS[k].label}
               </button>
             ))}
           </div>
