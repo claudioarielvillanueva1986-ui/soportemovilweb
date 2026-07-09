@@ -22,6 +22,7 @@ const GRUPOS = [
       ['/panel/tickets', 'Órdenes', 'ordenes'],
       ['/panel/caja', 'Caja', 'caja'],
       ['/panel/clientes', 'Clientes', 'clientes'],
+      ['/panel/mdm', 'MDM (equipos vendidos)', 'mdm'],
     ],
   },
   {
