@@ -12,6 +12,15 @@ const MODOS_INGRESO = ['Solo teléfono', 'Con caja', 'En bolsa', 'Con funda', 'D
 const ACCESORIOS_OPCIONES = ['Carcasa', 'Cargador', 'Cable USB', 'Auriculares', 'Bandeja SIM', 'SIM Card', 'MicroSD', 'Caja original', 'Batería suelta', 'Lápiz/Stylus', 'Manual', 'Vidrio templado'];
 const TIPOS_REPARACION = ['Cambio de pantalla', 'Batería', 'Puerto de carga', 'Software/Formateo', 'Cámara', 'Botones', 'Conector audio', 'Placa/Soldadura', 'Carcasa/Chasis', 'Desgabinete', 'Altavoz/Micrófono', 'Vibrador', 'WiFi/Antena', 'Mojado/Corrosión', 'Diagnóstico', 'Otro'];
 
+const ICONO_ESTADO = {
+  recibido: '📥',
+  en_proceso: '⚙️',
+  reparado: '✅',
+  entregado: '📦',
+  no_reparado: '❌',
+  cancelado: '🚫',
+};
+
 function toggleEnArray(arr, valor) {
   return arr.includes(valor) ? arr.filter((v) => v !== valor) : [...arr, valor];
 }
@@ -59,6 +68,7 @@ export default function EditarOrdenPage() {
   const [ticket, setTicket] = useState(null);
   const [form, setForm] = useState(null);
   const [equipo, setEquipo] = useState([]);
+  const [abonado, setAbonado] = useState(0);
   const [error, setError] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -99,6 +109,11 @@ export default function EditarOrdenPage() {
         });
       });
     supabase.rpc('equipo_negocio').then(({ data }) => setEquipo(data || []));
+    supabase
+      .from('ticket_pagos')
+      .select('monto')
+      .eq('ticket_id', id)
+      .then(({ data }) => setAbonado((data || []).reduce((s, p) => s + Number(p.monto), 0)));
   }, [id]);
 
   const set = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
@@ -155,27 +170,35 @@ export default function EditarOrdenPage() {
       setAviso({ tipo: 'error', texto: errMsg });
       return;
     }
-    router.push('/panel/tickets');
+    router.push(`/panel/tickets/${id}`);
   }
 
   if (error) return <main><div className="alert alert-error">{error}</div></main>;
   if (!form) return <PantallaCarga />;
 
+  const saldoPendiente = Number(form.presupuesto || 0) - abonado;
+
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 18px', flexWrap: 'wrap', gap: 10 }}>
-        <h1 style={{ fontSize: '1.5rem' }}>Editar orden {ticket.numero}</h1>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => router.push('/panel/tickets')}>
-          ← Volver sin guardar
-        </button>
-      </div>
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 18px', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem' }}>
+              Editar orden <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{ticket.numero}</span>
+            </h1>
+            <p className="lbl2">{ticket.nombre} · {ticket.dispositivo}{ticket.marca_modelo ? ` ${ticket.marca_modelo}` : ''}</p>
+          </div>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => router.push(`/panel/tickets/${id}`)}>
+            ← Volver al detalle
+          </button>
+        </div>
 
       {aviso && <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`}>{aviso.texto}</div>}
 
-      <form onSubmit={guardar}>
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h2>Datos del cliente</h2>
-          <div className="grid-2">
+      <form onSubmit={guardar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="card-head-v1">👤 Datos del cliente</div>
+          <div className="grid-2" style={{ padding: '0 18px 18px' }}>
             <div className="field">
               <label>Nombre</label>
               <input value={form.nombre} onChange={set('nombre')} required />
@@ -195,8 +218,9 @@ export default function EditarOrdenPage() {
           </div>
         </div>
 
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h2>Datos del equipo</h2>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="card-head-v1">📱 Datos del equipo</div>
+          <div style={{ padding: '0 18px 18px' }}>
           <div className="grid-2">
             <div className="field">
               <label>Tipo / dispositivo</label>
@@ -215,7 +239,7 @@ export default function EditarOrdenPage() {
               <input value={form.color} onChange={set('color')} />
             </div>
             <div className="field">
-              <label>Clave / patrón del equipo</label>
+              <label>🔑 Clave / patrón del equipo</label>
               <input value={form.equipo_password} onChange={set('equipo_password')} />
             </div>
           </div>
@@ -259,10 +283,12 @@ export default function EditarOrdenPage() {
               placeholder="Rayones, golpes, faltantes, si enciende al recibir..."
             />
           </div>
+          </div>
         </div>
 
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h2>Servicio</h2>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="card-head-v1">🔧 Servicio</div>
+          <div style={{ padding: '0 18px 18px' }}>
           <div className="field">
             <label>Tipo de reparación</label>
             <ChipsMulti
@@ -275,8 +301,12 @@ export default function EditarOrdenPage() {
             <label>Falla reportada</label>
             <textarea value={form.descripcion} onChange={set('descripcion')} required />
           </div>
-          <div className="field">
-            <label>Técnico asignado</label>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="card-head-v1">👨‍🔧 Técnico asignado</div>
+          <div style={{ padding: '0 18px 18px' }}>
             <select value={form.tecnico_id} onChange={set('tecnico_id')}>
               <option value="">Sin asignar</option>
               {equipo.map((p) => (
@@ -289,68 +319,76 @@ export default function EditarOrdenPage() {
           </div>
         </div>
 
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h2>Estado</h2>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {ESTADOS_SELECCIONABLES.map((k) => (
-              <button
-                key={k}
-                type="button"
-                className="chip"
-                onClick={() => setForm((f) => ({ ...f, estado: k }))}
+        <div className="grid-2" style={{ alignItems: 'start' }}>
+          <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 0 }}>
+            <div className="card-head-v1">Estado</div>
+            <div className="estado-radio-list" style={{ padding: '0 18px 18px' }}>
+              {ESTADOS_SELECCIONABLES.map((k) => (
+                <label key={k} className={`estado-radio-row ${form.estado === k ? 'activo' : ''}`}>
+                  <input
+                    type="radio"
+                    name="estado"
+                    checked={form.estado === k}
+                    onChange={() => setForm((f) => ({ ...f, estado: k }))}
+                    style={{ width: 'auto' }}
+                  />
+                  {ICONO_ESTADO[k] || ''} {ESTADOS[k].label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 0 }}>
+            <div className="card-head-v1">Presupuesto</div>
+            <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label>Prioridad</label>
+                <select value={form.prioridad} onChange={set('prioridad')}>
+                  {Object.entries(PRIORIDADES).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label>Monto total ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.presupuesto}
+                  onChange={set('presupuesto')}
+                  disabled={!esDueno}
+                  style={{ fontSize: '1.2rem', fontWeight: 800, textAlign: 'center' }}
+                />
+                {!esDueno && (
+                  <p className="lbl2">El cambio de monto requiere aprobación del dueño.</p>
+                )}
+              </div>
+              <div
                 style={{
-                  background: form.estado === k ? `${ESTADOS[k].color}22` : 'transparent',
-                  color: form.estado === k ? ESTADOS[k].color : 'var(--text-dim)',
-                  borderColor: form.estado === k ? `${ESTADOS[k].color}88` : 'var(--border)',
-                  fontWeight: form.estado === k ? 700 : 400,
+                  background: 'rgba(239,68,68,.08)', border: '1.5px solid rgba(239,68,68,.35)',
+                  borderRadius: 8, padding: 10, textAlign: 'center',
                 }}
               >
-                {ESTADOS[k].label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h2>Presupuesto</h2>
-          <div className="grid-2">
-            <div className="field">
-              <label>Prioridad</label>
-              <select value={form.prioridad} onChange={set('prioridad')}>
-                {Object.entries(PRIORIDADES).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Monto total ($)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.presupuesto}
-                onChange={set('presupuesto')}
-                disabled={!esDueno}
-              />
-              {!esDueno && (
-                <p className="lbl2">El cambio de monto requiere aprobación del dueño.</p>
-              )}
+                <div className="lbl2">Saldo pendiente</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#EF4444' }}>
+                  {formatMoney(Math.max(0, saldoPendiente))}
+                </div>
+              </div>
             </div>
           </div>
-          {form.presupuesto !== '' && (
-            <p className="lbl2">Total: <strong>{formatMoney(Number(form.presupuesto))}</strong></p>
-          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn" disabled={guardando}>
+          <button className="btn" disabled={guardando} style={{ flex: 1, justifyContent: 'center', padding: '14px 24px' }}>
             {guardando ? <span className="spinner" /> : 'Guardar cambios'}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={() => router.push('/panel/tickets')}>
+          <button type="button" className="btn btn-secondary" onClick={() => router.push(`/panel/tickets/${id}`)} style={{ padding: '14px 24px' }}>
             Cancelar
           </button>
         </div>
       </form>
+      </div>
     </main>
   );
 }

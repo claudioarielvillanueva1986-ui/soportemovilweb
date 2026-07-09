@@ -462,6 +462,26 @@ textarea {
 @media (max-width: 900px) { .detalle-2col { grid-template-columns: 1fr; } }
 .detalle-col { display: flex; flex-direction: column; gap: 16px; }
 
+/* Editar orden: cabecera de card con ícono + barra de color, y estado
+   como lista de radios (igual que editar_orden.html de v1). */
+.card-head-v1 {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 18px; margin: -1px -1px 16px -1px;
+  border-bottom: 2px solid var(--accent);
+  background: var(--bg-input);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.estado-radio-list { display: flex; flex-direction: column; gap: 8px; }
+.estado-radio-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; min-height: 48px;
+  border: 1.5px solid var(--border-strong); border-radius: 8px;
+  cursor: pointer; transition: all 0.1s; font-weight: 600; font-size: 0.9rem;
+}
+.estado-radio-row:hover { border-color: var(--accent); background: var(--accent-soft); }
+.estado-radio-row.activo { border-color: var(--accent); background: var(--accent-soft); }
+
 .seccion-publica {
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);
