@@ -22,6 +22,8 @@ export default function DispositivoMdmPage() {
   const [aviso, setAviso] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [motivo, setMotivo] = useState('');
+  const [nuevoPaquete, setNuevoPaquete] = useState('');
+  const [guardandoApps, setGuardandoApps] = useState(false);
 
   const cargar = useCallback(async () => {
     const { data, error: err } = await supabase
@@ -80,6 +82,28 @@ export default function DispositivoMdmPage() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  async function agregarApp(e) {
+    e.preventDefault();
+    const paquete = nuevoPaquete.trim();
+    if (!paquete || dispositivo.apps_protegidas?.includes(paquete)) return;
+    setGuardandoApps(true);
+    const nuevaLista = [...(dispositivo.apps_protegidas || []), paquete];
+    const { error: err } = await supabase.from('mdm_dispositivos').update({ apps_protegidas: nuevaLista }).eq('id', id);
+    setGuardandoApps(false);
+    if (err) return setAviso({ tipo: 'error', texto: err.message });
+    setNuevoPaquete('');
+    setDispositivo({ ...dispositivo, apps_protegidas: nuevaLista });
+  }
+
+  async function quitarApp(paquete) {
+    setGuardandoApps(true);
+    const nuevaLista = (dispositivo.apps_protegidas || []).filter((p) => p !== paquete);
+    const { error: err } = await supabase.from('mdm_dispositivos').update({ apps_protegidas: nuevaLista }).eq('id', id);
+    setGuardandoApps(false);
+    if (err) return setAviso({ tipo: 'error', texto: err.message });
+    setDispositivo({ ...dispositivo, apps_protegidas: nuevaLista });
   }
 
   if (error) return <main><div className="alert alert-error">{error}</div></main>;
@@ -204,6 +228,43 @@ export default function DispositivoMdmPage() {
           </>
         ) : (
           <p className="lbl2">Todavía no se recibió ninguna ubicación (llega en el próximo check-in del equipo, hasta 15 min).</p>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>Apps protegidas</h2>
+        <p className="lbl2" style={{ marginBottom: 12 }}>
+          El cliente no va a poder desinstalar estas apps del equipo. El resto del equipo funciona
+          normal. Se aplica en el próximo check-in (hasta 15 min).
+        </p>
+        <form onSubmit={agregarApp} className="grid-2" style={{ alignItems: 'end', marginBottom: 12 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Nombre de paquete de la app</label>
+            <input
+              value={nuevoPaquete}
+              onChange={(e) => setNuevoPaquete(e.target.value)}
+              placeholder="Ej: com.whatsapp"
+            />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <button className="btn btn-secondary" style={{ width: '100%' }} disabled={guardandoApps || !nuevoPaquete.trim()}>
+              + Agregar
+            </button>
+          </div>
+        </form>
+        {(dispositivo.apps_protegidas || []).length === 0 ? (
+          <p className="lbl2">No hay apps protegidas en este equipo.</p>
+        ) : (
+          (dispositivo.apps_protegidas || []).map((paquete) => (
+            <div className="ticket-row" key={paquete}>
+              <div className="info">
+                <div className="titulo" style={{ fontFamily: 'var(--mono)', fontSize: '0.85rem' }}>{paquete}</div>
+              </div>
+              <button className="chip" style={{ color: '#ef4444' }} disabled={guardandoApps} onClick={() => quitarApp(paquete)}>
+                Quitar
+              </button>
+            </div>
+          ))
         )}
       </div>
 

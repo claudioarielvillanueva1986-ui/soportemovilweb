@@ -18,7 +18,7 @@ export async function POST(request) {
   const admin = createSupabaseAdminClient();
   const { data: dispositivo } = await admin
     .from('mdm_dispositivos')
-    .select('id')
+    .select('id, apps_protegidas')
     .eq('id', device_id)
     .eq('device_secret', device_secret)
     .maybeSingle();
@@ -57,5 +57,5 @@ export async function POST(request) {
       .in('id', comandos.map((c) => c.id));
   }
 
-  return Response.json({ comandos: comandos || [] });
+  return Response.json({ comandos: comandos || [], apps_protegidas: dispositivo.apps_protegidas || [] });
 }
