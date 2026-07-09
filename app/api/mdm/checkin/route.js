@@ -12,7 +12,7 @@ export async function POST(request) {
   } catch {
     return errorJson('Body inválido');
   }
-  const { device_id, device_secret, fcm_token } = body || {};
+  const { device_id, device_secret, fcm_token, lat, lng, precision } = body || {};
   if (!device_id || !device_secret) return errorJson('Faltan datos');
 
   const admin = createSupabaseAdminClient();
@@ -24,13 +24,24 @@ export async function POST(request) {
     .maybeSingle();
   if (!dispositivo) return errorJson('No autorizado', 401);
 
+  const hayUbicacion = typeof lat === 'number' && typeof lng === 'number';
   await admin
     .from('mdm_dispositivos')
     .update({
       ultima_conexion: new Date().toISOString(),
       ...(fcm_token ? { fcm_token } : {}),
+      ...(hayUbicacion ? { ultima_lat: lat, ultima_lng: lng, ultima_ubicacion_en: new Date().toISOString() } : {}),
     })
     .eq('id', device_id);
+
+  if (hayUbicacion) {
+    await admin.from('mdm_ubicaciones').insert({
+      dispositivo_id: device_id,
+      lat,
+      lng,
+      precision_m: typeof precision === 'number' ? precision : null,
+    });
+  }
 
   const { data: comandos } = await admin
     .from('mdm_comandos')

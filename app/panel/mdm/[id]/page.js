@@ -17,6 +17,7 @@ export default function DispositivoMdmPage() {
   const router = useRouter();
   const [dispositivo, setDispositivo] = useState(null);
   const [comandos, setComandos] = useState([]);
+  const [ubicaciones, setUbicaciones] = useState([]);
   const [error, setError] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [enviando, setEnviando] = useState(false);
@@ -40,6 +41,13 @@ export default function DispositivoMdmPage() {
       .order('created_at', { ascending: false })
       .limit(20);
     setComandos(com || []);
+    const { data: ubi } = await supabase
+      .from('mdm_ubicaciones')
+      .select('id, lat, lng, precision_m, created_at')
+      .eq('dispositivo_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    setUbicaciones(ubi || []);
   }, [id]);
 
   useEffect(() => {
@@ -156,6 +164,48 @@ export default function DispositivoMdmPage() {
           </div>
         </div>
       )}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>Ubicación</h2>
+        {dispositivo.ultima_lat != null && dispositivo.ultima_lng != null ? (
+          <>
+            <p className="lbl2">
+              Última vez: {formatFecha(dispositivo.ultima_ubicacion_en)} ({dispositivo.ultima_lat.toFixed(5)}, {dispositivo.ultima_lng.toFixed(5)})
+            </p>
+            <a
+              className="btn btn-secondary btn-sm"
+              href={`https://www.google.com/maps?q=${dispositivo.ultima_lat},${dispositivo.ultima_lng}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Ver en Google Maps
+            </a>
+            {ubicaciones.length > 1 && (
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ cursor: 'pointer', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+                  Historial reciente ({ubicaciones.length})
+                </summary>
+                <div className="timeline" style={{ marginTop: 10 }}>
+                  {ubicaciones.map((u) => (
+                    <div className="timeline-item" key={u.id}>
+                      <div className="fecha">{formatFecha(u.created_at)}</div>
+                      <a
+                        href={`https://www.google.com/maps?q=${u.lat},${u.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {u.lat.toFixed(5)}, {u.lng.toFixed(5)}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
+        ) : (
+          <p className="lbl2">Todavía no se recibió ninguna ubicación (llega en el próximo check-in del equipo, hasta 15 min).</p>
+        )}
+      </div>
 
       <div className="card">
         <h2>Historial de comandos</h2>
