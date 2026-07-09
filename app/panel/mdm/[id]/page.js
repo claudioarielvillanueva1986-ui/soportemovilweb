@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase, formatFecha } from '@/lib/supabase';
+import { supabase, formatFecha, formatMoney } from '@/lib/supabase';
 import { PantallaCarga } from '@/components/cargando';
 
 const ESTADOS_MDM = {
@@ -24,6 +24,9 @@ export default function DispositivoMdmPage() {
   const [motivo, setMotivo] = useState('');
   const [nuevoPaquete, setNuevoPaquete] = useState('');
   const [guardandoApps, setGuardandoApps] = useState(false);
+  const [proximaCuota, setProximaCuota] = useState('');
+  const [montoCuota, setMontoCuota] = useState('');
+  const [guardandoCuota, setGuardandoCuota] = useState(false);
 
   const cargar = useCallback(async () => {
     const { data, error: err } = await supabase
@@ -36,6 +39,8 @@ export default function DispositivoMdmPage() {
       return;
     }
     setDispositivo(data);
+    setProximaCuota(data.proxima_cuota_vence || '');
+    setMontoCuota(data.monto_cuota != null ? String(data.monto_cuota) : '');
     const { data: com } = await supabase
       .from('mdm_comandos')
       .select('id, tipo, motivo, estado, error_mensaje, created_at, confirmado_en')
@@ -106,6 +111,20 @@ export default function DispositivoMdmPage() {
     setDispositivo({ ...dispositivo, apps_protegidas: nuevaLista });
   }
 
+  async function guardarCuota(e) {
+    e.preventDefault();
+    setGuardandoCuota(true);
+    const cambios = {
+      proxima_cuota_vence: proximaCuota || null,
+      monto_cuota: montoCuota ? Number(montoCuota) : null,
+    };
+    const { error: err } = await supabase.from('mdm_dispositivos').update(cambios).eq('id', id);
+    setGuardandoCuota(false);
+    if (err) return setAviso({ tipo: 'error', texto: err.message });
+    setAviso({ tipo: 'ok', texto: 'Vencimiento guardado.' });
+    setDispositivo({ ...dispositivo, ...cambios });
+  }
+
   if (error) return <main><div className="alert alert-error">{error}</div></main>;
   if (!dispositivo) return <PantallaCarga />;
 
@@ -140,6 +159,18 @@ export default function DispositivoMdmPage() {
             <dt>Última conexión</dt>
             <dd>{dispositivo.ultima_conexion ? formatFecha(dispositivo.ultima_conexion) : 'Todavía no se conectó'}</dd>
           </div>
+          {dispositivo.imei && (
+            <div>
+              <dt>IMEI</dt>
+              <dd style={{ fontFamily: 'var(--mono)' }}>{dispositivo.imei}</dd>
+            </div>
+          )}
+          {dispositivo.numero_serie && (
+            <div>
+              <dt>N° de serie</dt>
+              <dd style={{ fontFamily: 'var(--mono)' }}>{dispositivo.numero_serie}</dd>
+            </div>
+          )}
           {dispositivo.motivo_bloqueo && (
             <div>
               <dt>Motivo del bloqueo</dt>
@@ -229,6 +260,43 @@ export default function DispositivoMdmPage() {
         ) : (
           <p className="lbl2">Todavía no se recibió ninguna ubicación (llega en el próximo check-in del equipo, hasta 15 min).</p>
         )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>Financiación</h2>
+        <p className="lbl2" style={{ marginBottom: 12 }}>
+          Cargá la fecha de la próxima cuota (según el contrato en papel). Si se cumple esa fecha
+          y no la actualizaste, el equipo se bloquea solo al otro día — no hace falta hacer nada
+          manualmente.
+        </p>
+        <form onSubmit={guardarCuota} className="grid-2" style={{ alignItems: 'end', marginBottom: 0 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Próxima cuota vence</label>
+            <input type="date" value={proximaCuota} onChange={(e) => setProximaCuota(e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Monto de la cuota</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={montoCuota}
+              onChange={(e) => setMontoCuota(e.target.value)}
+              placeholder="Ej: 15000"
+            />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button className="btn btn-secondary btn-sm" disabled={guardandoCuota}>
+              Guardar vencimiento
+            </button>
+            {dispositivo.proxima_cuota_vence && (
+              <span className="lbl2" style={{ marginLeft: 12 }}>
+                Actual: {dispositivo.proxima_cuota_vence.split('-').reverse().join('/')}
+                {dispositivo.monto_cuota != null ? ` — ${formatMoney(dispositivo.monto_cuota)}` : ''}
+              </span>
+            )}
+          </div>
+        </form>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

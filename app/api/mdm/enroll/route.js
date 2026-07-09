@@ -5,7 +5,7 @@ import { errorJson } from '@/lib/mp-server';
 // El agente Android llama esto una sola vez, justo después de terminar el
 // aprovisionamiento por QR. Cambia el enroll_token (de un solo uso, viene
 // del QR) por un device_id + device_secret permanentes.
-// POST /api/mdm/enroll  { enroll_token, android_id, marca, modelo, fcm_token? }
+// POST /api/mdm/enroll  { enroll_token, android_id, marca, modelo, fcm_token?, imei?, numero_serie? }
 export async function POST(request) {
   let body;
   try {
@@ -13,7 +13,7 @@ export async function POST(request) {
   } catch {
     return errorJson('Body inválido');
   }
-  const { enroll_token, android_id, marca, modelo, fcm_token } = body || {};
+  const { enroll_token, android_id, marca, modelo, fcm_token, imei, numero_serie } = body || {};
   if (!enroll_token) return errorJson('Falta enroll_token');
 
   const admin = createSupabaseAdminClient();
@@ -37,6 +37,8 @@ export async function POST(request) {
       marca: marca || null,
       modelo: modelo || null,
       fcm_token: fcm_token || null,
+      imei: imei || null,
+      numero_serie: numero_serie || null,
       ultima_conexion: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

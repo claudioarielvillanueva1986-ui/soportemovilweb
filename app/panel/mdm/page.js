@@ -10,6 +10,15 @@ const ESTADOS_MDM = {
   baja: { label: 'De baja', color: '#64748b' },
 };
 
+function estadoCuota(d) {
+  if (d.estado !== 'activo' || !d.proxima_cuota_vence) return null;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const enCincoDias = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+  if (d.proxima_cuota_vence < hoy) return { label: 'Cuota vencida', color: '#ef4444' };
+  if (d.proxima_cuota_vence <= enCincoDias) return { label: 'Cuota vence pronto', color: '#f59e0b' };
+  return null;
+}
+
 export default function MdmPage() {
   const [dispositivos, setDispositivos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -18,7 +27,7 @@ export default function MdmPage() {
     setCargando(true);
     const { data } = await supabase
       .from('mdm_dispositivos')
-      .select('id, nombre, marca, modelo, estado, ultima_conexion, created_at')
+      .select('id, nombre, marca, modelo, estado, ultima_conexion, created_at, proxima_cuota_vence')
       .order('created_at', { ascending: false });
     setDispositivos(data || []);
     setCargando(false);
@@ -47,6 +56,7 @@ export default function MdmPage() {
       ) : (
         dispositivos.map((d) => {
           const info = ESTADOS_MDM[d.estado] || ESTADOS_MDM.pendiente;
+          const cuota = estadoCuota(d);
           return (
             <a
               className="ticket-row"
@@ -61,12 +71,16 @@ export default function MdmPage() {
                   {d.ultima_conexion ? ` · Última conexión: ${formatFecha(d.ultima_conexion)}` : ' · Todavía no se conectó'}
                 </div>
               </div>
-              <span
-                className="badge"
-                style={{ color: info.color, border: `1px solid ${info.color}55` }}
-              >
-                {info.label}
-              </span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {cuota && (
+                  <span className="badge" style={{ color: cuota.color, border: `1px solid ${cuota.color}55` }}>
+                    {cuota.label}
+                  </span>
+                )}
+                <span className="badge" style={{ color: info.color, border: `1px solid ${info.color}55` }}>
+                  {info.label}
+                </span>
+              </div>
             </a>
           );
         })
