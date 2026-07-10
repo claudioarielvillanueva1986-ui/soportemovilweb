@@ -304,6 +304,18 @@ textarea {
   background: rgba(248, 113, 113, 0.1);
 }
 
+/* Acciones "positivas" (avisar al cliente, cobrar, garantía) — pastilla
+   verde clara, distinta del accent primario, igual jerarquía que v1. */
+.btn-success {
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--ok);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+}
+
+.btn-success:hover {
+  background: rgba(52, 211, 153, 0.2);
+}
+
 .btn-sm {
   padding: 7px 14px;
   font-size: 0.83rem;

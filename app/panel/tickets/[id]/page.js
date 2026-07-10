@@ -76,6 +76,19 @@ function BadgeEstado({ estado }) {
   );
 }
 
+// Degradé del avatar del equipo — calcado de v1: cambia según el estado de
+// la orden (no es un color fijo de marca), 4 grupos: reparado/en_proceso/
+// recibido/resto.
+const AVATAR_GRADIENTES = {
+  reparado: { background: 'linear-gradient(135deg,#064E3B,#065F46)', borderColor: 'rgba(52,211,153,.4)' },
+  en_proceso: { background: 'linear-gradient(135deg,#0A2540,#0E3A6E)', borderColor: 'rgba(0,153,214,.3)' },
+  recibido: { background: 'linear-gradient(135deg,#451A03,#78350F)', borderColor: 'rgba(245,158,11,.4)' },
+};
+const AVATAR_GRADIENTE_DEFECTO = { background: 'linear-gradient(135deg,#1F2937,#374151)', borderColor: 'rgba(255,255,255,.1)' };
+function avatarEstadoStyle(estado) {
+  return AVATAR_GRADIENTES[estado] || AVATAR_GRADIENTE_DEFECTO;
+}
+
 function RepuestosTicket({ ticketId }) {
   const [items, setItems] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -512,7 +525,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
                 <span>{formatMoney(totalCobro)}</span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn" onClick={cobrarYEntregar} disabled={ocupado}>
+                <button className="btn btn-success" onClick={cobrarYEntregar} disabled={ocupado}>
                   {ocupado ? <span className="spinner" /> : 'Cobrar y entregar'}
                 </button>
                 <button className="btn btn-secondary" onClick={() => setDesglose(null)}>
@@ -1193,9 +1206,9 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       {/* ═══ Cabecera ═══ */}
       <div className="orden-header card" style={{ padding: 0, marginBottom: 16 }}>
         <div className="orden-header-stripe" style={{ background: colorEstado }} />
-        <div className="orden-header-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-            <div className="orden-av" style={{ background: `${colorEstado}22`, borderColor: `${colorEstado}55`, position: 'relative', overflow: 'hidden' }}>
+        <div className="orden-header-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, minWidth: 0 }}>
+            <div className="orden-av" style={{ ...avatarEstadoStyle(estado), position: 'relative', overflow: 'hidden' }}>
               {fotoEquipo ? (
                 <img
                   src={fotoEquipo}
@@ -1207,9 +1220,13 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
                 (ticket.marca_modelo || ticket.dispositivo || '?').slice(0, 3).toUpperCase()
               )}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                <span style={{ fontSize: '1.3rem', fontWeight: 900 }}>{vistaTecnico ? ticket.numero : ticket.nombre}</span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              {/* Nombre en su propia línea, grande — igual que v1 */}
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, lineHeight: 1.15, marginBottom: 6, wordBreak: 'break-word' }}>
+                {vistaTecnico ? ticket.numero : ticket.nombre}
+              </div>
+              {/* Badges en una línea aparte debajo del nombre */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                 <span
                   className="badge"
                   style={{
@@ -1231,6 +1248,14 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
               </div>
               <div style={{ fontSize: '.78rem', color: 'var(--text-dim)' }}>
                 Ingresado: {formatFecha(ticket.created_at)}
+                {enTaller && (
+                  <>
+                    {' · '}
+                    <span style={diasEnTaller > 14 ? { color: '#EF4444', fontWeight: 700 } : diasEnTaller > 7 ? { color: 'var(--warn)' } : undefined}>
+                      {diasEnTaller} días en taller
+                    </span>
+                  </>
+                )}
               </div>
               {ticket.public_token && !vistaTecnico && (
                 <div style={{ fontSize: '.72rem', marginTop: 3 }}>
@@ -1250,27 +1275,37 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
             </div>
           </div>
 
+          {/* Acciones principales (positivas, hacia el cliente) — igual jerarquía que v1 */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'flex-start' }}>
             {waRecibido && (
-              <a className="btn btn-sm" href={waRecibido} target="_blank" rel="noreferrer" title="Avisar que recibiste el equipo">
+              <a className="btn btn-success btn-sm" href={waRecibido} target="_blank" rel="noreferrer" title="Avisar que recibiste el equipo">
                 💬 WhatsApp: recibido
               </a>
             )}
             {waListo && (
-              <a className="btn btn-sm" href={waListo} target="_blank" rel="noreferrer" title="Avisar que está listo para retirar">
+              <a className="btn btn-success btn-sm" href={waListo} target="_blank" rel="noreferrer" title="Avisar que está listo para retirar">
                 💬 WhatsApp: listo
               </a>
             )}
             {waPresupuesto && (
-              <a className="btn btn-sm" href={waPresupuesto} target="_blank" rel="noreferrer" title="Enviar el presupuesto por WhatsApp">
+              <a className="btn btn-success btn-sm" href={waPresupuesto} target="_blank" rel="noreferrer" title="Enviar el presupuesto por WhatsApp">
                 📋 Presupuesto
               </a>
             )}
             {['reparado', 'entregado'].includes(ticket.estado) && (
-              <button className="btn btn-secondary btn-sm" onClick={enviarEncuesta} disabled={enviandoEncuesta} title="Enviar encuesta de satisfacción por WhatsApp">
+              <a className="btn btn-success btn-sm" href={`/panel/garantia/${ticket.id}`} title="Comprobante de entrega con garantía">
+                🛡️ Garantía
+              </a>
+            )}
+            {['reparado', 'entregado'].includes(ticket.estado) && (
+              <button className="btn btn-success btn-sm" onClick={enviarEncuesta} disabled={enviandoEncuesta} title="Enviar encuesta de satisfacción por WhatsApp">
                 {enviandoEncuesta ? <span className="spinner" /> : '⭐ Encuesta'}
               </button>
             )}
+          </div>
+
+          {/* Acciones utilitarias (internas, sin color de marca) — separadas de las principales */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'flex-start', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
             {!vistaTecnico && (
               <a className="btn btn-secondary btn-sm" href={`/panel/tickets/${ticket.id}/editar`}>
                 ✏️ Editar
@@ -1279,11 +1314,6 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
             <a className="btn btn-secondary btn-sm" href={`/panel/imprimir/${ticket.id}`}>
               🖨️ Comprobante
             </a>
-            {!vistaTecnico && ['reparado', 'entregado'].includes(ticket.estado) && (
-              <a className="btn btn-secondary btn-sm" href={`/panel/garantia/${ticket.id}`} title="Comprobante de entrega con garantía">
-                🛡️ Garantía
-              </a>
-            )}
             <a className="btn btn-secondary btn-sm" href={`/panel/etiqueta/${ticket.id}`}>
               Etiqueta
             </a>
@@ -1327,7 +1357,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           <span className="banner-cobrar-txt">
             <strong>Listo para entregar</strong> — falta cobrar {formatMoney(saldoPendiente)}
           </span>
-          <span className="btn btn-sm">Cobrar y entregar →</span>
+          <span className="btn btn-success btn-sm">Cobrar y entregar →</span>
         </a>
       )}
 
@@ -1606,7 +1636,7 @@ function DetalleTecnico({ ticket, onCerrar, onGuardado }) {
         <div className="orden-header-stripe" style={{ background: colorEstado }} />
         <div className="orden-header-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div className="orden-av" style={{ background: `${colorEstado}22`, borderColor: `${colorEstado}55`, fontSize: '1.4rem' }}>
+            <div className="orden-av" style={{ ...avatarEstadoStyle(estado), fontSize: '1.4rem' }}>
               {AVATAR_ESTADO[estado] || '📦'}
             </div>
             <div>
