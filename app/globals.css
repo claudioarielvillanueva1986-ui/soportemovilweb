@@ -1,6 +1,7 @@
 :root {
-  /* Identidad real de marca: azul #0097D9 (del logo), sobre neutros azul-noche.
-     Antes: verde-lima heredado, sin relación con el local real. */
+  /* Acento real de v1: verde esmeralda #1d9e75, fijo en claro y oscuro
+     ("acento verde fijo, sin temas" — comentario textual del CSS maestro
+     de v1). El azul usado antes no correspondía al color real de la app. */
   --bg: #0a0e14;
   --bg-card: #131a24;
   --card: var(--bg-card);
@@ -10,10 +11,10 @@
   --border-strong: #2e3c4e;
   --text: #eef2f6;
   --text-dim: #8b9bb0;
-  --accent: #0097d9;
-  --accent-hover: #2cb2ef;
+  --accent: #1d9e75;
+  --accent-hover: #25b98a;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(0, 151, 217, 0.14);
+  --accent-soft: rgba(29, 158, 117, 0.14);
   --ok: #34d399;
   --warn: #f0b429;
   --error: #f87171;
@@ -141,7 +142,7 @@ a {
   inset: -60px -10% 0;
   background: radial-gradient(
     620px 300px at 50% 0%,
-    rgba(0, 151, 217, 0.14),
+    rgba(29, 158, 117, 0.14),
     transparent 70%
   );
   pointer-events: none;
@@ -272,7 +273,7 @@ textarea {
 
 .btn:hover {
   background: var(--accent-hover);
-  box-shadow: 0 6px 22px rgba(0, 151, 217, 0.3);
+  box-shadow: 0 6px 22px rgba(29, 158, 117, 0.3);
 }
 
 .btn:active {
@@ -2706,7 +2707,7 @@ main {
 
 /* ===== Inteligencia de Ventas (IA) ===== */
 .ia-hero {
-  background: linear-gradient(150deg, rgba(0,151,217,0.14) 0%, var(--bg-card) 55%);
+  background: linear-gradient(150deg, rgba(29,158,117,0.14) 0%, var(--bg-card) 55%);
   border-color: var(--border-strong);
   margin-bottom: 0;
 }
