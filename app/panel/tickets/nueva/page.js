@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase, PRIORIDADES, METODOS_PAGO, formatMoney } from '@/lib/supabase';
+import { supabase, PRIORIDADES, METODOS_PAGO, ESTADOS, formatMoney, formatFecha } from '@/lib/supabase';
 import { useCobroReal, ModalCobroReal, METODOS_ELECTRONICOS_ORDEN } from '@/components/cobro-real';
 import { construirMensaje, PLANTILLA_RECIBIDO_DEFECTO } from '@/lib/whatsapp';
 
@@ -140,6 +140,59 @@ function SugerenciaPresupuesto({ problema, marca, modelo, onUsar }) {
   );
 }
 
+// Alerta de cliente frecuente/VIP — igual criterio que v1: 5+ órdenes es
+// VIP, 3+ es frecuente, menos que eso es primera visita (no se muestra).
+function AlertaClienteFrecuente({ info }) {
+  const total = info.total_ordenes || 0;
+  if (total < 3) return null;
+  const gastado = Number(info.total_gastado || 0);
+  const puntos = info.puntos || 0;
+  const esVip = total >= 5;
+  const color = esVip ? 'var(--warn)' : 'var(--accent)';
+  const icono = esVip ? '🏆' : '⭐';
+  const titulo = esVip ? 'Cliente VIP' : 'Cliente frecuente';
+
+  return (
+    <div style={{ marginTop: 12, border: `1.5px solid ${color}`, borderRadius: 10, padding: '12px 14px', background: 'color-mix(in srgb, ' + color + ' 12%, transparent)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 20 }}>{icono}</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color }}>{titulo} — {info.nombre}</div>
+            {info.ultima_visita && <div className="lbl2">Última visita: {formatFecha(info.ultima_visita)}</div>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 14, textAlign: 'center' }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{total}</div>
+            <div className="lbl2">órdenes</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ok)' }}>{formatMoney(gastado)}</div>
+            <div className="lbl2">gastado</div>
+          </div>
+          {puntos > 0 && (
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--warn)' }}>{puntos}</div>
+              <div className="lbl2">puntos</div>
+            </div>
+          )}
+        </div>
+      </div>
+      {info.ordenes_recientes?.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+          {info.ordenes_recientes.slice(0, 3).map((o) => (
+            <div key={o.id} className="lbl2" style={{ padding: '2px 0' }}>
+              {o.numero} · {[o.dispositivo, o.marca_modelo].filter(Boolean).join(' ')} ·{' '}
+              <span style={{ color: ESTADOS[o.estado]?.color }}>{ESTADOS[o.estado]?.label || o.estado}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NuevaOrdenPage() {
   const router = useRouter();
 
@@ -147,6 +200,7 @@ export default function NuevaOrdenPage() {
   const [doc, setDoc] = useState('');
   const [buscado, setBuscado] = useState(false);
   const [cliente, setCliente] = useState(null); // cliente existente
+  const [infoCliente, setInfoCliente] = useState(null); // frecuencia/VIP del cliente encontrado
   const [nuevoCli, setNuevoCli] = useState({ nombre: '', dni: '', telefono: '', email: '' });
   const [telActualizado, setTelActualizado] = useState('');
 
@@ -247,8 +301,11 @@ export default function NuevaOrdenPage() {
     if (data) {
       setCliente(data);
       setTelActualizado(data.telefono || '');
+      setInfoCliente(null);
+      supabase.rpc('info_cliente_frecuente', { p_cliente_id: data.id }).then(({ data: info }) => setInfoCliente(info || null));
     } else {
       setCliente(null);
+      setInfoCliente(null);
       setNuevoCli({ nombre: '', dni: /^\d+$/.test(t) ? t : '', telefono: /^\d+$/.test(t) ? '' : t, email: '' });
     }
   }
@@ -439,6 +496,7 @@ export default function NuevaOrdenPage() {
                   className="btn btn-secondary btn-sm"
                   onClick={() => {
                     setCliente(null);
+                    setInfoCliente(null);
                     setBuscado(false);
                     setDoc('');
                   }}
@@ -447,6 +505,7 @@ export default function NuevaOrdenPage() {
                 </button>
               </div>
             </div>
+            {infoCliente && <AlertaClienteFrecuente info={infoCliente} />}
           </div>
         )}
 
