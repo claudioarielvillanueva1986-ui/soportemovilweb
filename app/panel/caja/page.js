@@ -221,7 +221,7 @@ export default function CajaPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Caja</h1>
+      <h1 className="panel-h1">Caja</h1>
       {error && <div className="alert alert-error">{error}</div>}
 
       {cierre && (
@@ -352,7 +352,7 @@ export default function CajaPage() {
                             <span style={{ textTransform: 'capitalize', color: 'var(--text-dim)' }}>{cat}</span>
                             <span style={{ fontWeight: 700, color: '#f59e0b' }}>{formatMoney(monto)} <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>({pct}%)</span></span>
                           </div>
-                          <div className="gasto-bar-track"><div className="gasto-bar-fill" style={{ width: `${pct}%` }} /></div>
+                          <div className="barra-progreso"><div className="barra-progreso-fill" style={{ width: `${pct}%`, background: 'var(--warn)' }} /></div>
                         </div>
                       );
                     })}

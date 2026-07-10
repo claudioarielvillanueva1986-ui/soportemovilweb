@@ -84,7 +84,7 @@ export default function ReportesPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Reportes</h1>
+      <h1 className="panel-h1">Reportes</h1>
 
       <div className="filters">
         {PRESETS.map(([k, label]) => (

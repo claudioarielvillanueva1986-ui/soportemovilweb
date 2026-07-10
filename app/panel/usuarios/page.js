@@ -92,8 +92,8 @@ export default function UsuariosPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, margin: '6px 0 18px' }}>
-        <h1 style={{ fontSize: '1.5rem' }}>Equipo ({lista.length})</h1>
+      <div className="panel-h1-row">
+        <h1>Equipo ({lista.length})</h1>
         {!form && (
           <button className="btn btn-sm" onClick={() => { setForm({ ...VACIO }); setError(null); setAviso(null); }}>
             + Nuevo usuario

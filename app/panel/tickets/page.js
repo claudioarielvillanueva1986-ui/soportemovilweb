@@ -252,17 +252,8 @@ export default function TicketsPage() {
 
   return (
     <main>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          margin: '6px 0 22px',
-          flexWrap: 'wrap',
-          gap: 10,
-        }}
-      >
-        <h1 style={{ fontSize: '1.5rem' }}>Reparaciones</h1>
+      <div className="panel-h1-row">
+        <h1>Reparaciones</h1>
         <div className="ord-toolbar">
           <div className="view-toggle">
             <button className={vista === 'cards' ? 'active' : ''} onClick={() => elegirVista('cards')}>Cards</button>
@@ -309,6 +300,12 @@ export default function TicketsPage() {
             {stats.porEstado.reparado || 0}
           </div>
           <div className="lbl">Reparados</div>
+        </div>
+        <div className="stat">
+          <div className="num" style={{ color: '#9CA3AF' }}>
+            {stats.porEstado.entregado || 0}
+          </div>
+          <div className="lbl">Entregados</div>
         </div>
       </div>
 

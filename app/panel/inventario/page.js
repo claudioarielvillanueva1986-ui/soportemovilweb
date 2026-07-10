@@ -207,17 +207,8 @@ export default function InventarioPage() {
 
   return (
     <main>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 10,
-          margin: '6px 0 18px',
-        }}
-      >
-        <h1 style={{ fontSize: '1.5rem' }}>
+      <div className="panel-h1-row">
+        <h1>
           Inventario{' '}
           {criticos > 0 && (
             <span

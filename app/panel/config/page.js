@@ -590,7 +590,7 @@ export default function ConfigPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Configuración</h1>
+      <h1 className="panel-h1">Configuración</h1>
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <TarjetaFactura negocio={negocio} esDueno={esDueno} />
         <TarjetaComprobantes esDueno={esDueno} />

@@ -49,7 +49,7 @@ export default function EncuestasPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Encuestas de satisfacción</h1>
+      <h1 className="panel-h1">Encuestas de satisfacción</h1>
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="caja-kpis" style={{ marginBottom: 16 }}>

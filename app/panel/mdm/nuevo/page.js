@@ -65,7 +65,7 @@ export default function NuevoDispositivoMdmPage() {
   if (qrImg) {
     return (
       <main>
-        <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>QR de alta generado</h1>
+        <h1 className="panel-h1">QR de alta generado</h1>
         <div className="card" style={{ textAlign: 'center', maxWidth: 420 }}>
           <img src={qrImg} alt="QR de alta MDM" style={{ width: '100%', maxWidth: 320 }} />
           <p className="lbl2" style={{ marginTop: 14 }}>
@@ -87,7 +87,7 @@ export default function NuevoDispositivoMdmPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Nuevo equipo (MDM)</h1>
+      <h1 className="panel-h1">Nuevo equipo (MDM)</h1>
 
       {faltaConfig && (
         <div className="alert alert-error" style={{ marginBottom: 16 }}>

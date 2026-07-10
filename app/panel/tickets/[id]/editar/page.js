@@ -181,9 +181,9 @@ export default function EditarOrdenPage() {
   return (
     <main>
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 18px', flexWrap: 'wrap', gap: 10 }}>
+        <div className="panel-h1-row">
           <div>
-            <h1 style={{ fontSize: '1.5rem' }}>
+            <h1>
               Editar orden <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{ticket.numero}</span>
             </h1>
             <p className="lbl2">{ticket.nombre} · {ticket.dispositivo}{ticket.marca_modelo ? ` ${ticket.marca_modelo}` : ''}</p>

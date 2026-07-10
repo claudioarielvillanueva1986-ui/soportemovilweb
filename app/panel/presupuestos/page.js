@@ -115,8 +115,8 @@ export default function PresupuestosPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, margin: '6px 0 18px' }}>
-        <h1 style={{ fontSize: '1.5rem' }}>Presupuestos ({lista.length})</h1>
+      <div className="panel-h1-row">
+        <h1>Presupuestos ({lista.length})</h1>
         {!form && (
           <button className="btn btn-sm" onClick={() => { setForm({ cliente_id: '', equipo: '', notas: '', items: [] }); setError(null); }}>
             + Nuevo presupuesto

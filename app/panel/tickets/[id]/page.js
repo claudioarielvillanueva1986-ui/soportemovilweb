@@ -880,16 +880,17 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                 <span style={{ fontSize: '1.3rem', fontWeight: 900 }}>{vistaTecnico ? ticket.numero : ticket.nombre}</span>
                 <span
+                  className="badge"
                   style={{
-                    fontFamily: 'var(--mono)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)',
-                    background: 'var(--accent-soft)', padding: '2px 10px', borderRadius: 20,
+                    fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--accent)',
+                    background: 'var(--accent-soft)',
                   }}
                 >
                   #{ticket.numero}
                 </span>
                 <BadgeEstado estado={estado} />
                 {diasEnTaller > 14 && enTaller && (
-                  <span style={{ fontSize: '.7rem', fontWeight: 700, color: '#EF4444', background: 'rgba(239,68,68,.1)', padding: '2px 9px', borderRadius: 20 }}>
+                  <span className="badge" style={{ fontWeight: 700, color: '#EF4444', background: 'rgba(239,68,68,.1)' }}>
                     ⚠ {diasEnTaller} días en taller
                   </span>
                 )}

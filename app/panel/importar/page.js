@@ -223,7 +223,7 @@ export default function ImportarPage() {
   if (!esDueno) {
     return (
       <main>
-        <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Importar datos</h1>
+        <h1 className="panel-h1">Importar datos</h1>
         <p style={{ color: 'var(--text-dim)' }}>Solo el dueño puede importar datos.</p>
       </main>
     );
@@ -231,7 +231,7 @@ export default function ImportarPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Importar datos</h1>
+      <h1 className="panel-h1">Importar datos</h1>
       <p style={{ color: 'var(--text-dim)', marginBottom: 18, maxWidth: 640 }}>
         Traé tus clientes o tu inventario desde otro sistema: subí la base{' '}
         <strong>.db (SQLite)</strong> o un <strong>.csv</strong> exportado, elegí

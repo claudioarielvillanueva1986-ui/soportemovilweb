@@ -57,17 +57,8 @@ export default function ServiciosPage() {
 
   return (
     <main>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 10,
-          margin: '6px 0 18px',
-        }}
-      >
-        <h1 style={{ fontSize: '1.5rem' }}>Servicios ({servicios.length})</h1>
+      <div className="panel-h1-row">
+        <h1>Servicios ({servicios.length})</h1>
         <button className="btn btn-sm" onClick={() => setForm({ ...VACIO })}>
           + Nuevo servicio
         </button>

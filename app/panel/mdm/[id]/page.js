@@ -132,8 +132,8 @@ export default function DispositivoMdmPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 18px', flexWrap: 'wrap', gap: 10 }}>
-        <h1 style={{ fontSize: '1.5rem' }}>
+      <div className="panel-h1-row">
+        <h1>
           {dispositivo.nombre || `${dispositivo.marca || ''} ${dispositivo.modelo || ''}`.trim() || 'Equipo'}
         </h1>
         <button className="btn btn-secondary btn-sm" onClick={() => router.push('/panel/mdm')}>

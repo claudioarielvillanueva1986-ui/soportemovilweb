@@ -35,7 +35,7 @@ export default function PedidosPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Pedidos de la tienda ({lista.length})</h1>
+      <h1 className="panel-h1">Pedidos de la tienda ({lista.length})</h1>
       {error && <div className="alert alert-error">{error}</div>}
       {lista.length === 0 && <p style={{ color: 'var(--text-dim)' }}>Todavía no hay pedidos.</p>}
 

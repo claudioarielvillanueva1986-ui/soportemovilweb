@@ -110,7 +110,7 @@ export default function FidelizacionPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Fidelización</h1>
+      <h1 className="panel-h1">Fidelización</h1>
       {error && <div className="alert alert-error">{error}</div>}
       {aviso && <div className="alert alert-ok">{aviso}</div>}
 

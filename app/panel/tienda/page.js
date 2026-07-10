@@ -125,7 +125,7 @@ function TiendaBody({ form, setForm, slug, url, cuantos, aviso, guardando, guard
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Tienda online</h1>
+      <h1 className="panel-h1">Tienda online</h1>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <p style={{ color: 'var(--text-dim)', marginBottom: 8 }}>Tu tienda pública:</p>

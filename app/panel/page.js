@@ -290,9 +290,9 @@ export default function DashboardPage() {
                 <span className="dh-hot-rank">{String(i + 1).padStart(2, '0')}</span>
                 <span className="dh-hot-name">{p.nombre}</span>
                 <span className="dh-hot-qty">{p.cantidad}</span>
-                <span className="dh-hot-bar">
+                <span className="barra-progreso">
                   <span
-                    className="dh-hot-bar-fill"
+                    className="barra-progreso-fill"
                     style={{ width: `${Math.min(100, (p.cantidad / maxHot) * 100)}%` }}
                   />
                 </span>

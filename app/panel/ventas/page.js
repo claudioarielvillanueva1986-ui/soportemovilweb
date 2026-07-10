@@ -170,7 +170,7 @@ export default function VentasPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>
+      <h1 className="panel-h1">
         Ventas <span className="lbl2">({total} en el período)</span>
       </h1>
       {error && <div className="alert alert-error">{error}</div>}

@@ -59,8 +59,8 @@ export default function CuponesPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, margin: '6px 0 18px' }}>
-        <h1 style={{ fontSize: '1.5rem' }}>Cupones ({lista.length})</h1>
+      <div className="panel-h1-row">
+        <h1>Cupones ({lista.length})</h1>
         {esDueno && !form && <button className="btn btn-sm" onClick={() => setForm({ ...VACIO })}>+ Nuevo cupón</button>}
       </div>
       {error && <div className="alert alert-error">{error}</div>}

@@ -384,7 +384,7 @@ export default function NuevaOrdenPage() {
 
   return (
     <main>
-      <h1 style={{ fontSize: '1.5rem', margin: '6px 0 18px' }}>Nueva orden de reparación</h1>
+      <h1 className="panel-h1">Nueva orden de reparación</h1>
       {error && <div className="alert alert-error">{error}</div>}
 
       {/* Paso 1: cliente por documento */}

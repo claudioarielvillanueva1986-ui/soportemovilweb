@@ -39,8 +39,8 @@ export default function MdmPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 18px', flexWrap: 'wrap', gap: 10 }}>
-        <h1 style={{ fontSize: '1.5rem' }}>MDM — equipos vendidos</h1>
+      <div className="panel-h1-row">
+        <h1>MDM — equipos vendidos</h1>
         <a className="btn btn-sm" href="/panel/mdm/nuevo">
           + Nuevo equipo
         </a>

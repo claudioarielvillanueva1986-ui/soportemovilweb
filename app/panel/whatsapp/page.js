@@ -156,8 +156,8 @@ export default function WhatsAppPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h1 style={{ fontSize: '1.5rem' }}>WhatsApp</h1>
+      <div className="panel-h1-row">
+        <h1>WhatsApp</h1>
         {esDueno && (
           <button className="btn btn-secondary btn-sm" onClick={() => setCfgAbierta((v) => !v)}>
             {cfgAbierta ? 'Cerrar configuración' : 'Configurar bot'}
