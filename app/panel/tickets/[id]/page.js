@@ -177,7 +177,7 @@ function RepuestosTicket({ ticketId }) {
   );
 }
 
-function PagosTicket({ ticketId, presupuesto, onCambio }) {
+function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
   const [pagos, setPagos] = useState([]);
   const [monto, setMonto] = useState('');
   const [metodo, setMetodo] = useState('efectivo');
@@ -212,6 +212,10 @@ function PagosTicket({ ticketId, presupuesto, onCambio }) {
   const abonado = pagos.reduce((s, p) => s + Number(p.monto), 0);
   const presu = Number(presupuesto) || 0;
   const saldo = Math.max(0, presu - abonado);
+
+  useEffect(() => {
+    onSaldo?.(saldo);
+  }, [saldo, onSaldo]);
 
   // registrar una seña suelta (feeds caja + idempotencia)
   async function agregarSena(e) {
@@ -738,6 +742,48 @@ function CostosOrden({ ticketId }) {
   );
 }
 
+// Otras órdenes del mismo cliente, inline (v1 las mostraba en una tabla
+// embebida en el propio detalle, no como un link a otra pantalla).
+function HistorialCliente({ clienteId, ticketId }) {
+  const [otras, setOtras] = useState(null);
+
+  useEffect(() => {
+    supabase
+      .from('tickets')
+      .select('id, numero, marca_modelo, dispositivo, estado, created_at')
+      .eq('cliente_id', clienteId)
+      .neq('id', ticketId)
+      .order('created_at', { ascending: false })
+      .limit(5)
+      .then(({ data }) => setOtras(data || []));
+  }, [clienteId, ticketId]);
+
+  if (!otras || otras.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <p className="lbl2" style={{ marginBottom: 6 }}>Otras órdenes de este cliente</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {otras.map((o) => (
+          <a
+            key={o.id}
+            href={`/panel/tickets/${o.id}`}
+            style={{
+              display: 'flex', justifyContent: 'space-between', gap: 8,
+              fontSize: '0.82rem', padding: '5px 0', borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <span>
+              {o.numero} · {o.marca_modelo || o.dispositivo}
+            </span>
+            <BadgeEstado estado={o.estado} />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const { esDueno, perfil } = usePerfil();
   // Vista restringida: el técnico asignado a ESTA orden ve lo que necesita
@@ -749,6 +795,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [estado, setEstado] = useState(ticket.estado);
   const [prioridad, setPrioridad] = useState(ticket.prioridad);
   const [presupuesto, setPresupuesto] = useState(ticket.presupuesto ?? '');
+  const [saldoPendiente, setSaldoPendiente] = useState(0);
   const [negocioNombre, setNegocioNombre] = useState('');
   const [waPlantillas, setWaPlantillas] = useState({});
   const [notas, setNotas] = useState(ticket.notas_internas || '');
@@ -1023,6 +1070,15 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         )}
       </div>
 
+      {!vistaTecnico && estado === 'reparado' && saldoPendiente > 0 && (
+        <a href="#pagos-orden" className="banner-cobrar">
+          <span className="banner-cobrar-txt">
+            <strong>Listo para entregar</strong> — falta cobrar {formatMoney(saldoPendiente)}
+          </span>
+          <span className="btn btn-sm">Cobrar y entregar →</span>
+        </a>
+      )}
+
       {aviso && (
         <div className={`alert ${aviso.tipo === 'ok' ? 'alert-ok' : 'alert-error'}`} style={{ marginBottom: 16 }}>
           {aviso.texto}
@@ -1038,17 +1094,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
               <dl className="detalle-grid">
                 <div>
                   <dt>Nombre</dt>
-                  <dd>
-                    {ticket.nombre}
-                    {ticket.cliente_id && (
-                      <>
-                        {' · '}
-                        <a href={`/panel/clientes?buscar=${encodeURIComponent(ticket.telefono || ticket.nombre)}`} style={{ fontSize: '0.85rem' }}>
-                          ver historial
-                        </a>
-                      </>
-                    )}
-                  </dd>
+                  <dd>{ticket.nombre}</dd>
                 </div>
                 <div>
                   <dt>DNI</dt>
@@ -1062,6 +1108,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
                   </dd>
                 </div>
               </dl>
+              {ticket.cliente_id && <HistorialCliente clienteId={ticket.cliente_id} ticketId={ticket.id} />}
             </div>
           )}
 
@@ -1251,8 +1298,8 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           </div>
 
           {!vistaTecnico && (
-            <div className="card">
-              <PagosTicket ticketId={ticket.id} presupuesto={ticket.presupuesto} onCambio={onGuardado} />
+            <div className="card" id="pagos-orden">
+              <PagosTicket ticketId={ticket.id} presupuesto={ticket.presupuesto} onCambio={onGuardado} onSaldo={setSaldoPendiente} />
             </div>
           )}
 

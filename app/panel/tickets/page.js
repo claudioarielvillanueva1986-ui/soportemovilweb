@@ -374,13 +374,23 @@ export default function TicketsPage() {
       ) : visibles.length === 0 ? (
         <div className="card" style={{ padding: 40, textAlign: 'center' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔍</div>
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-dim)' }}>No hay órdenes</div>
-          <div style={{ fontSize: '.85rem', color: 'var(--text-dim)', marginTop: 6 }}>
-            Intentá con otros filtros o creá una nueva orden.
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-dim)' }}>
+            {filtro === 'mias' ? 'No tenés órdenes asignadas' : 'No hay órdenes'}
           </div>
-          <a className="btn" style={{ marginTop: 16, display: 'inline-flex' }} href="/panel/tickets/nueva">
-            + Nueva orden
-          </a>
+          <div style={{ fontSize: '.85rem', color: 'var(--text-dim)', marginTop: 6 }}>
+            {filtro === 'mias'
+              ? 'Todavía nadie te asignó una reparación. Mientras tanto, podés ver "Abiertos" para ayudar con las del resto del equipo.'
+              : 'Intentá con otros filtros o creá una nueva orden.'}
+          </div>
+          {filtro === 'mias' ? (
+            <button className="btn" style={{ marginTop: 16, display: 'inline-flex' }} onClick={() => setFiltro('abiertos')}>
+              Ver órdenes abiertas
+            </button>
+          ) : (
+            <a className="btn" style={{ marginTop: 16, display: 'inline-flex' }} href="/panel/tickets/nueva">
+              + Nueva orden
+            </a>
+          )}
         </div>
       ) : vista === 'kanban' ? (
         <div className="kanban">

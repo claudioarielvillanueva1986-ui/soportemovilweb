@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, PRIORIDADES, METODOS_PAGO, formatMoney } from '@/lib/supabase';
 import { useCobroReal, ModalCobroReal, METODOS_ELECTRONICOS_ORDEN } from '@/components/cobro-real';
+import { construirMensaje, PLANTILLA_RECIBIDO_DEFECTO } from '@/lib/whatsapp';
 
 const DISPOSITIVOS = ['Celular', 'Tablet', 'Notebook', 'PC de escritorio', 'Consola', 'Otro'];
 
@@ -180,9 +181,15 @@ export default function NuevaOrdenPage() {
   const [error, setError] = useState(null);
   const [creando, setCreando] = useState(false);
   const [facturaConectada, setFacturaConectada] = useState(false);
+  const [negocio, setNegocio] = useState(null);
   const { cobro, iniciarCobro, cancelarCobro, continuarTrasCobro } = useCobroReal();
 
   useEffect(() => {
+    supabase
+      .from('negocios')
+      .select('nombre, wa_aviso_recibido')
+      .maybeSingle()
+      .then(({ data }) => setNegocio(data));
     supabase
       .from('servicios')
       .select('id, nombre, precio')
@@ -622,6 +629,22 @@ export default function NuevaOrdenPage() {
               modelo={equipo.modelo === NUEVA ? equipo.modeloNuevo : equipo.modelo}
               onUsar={(monto) => setEquipo((eq) => ({ ...eq, presupuesto: String(monto) }))}
             />
+            {(cliente?.nombre || nuevoCli.nombre) && (
+              <div style={{ marginTop: 14, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+                <p className="lbl2" style={{ marginBottom: 6 }}>💬 Así le va a llegar el aviso de "recibido" por WhatsApp</p>
+                <p style={{ fontSize: '0.85rem', fontStyle: 'italic' }}>
+                  {construirMensaje(negocio?.wa_aviso_recibido || PLANTILLA_RECIBIDO_DEFECTO, {
+                    ticket: {
+                      nombre: cliente?.nombre || nuevoCli.nombre,
+                      marca_modelo: [equipo.marca === NUEVA ? equipo.marcaNueva : equipo.marca, equipo.modelo === NUEVA ? equipo.modeloNuevo : equipo.modelo].filter(Boolean).join(' ') || equipo.dispositivo,
+                      numero: '(se genera al crear)',
+                    },
+                    negocio: negocio?.nombre,
+                    host: typeof window !== 'undefined' ? window.location.host : '',
+                  })}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>

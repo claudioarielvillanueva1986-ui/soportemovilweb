@@ -450,6 +450,16 @@ textarea {
 .orden-header-stripe { height: 4px; width: 100%; }
 .orden-header-body { padding: 18px 20px; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
 .orden-header-tags { padding: 10px 20px; border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; background: rgba(255,255,255,.02); }
+.banner-cobrar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(240,180,41,0.12); border: 1.5px solid var(--warn);
+  border-radius: 14px; padding: 14px 18px; margin: 14px 0;
+  text-decoration: none; color: var(--text);
+  animation: cardIn 0.3s ease both;
+}
+.banner-cobrar-txt { font-size: 0.92rem; }
+.banner-cobrar .btn { background: var(--warn); color: #1a1206; flex-shrink: 0; }
 .orden-av {
   width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
