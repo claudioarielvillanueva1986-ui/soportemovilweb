@@ -17,6 +17,7 @@ export default function NuevoDispositivoMdmPage() {
   const [error, setError] = useState(null);
   const [qrImg, setQrImg] = useState(null);
   const [dispositivoId, setDispositivoId] = useState(null);
+  const [enrollToken, setEnrollToken] = useState(null);
 
   const faltaConfig = !APK_URL || !APK_CHECKSUM;
 
@@ -55,6 +56,7 @@ export default function NuevoDispositivoMdmPage() {
       const img = await QRCode.toDataURL(JSON.stringify(payload), { width: 320, margin: 1 });
       setQrImg(img);
       setDispositivoId(fila.id);
+      setEnrollToken(fila.enroll_token);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -79,6 +81,49 @@ export default function NuevoDispositivoMdmPage() {
             <button className="btn btn-secondary" onClick={() => router.push('/panel/mdm')}>
               Volver al listado
             </button>
+          </div>
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed var(--border)', textAlign: 'left' }}>
+            <p className="lbl2" style={{ marginBottom: 8 }}>
+              <strong>Si el QR no funciona</strong> (algunos equipos, sobre todo Samsung, lo abren
+              como texto en vez de activar el alta): activá el equipo como administrador por USB
+              con esta PC —
+            </p>
+            <pre
+              style={{
+                background: 'var(--bg-soft)',
+                padding: '8px 10px',
+                borderRadius: 8,
+                fontSize: '0.78rem',
+                overflowX: 'auto',
+                marginBottom: 10,
+              }}
+            >
+{`adb shell dpm set-device-owner ar.com.soportemovil.mdm/.admin.MdmDeviceAdminReceiver`}
+            </pre>
+            <p className="lbl2" style={{ marginBottom: 6 }}>
+              y después, en la app "Soporte Móvil" que va a abrir sola en el equipo, pegá este
+              código de alta:
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+                background: 'var(--bg-soft)',
+                padding: '8px 10px',
+                borderRadius: 8,
+              }}
+            >
+              <code style={{ flex: 1, fontSize: '0.85rem', wordBreak: 'break-all' }}>{enrollToken}</code>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => navigator.clipboard?.writeText(enrollToken || '')}
+              >
+                Copiar
+              </button>
+            </div>
           </div>
         </div>
       </main>
