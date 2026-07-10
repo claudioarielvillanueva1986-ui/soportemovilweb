@@ -128,15 +128,13 @@ function RepuestosTicket({ ticketId }) {
     });
     setOcupado(false);
     if (err) return setError(err.message);
-    setProdId('');
-    setCant(1);
-    cargar();
+    window.location.reload();
   }
 
   async function quitar(id) {
     const { error: err } = await supabase.rpc('quitar_repuesto', { p_id: id });
     if (err) setError(err.message);
-    else cargar();
+    else window.location.reload();
   }
 
   const total = items.reduce((s, i) => s + Number(i.precio_unitario) * i.cantidad, 0);
@@ -697,6 +695,7 @@ function FotosTicket({ ticketId }) {
     if (!files.length || !negocioId) return;
     setError(null);
     setSubiendo(true);
+    let huboError = false;
     for (const file of files) {
       try {
         const blob = await comprimirImagen(file);
@@ -714,11 +713,13 @@ function FotosTicket({ ticketId }) {
         });
         if (errRpc) throw new Error(errRpc.message);
       } catch (err) {
+        huboError = true;
         setError(err.message);
       }
     }
     setSubiendo(false);
-    cargar();
+    if (!huboError) window.location.reload();
+    else cargar();
   }
 
   async function eliminar(foto) {
@@ -726,7 +727,7 @@ function FotosTicket({ ticketId }) {
     const { data: path, error: errRpc } = await supabase.rpc('eliminar_foto_ticket', { p_id: foto.id });
     if (errRpc) return setError(errRpc.message);
     if (path) await supabase.storage.from('ordenes-fotos').remove([path]);
-    cargar();
+    window.location.reload();
   }
 
   const visibles = filtroTipo === 'todas' ? fotos : fotos.filter((f) => f.tipo === filtroTipo);
@@ -807,12 +808,12 @@ function CostosOrden({ ticketId }) {
 
   async function guardar() {
     setGuardando(true);
-    const { data, error } = await supabase.rpc('guardar_costo_extra', {
+    const { error } = await supabase.rpc('guardar_costo_extra', {
       p_ticket_id: ticketId,
       p_costo: costoExtra === '' ? 0 : Number(costoExtra),
     });
     setGuardando(false);
-    if (!error && data) setM(data);
+    if (!error) window.location.reload();
   }
 
   if (!m) return null;
@@ -963,16 +964,14 @@ function NotasTicket({ ticketId }) {
     });
     setEnviando(false);
     if (err) return setError(err.message);
-    setMensaje('');
-    setTipo('info');
-    cargar();
+    window.location.reload();
   }
 
   async function eliminar(nota) {
     if (!window.confirm('¿Eliminar esta nota?')) return;
     const { error: err } = await supabase.rpc('eliminar_nota_ticket', { p_id: nota.id });
     if (err) return setError(err.message);
-    cargar();
+    window.location.reload();
   }
 
   return (
@@ -1788,7 +1787,7 @@ export default function OrdenDetallePage() {
         key={ticket.id}
         ticket={ticket}
         onCerrar={() => router.push('/panel/tickets')}
-        onGuardado={cargar}
+        onGuardado={() => window.location.reload()}
       />
     </main>
   );

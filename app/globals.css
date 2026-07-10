@@ -555,6 +555,40 @@ textarea {
   border-radius: var(--radius);
   padding: 16px 18px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  animation: cardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.stat:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+/* Cascada suave al entrar — igual criterio que las kanban-card de v1
+   (animation-delay creciente), acotada a los primeros ítems para no
+   demorar listas largas. */
+.stats .stat:nth-child(1) { animation-delay: 0.02s; }
+.stats .stat:nth-child(2) { animation-delay: 0.06s; }
+.stats .stat:nth-child(3) { animation-delay: 0.1s; }
+.stats .stat:nth-child(4) { animation-delay: 0.14s; }
+.stats .stat:nth-child(5) { animation-delay: 0.18s; }
+.stats .stat:nth-child(6) { animation-delay: 0.22s; }
+.stats .stat:nth-child(n+7) { animation-delay: 0.24s; }
+
+.ord-cards .ord-card:nth-child(1) { animation: cardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.ord-cards .ord-card:nth-child(2) { animation: cardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.03s both; }
+.ord-cards .ord-card:nth-child(3) { animation: cardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both; }
+.ord-cards .ord-card:nth-child(4) { animation: cardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.09s both; }
+.ord-cards .ord-card:nth-child(5) { animation: cardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both; }
+.ord-cards .ord-card:nth-child(n+6) { animation: cardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both; }
+
+/* Pulso breve cuando un valor se actualiza solo (dashboard en vivo) */
+@keyframes valorVivo {
+  0% { color: var(--ok); text-shadow: 0 0 12px color-mix(in srgb, var(--ok) 55%, transparent); }
+  100% { color: inherit; text-shadow: none; }
+}
+.valor-vivo {
+  animation: valorVivo 1s ease-out;
 }
 
 .stat .num {
@@ -837,6 +871,10 @@ textarea {
 
 .tabla tbody tr:hover td {
   background: var(--bg-hover);
+}
+
+.tabla tbody {
+  animation: cardIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .tabla .meta {
@@ -2497,8 +2535,10 @@ main {
 .pos-cuotas-detalle { text-align:right; font-size:.75rem; color:var(--text-dim); margin-top:6px; }
 
 /* ===== Cobro real por Mercado Pago (QR / link, vía Facturá) ===== */
-.mp-cobro-overlay { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.82); display:flex; align-items:center; justify-content:center; padding:20px; }
-.mp-cobro-modal { width:100%; max-width:380px; background:#0e1e28; border:1.5px solid rgba(29,158,117,.4); border-radius:20px; padding:26px 22px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+.mp-cobro-overlay { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.82); display:flex; align-items:center; justify-content:center; padding:20px; animation: mpOverlayIn 0.18s ease both; }
+.mp-cobro-modal { width:100%; max-width:380px; background:#0e1e28; border:1.5px solid rgba(29,158,117,.4); border-radius:20px; padding:26px 22px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.6); animation: mpModalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes mpOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mpModalIn { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: none; } }
 .mp-cobro-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:15px; font-weight:800; color:#fff; }
 .mp-cobro-x { background:none; border:none; color:#8bacc8; font-size:24px; cursor:pointer; line-height:1; padding:0 4px; }
 .mp-cobro-monto { font-size:26px; font-weight:900; color:#1d9e75; margin-bottom:16px; letter-spacing:-.5px; }

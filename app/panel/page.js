@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { supabase, ESTADOS, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
@@ -38,6 +38,8 @@ export default function DashboardPage() {
   const [waStats, setWaStats] = useState({ noLeidos: 0, atencion: 0 });
   const [actualizadoAt, setActualizadoAt] = useState(null);
   const [, forceTick] = useState(0);
+  const [pulso, setPulso] = useState(false);
+  const primeraCarga = useRef(true);
 
   const cargar = useCallback(async () => {
     const { data, error: err } = await supabase.rpc('resumen_panel');
@@ -47,13 +49,48 @@ export default function DashboardPage() {
     }
     setDatos(data);
     setActualizadoAt(Date.now());
+    // Pulso visual de "recién actualizado" — no en la primera carga inicial.
+    if (primeraCarga.current) {
+      primeraCarga.current = false;
+    } else {
+      setPulso(true);
+      setTimeout(() => setPulso(false), 1000);
+    }
   }, []);
 
   useEffect(() => {
     cargar();
+    // Sondeo cada 60s como red de seguridad — el realtime de abajo es lo
+    // que realmente hace que se sienta "en vivo".
     const iv = setInterval(cargar, 60000);
     return () => clearInterval(iv);
   }, [cargar]);
+
+  // Datos en vivo: cualquier cambio en ventas/órdenes/pagos/caja del
+  // negocio dispara un refetch inmediato del resumen (con un pequeño
+  // debounce para no pedirlo varias veces si llegan eventos juntos, como
+  // pasa con "cobrar y entregar" que toca tickets + ticket_pagos a la vez).
+  useEffect(() => {
+    if (!perfil?.negocio_id) return;
+    let timer = null;
+    const refrescar = () => {
+      clearTimeout(timer);
+      timer = setTimeout(cargar, 400);
+    };
+    const filtro = `negocio_id=eq.${perfil.negocio_id}`;
+    const ch = supabase
+      .channel(`dashboard-${perfil.negocio_id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: filtro }, refrescar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas', filter: filtro }, refrescar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_pagos' }, refrescar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos_caja', filter: filtro }, refrescar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'movimientos_caja', filter: filtro }, refrescar)
+      .subscribe();
+    return () => {
+      clearTimeout(timer);
+      supabase.removeChannel(ch);
+    };
+  }, [perfil?.negocio_id, cargar]);
 
   useEffect(() => {
     // Recalcula "hace Ns/Nm" cada 5s, sin volver a pedir datos.
@@ -149,7 +186,7 @@ export default function DashboardPage() {
             <i className="dh-kpi-icon">$</i>
             <span className="dh-kpi-label">Ventas hoy</span>
           </div>
-          <div className="dh-kpi-value">{formatMoney(ventasHoy)}</div>
+          <div className={`dh-kpi-value ${pulso ? 'valor-vivo' : ''}`}>{formatMoney(ventasHoy)}</div>
           <div className="dh-kpi-foot">
             <span>
               {datos.ventas_hoy.cantidad} {datos.ventas_hoy.cantidad === 1 ? 'transacción' : 'transacciones'}
@@ -167,7 +204,7 @@ export default function DashboardPage() {
             <i className="dh-kpi-icon">#</i>
             <span className="dh-kpi-label">Ticket promedio</span>
           </div>
-          <div className="dh-kpi-value">{formatMoney(datos.ventas_hoy.promedio)}</div>
+          <div className={`dh-kpi-value ${pulso ? 'valor-vivo' : ''}`}>{formatMoney(datos.ventas_hoy.promedio)}</div>
           <div className="dh-kpi-foot">
             <span>por venta</span>
           </div>
@@ -178,7 +215,7 @@ export default function DashboardPage() {
             <i className="dh-kpi-icon">▦</i>
             <span className="dh-kpi-label">Caja turno</span>
           </div>
-          <div className="dh-kpi-value">{formatMoney(datos.turno?.efectivo_esperado || 0)}</div>
+          <div className={`dh-kpi-value ${pulso ? 'valor-vivo' : ''}`}>{formatMoney(datos.turno?.efectivo_esperado || 0)}</div>
           <div className="dh-kpi-foot">
             <span className="dh-pill">{datos.turno ? 'Turno abierto' : 'Sin turno'}</span>
           </div>
