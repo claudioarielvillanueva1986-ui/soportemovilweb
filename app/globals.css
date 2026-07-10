@@ -929,6 +929,15 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+.btn-icono-borrar {
+  background: none; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 8px; width: 26px; height: 26px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 0.8rem; transition: all 0.15s;
+}
+.btn-icono-borrar:hover:not(:disabled) { border-color: var(--error-soft); color: var(--error-soft); background: rgba(248,113,113,.08); }
+.btn-icono-borrar:disabled { opacity: 0.5; cursor: default; }
+
 .carrito-total {
   display: flex;
   justify-content: space-between;
@@ -2276,6 +2285,16 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.foto-tipo-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border: none;
+  font-size: 0.62rem;
+  padding: 2px 7px;
 }
 
 /* ---------- POS estilo v1: lista de resultados ---------- */

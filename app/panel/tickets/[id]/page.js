@@ -19,6 +19,17 @@ import { PantallaCarga } from '@/components/cargando';
 
 const ETIQUETAS = ETIQUETAS_TICKET.map((e) => [e.tag, e.color]);
 
+// Cuotas con recargo de tarjeta de crédito — igual que en el POS. Solo
+// aplica cuando el pago se registra a mano (sin Facturá conectada): con
+// Facturá, "tarjeta" pasa por el checkout de Mercado Pago, que maneja sus
+// propias cuotas.
+const CUOTAS_TC = [
+  [1, 10],
+  [2, 20],
+  [3, 30],
+  [6, 40],
+];
+
 // Aviso automático real por WhatsApp (Cloud API) — no bloquea ni interrumpe
 // el flujo si falla o si el negocio no tiene la Cloud API conectada.
 async function notificarOrden(ticketId, tipo) {
@@ -183,6 +194,9 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
   const [metodo, setMetodo] = useState('efectivo');
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
+  const [anulandoId, setAnulandoId] = useState(null);
+  const [interesSena, setInteresSena] = useState(0);
+  const [interesDesglose, setInteresDesglose] = useState({});
   // cobro de saldo con pago mixto
   const [desglose, setDesglose] = useState(null); // null | [{monto, metodo, mp_payment_id}]
   const [facturaConectada, setFacturaConectada] = useState(false);
@@ -217,12 +231,27 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
     onSaldo?.(saldo);
   }, [saldo, onSaldo]);
 
+  async function anularPago(pago) {
+    if (!window.confirm(`¿Anular este pago de ${formatMoney(pago.monto)}? Queda registrado como reversión.`)) return;
+    setAnulandoId(pago.id);
+    setError(null);
+    const { error: err } = await supabase.rpc('anular_pago_orden', { p_pago_id: pago.id });
+    setAnulandoId(null);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    cargar();
+    onCambio?.();
+  }
+
   // registrar una seña suelta (feeds caja + idempotencia)
   async function agregarSena(e) {
     e.preventDefault();
     if (ocupado) return;
     setError(null);
-    const montoNum = Number(monto);
+    const conRecargo = !facturaConectada && metodo === 'tarjeta' && interesSena > 0;
+    const montoNum = conRecargo ? Math.round(Number(monto) * (1 + interesSena / 100) * 100) / 100 : Number(monto);
 
     if (facturaConectada && METODOS_ELECTRONICOS_ORDEN.includes(metodo)) {
       iniciarCobro(montoNum, 'Seña de orden', async (mpPaymentId) => {
@@ -278,8 +307,12 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
 
     setOcupado(true);
     const pagosLimpios = desglose
-      .filter((p) => Number(p.monto) > 0)
-      .map((p) => ({ monto: Number(p.monto), metodo: p.metodo, mp_payment_id: p.mp_payment_id || null }));
+      .map((p, i) => {
+        const pct = !facturaConectada && p.metodo === 'tarjeta' ? interesDesglose[i] || 0 : 0;
+        const monto = pct > 0 ? Math.round(Number(p.monto) * (1 + pct / 100) * 100) / 100 : Number(p.monto);
+        return { monto, metodo: p.metodo, mp_payment_id: p.mp_payment_id || null };
+      })
+      .filter((p) => p.monto > 0);
     if (pagosLimpios.length === 0) {
       setOcupado(false);
       setError('Ingresá al menos un pago.');
@@ -363,8 +396,21 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
             </div>
             <div className="meta">{formatFecha(p.created_at)}</div>
           </div>
-          <div className="subtotal" style={{ color: Number(p.monto) < 0 ? 'var(--error-soft)' : 'inherit' }}>
-            {formatMoney(p.monto)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="subtotal" style={{ color: Number(p.monto) < 0 ? 'var(--error-soft)' : 'inherit' }}>
+              {formatMoney(p.monto)}
+            </div>
+            {Number(p.monto) > 0 && (
+              <button
+                type="button"
+                className="btn-icono-borrar"
+                title="Anular este pago"
+                disabled={anulandoId === p.id}
+                onClick={() => anularPago(p)}
+              >
+                {anulandoId === p.id ? <span className="spinner" /> : '✕'}
+              </button>
+            )}
           </div>
         </div>
       ))}
@@ -426,6 +472,30 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
                       </button>
                     )}
                   </div>
+                  {!facturaConectada && p.metodo === 'tarjeta' && (
+                    <div className="pos-cuotas" style={{ gridColumn: '1 / -1' }}>
+                      <div className="pos-cuotas-lbl">💳 Cuotas con tarjeta de crédito</div>
+                      <div className="pos-cuotas-grid">
+                        {CUOTAS_TC.map(([n, pct]) => (
+                          <button
+                            key={n}
+                            type="button"
+                            className={`cuota-btn ${interesDesglose[i] === pct ? 'active' : ''}`}
+                            onClick={() => setInteresDesglose((prev) => ({ ...prev, [i]: pct }))}
+                          >
+                            {n}x<br />
+                            <span>+{pct}%</span>
+                          </button>
+                        ))}
+                      </div>
+                      {interesDesglose[i] > 0 && p.monto && (
+                        <div className="pos-interes-pill">
+                          <span>💳 Total con recargo</span>
+                          <strong>{formatMoney(Math.round(Number(p.monto) * (1 + interesDesglose[i] / 100) * 100) / 100)}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               <button
@@ -479,7 +549,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
             </div>
             <div className="field">
               <label>Método</label>
-              <select value={metodo} onChange={(e) => setMetodo(e.target.value)}>
+              <select value={metodo} onChange={(e) => { setMetodo(e.target.value); setInteresSena(0); }}>
                 {Object.entries(METODOS_PAGO).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -488,6 +558,30 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
               </select>
             </div>
           </div>
+          {!facturaConectada && metodo === 'tarjeta' && (
+            <div className="pos-cuotas">
+              <div className="pos-cuotas-lbl">💳 Cuotas con tarjeta de crédito</div>
+              <div className="pos-cuotas-grid">
+                {CUOTAS_TC.map(([n, pct]) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`cuota-btn ${interesSena === pct ? 'active' : ''}`}
+                    onClick={() => setInteresSena(pct)}
+                  >
+                    {n}x<br />
+                    <span>+{pct}%</span>
+                  </button>
+                ))}
+              </div>
+              {interesSena > 0 && monto && (
+                <div className="pos-interes-pill">
+                  <span>💳 Total con recargo</span>
+                  <strong>{formatMoney(Math.round(Number(monto) * (1 + interesSena / 100) * 100) / 100)}</strong>
+                </div>
+              )}
+            </div>
+          )}
           <button className="btn btn-secondary btn-sm" disabled={ocupado}>
             {ocupado ? <span className="spinner" /> : 'Registrar seña'}
           </button>
@@ -554,16 +648,25 @@ async function comprimirImagen(file) {
 }
 
 // Fotos del equipo al ingreso (evidencia de estado). Cámara en móvil.
+const TIPOS_FOTO = [
+  ['todas', 'Todas'],
+  ['antes', 'Antes'],
+  ['durante', 'Durante'],
+  ['despues', 'Después'],
+];
+
 function FotosTicket({ ticketId }) {
   const [fotos, setFotos] = useState([]);
   const [negocioId, setNegocioId] = useState(null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState(null);
+  const [tipoSubida, setTipoSubida] = useState('antes');
+  const [filtroTipo, setFiltroTipo] = useState('todas');
 
   const cargar = useCallback(async () => {
     const { data } = await supabase
       .from('ticket_fotos')
-      .select('id, path, url, created_at')
+      .select('id, path, url, tipo, created_at')
       .eq('ticket_id', ticketId)
       .order('created_at');
     setFotos(data || []);
@@ -593,6 +696,7 @@ function FotosTicket({ ticketId }) {
           p_ticket_id: ticketId,
           p_path: path,
           p_url: url,
+          p_tipo: tipoSubida,
         });
         if (errRpc) throw new Error(errRpc.message);
       } catch (err) {
@@ -611,6 +715,9 @@ function FotosTicket({ ticketId }) {
     cargar();
   }
 
+  const visibles = filtroTipo === 'todas' ? fotos : fotos.filter((f) => f.tipo === filtroTipo);
+  const etiquetaTipo = { antes: 'Antes', durante: 'Durante', despues: 'Después' };
+
   return (
     <div style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: '1rem' }}>Fotos del equipo</h2>
@@ -620,12 +727,22 @@ function FotosTicket({ ticketId }) {
         </div>
       )}
       {fotos.length > 0 && (
+        <div className="filters" style={{ marginTop: 8, marginBottom: 8 }}>
+          {TIPOS_FOTO.map(([k, l]) => (
+            <button key={k} className={`chip ${filtroTipo === k ? 'active' : ''}`} onClick={() => setFiltroTipo(k)}>
+              {l} {k !== 'todas' && `(${fotos.filter((f) => f.tipo === k).length})`}
+            </button>
+          ))}
+        </div>
+      )}
+      {visibles.length > 0 && (
         <div className="fotos-grid">
-          {fotos.map((f) => (
+          {visibles.map((f) => (
             <div className="foto-item" key={f.id}>
               <a href={f.url} target="_blank" rel="noreferrer">
-                <img src={f.url} alt="Foto del equipo" loading="lazy" />
+                <img src={f.url} alt={`Foto del equipo — ${etiquetaTipo[f.tipo] || f.tipo}`} loading="lazy" />
               </a>
+              <span className="badge foto-tipo-badge">{etiquetaTipo[f.tipo] || f.tipo}</span>
               <button className="foto-del" onClick={() => eliminar(f)} aria-label="Eliminar">
                 ×
               </button>
@@ -633,18 +750,25 @@ function FotosTicket({ ticketId }) {
           ))}
         </div>
       )}
-      <label className="btn btn-secondary btn-sm" style={{ marginTop: 10, display: 'inline-flex', cursor: 'pointer' }}>
-        {subiendo ? <span className="spinner" /> : '+ Agregar fotos'}
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          multiple
-          onChange={subir}
-          disabled={subiendo}
-          style={{ display: 'none' }}
-        />
-      </label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+        <select value={tipoSubida} onChange={(e) => setTipoSubida(e.target.value)} style={{ width: 'auto' }}>
+          <option value="antes">Antes</option>
+          <option value="durante">Durante</option>
+          <option value="despues">Después</option>
+        </select>
+        <label className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', cursor: 'pointer' }}>
+          {subiendo ? <span className="spinner" /> : '+ Agregar fotos'}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            onChange={subir}
+            disabled={subiendo}
+            style={{ display: 'none' }}
+          />
+        </label>
+      </div>
     </div>
   );
 }
