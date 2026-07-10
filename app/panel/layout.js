@@ -11,15 +11,20 @@ import { PantallaCarga } from '@/components/cargando';
 import { Icon } from '@/components/icons';
 import { NotificacionesCentro } from '@/components/notificaciones';
 
+// Agrupación calcada de la de v1 (Operación / Catálogo / Análisis): los
+// módulos que v1 también tiene van en el mismo grupo y orden. Lo que v2
+// suma de más (MDM, Tienda, Fidelización, Cupones, Encuestas...) se
+// intercala al final de su grupo más afín, sin inventar entradas para
+// módulos de v1 que todavía no están portados (Reactivación, Inteligencia
+// ventas, Reporte margen, Historial, Gastos).
 const GRUPOS = [
   {
     titulo: 'Operación',
     links: [
       ['/panel', 'Dashboard', 'dashboard'],
       ['/panel/pos', 'POS', 'pos'],
-      ['/panel/ventas', 'Ventas', 'ventas'],
-      ['/panel/presupuestos', 'Presupuestos', 'presupuestos'],
       ['/panel/tickets', 'Órdenes', 'ordenes'],
+      ['/panel/whatsapp', 'WhatsApp', 'whatsapp', { soloBot: true }],
       ['/panel/caja', 'Caja', 'caja'],
       ['/panel/clientes', 'Clientes', 'clientes'],
       ['/panel/mdm', 'MDM (equipos vendidos)', 'mdm'],
@@ -29,13 +34,9 @@ const GRUPOS = [
     titulo: 'Catálogo',
     links: [
       ['/panel/inventario', 'Inventario', 'inventario'],
+      ['/panel/presupuestos', 'Presupuestos', 'presupuestos'],
       ['/panel/servicios', 'Servicios', 'servicios'],
     ],
-  },
-  {
-    titulo: 'Comunicación',
-    soloBot: true,
-    links: [['/panel/whatsapp', 'WhatsApp', 'whatsapp']],
   },
   {
     titulo: 'Tienda',
@@ -49,6 +50,7 @@ const GRUPOS = [
     soloDueno: true,
     links: [
       ['/panel/reportes', 'Reportes', 'reportes'],
+      ['/panel/ventas', 'Ventas', 'ventas'],
       ['/panel/fidelizacion', 'Fidelización', 'fidelizacion'],
       ['/panel/cupones', 'Cupones', 'cupones'],
       ['/panel/encuestas', 'Encuestas', 'encuestas'],
@@ -62,6 +64,13 @@ const GRUPOS = [
       ['/panel/importar', 'Importar datos', 'importar'],
     ],
   },
+];
+
+const BOTTOM_NAV = [
+  ['/panel', 'Inicio', 'dashboard'],
+  ['/panel/tickets', 'Órdenes', 'ordenes'],
+  ['/panel/whatsapp', 'WhatsApp', 'whatsapp'],
+  ['/panel/clientes', 'Clientes', 'clientes'],
 ];
 
 function Login() {
@@ -288,11 +297,12 @@ export default function PanelLayout({ children }) {
 
   if (!sesion) return <Login />;
 
-  const gruposVisibles = GRUPOS.filter(
-    (g) =>
-      (!g.soloDueno || perfil?.rol === 'dueno') &&
-      (!g.soloBot || negocio?.bot_ia)
-  );
+  const gruposVisibles = GRUPOS.filter((g) => !g.soloDueno || perfil?.rol === 'dueno')
+    .map((g) => ({
+      ...g,
+      links: g.links.filter(([, , , opts]) => !opts?.soloBot || negocio?.bot_ia),
+    }))
+    .filter((g) => g.links.length > 0);
 
   const contenidoSidebar = (
     <>
@@ -385,6 +395,30 @@ export default function PanelLayout({ children }) {
 
         <div className="panel-main">{children}</div>
       </div>
+
+      {/* Bottom-nav — solo móvil, calcado de v1 */}
+      <nav className="bottom-nav">
+        {BOTTOM_NAV.filter(([href]) => href !== '/panel/whatsapp' || negocio?.bot_ia).map(
+          ([href, label, icono]) => (
+            <Link
+              key={href}
+              href={href}
+              className={`bn-item ${pathname === href || (href !== '/panel' && pathname.startsWith(href)) ? 'active' : ''}`}
+            >
+              <Icon name={icono} size={20} />
+              <span>{label}</span>
+            </Link>
+          )
+        )}
+        <button
+          className={`bn-item ${menuAbierto ? 'active' : ''}`}
+          onClick={() => setMenuAbierto(true)}
+          aria-label="Más opciones"
+        >
+          <Icon name="menu" size={20} />
+          <span>Más</span>
+        </button>
+      </nav>
     </PerfilContext.Provider>
   );
 }
