@@ -908,6 +908,120 @@ function HistorialCliente({ clienteId, ticketId }) {
   );
 }
 
+const TIPOS_NOTA = {
+  info: { icono: 'ℹ️', label: 'Info', color: 'var(--accent)' },
+  urgente: { icono: '🔴', label: 'Urgente', color: 'var(--error-soft)' },
+  recordatorio: { icono: '⏰', label: 'Recordatorio', color: 'var(--warn)' },
+};
+
+// Notas internas como historial con hilo — v1 guardaba varias entradas con
+// tipo/usuario/fecha; antes v2 tenía un solo campo de texto que se pisaba
+// en cada guardado.
+function NotasTicket({ ticketId }) {
+  const [notas, setNotas] = useState(null);
+  const [mensaje, setMensaje] = useState('');
+  const [tipo, setTipo] = useState('info');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState(null);
+
+  const cargar = useCallback(async () => {
+    const { data } = await supabase
+      .from('ticket_notas')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: false });
+    setNotas(data || []);
+  }, [ticketId]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function agregar(e) {
+    e.preventDefault();
+    if (!mensaje.trim() || enviando) return;
+    setEnviando(true);
+    setError(null);
+    const { error: err } = await supabase.rpc('agregar_nota_ticket', {
+      p_ticket_id: ticketId,
+      p_mensaje: mensaje.trim(),
+      p_tipo: tipo,
+    });
+    setEnviando(false);
+    if (err) return setError(err.message);
+    setMensaje('');
+    setTipo('info');
+    cargar();
+  }
+
+  async function eliminar(nota) {
+    if (!window.confirm('¿Eliminar esta nota?')) return;
+    const { error: err } = await supabase.rpc('eliminar_nota_ticket', { p_id: nota.id });
+    if (err) return setError(err.message);
+    cargar();
+  }
+
+  return (
+    <div className="card">
+      <h2 style={{ fontSize: '1rem', marginBottom: 10 }}>📝 Notas internas (no las ve el cliente)</h2>
+      {error && <div className="alert alert-error" style={{ marginBottom: 8 }}>{error}</div>}
+      <form onSubmit={agregar} style={{ marginBottom: 14 }}>
+        <textarea
+          value={mensaje}
+          onChange={(e) => setMensaje(e.target.value)}
+          placeholder="Anotá el diagnóstico, estado del repuesto, observación..."
+          style={{ minHeight: 60 }}
+        />
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="filters" style={{ margin: 0 }}>
+            {Object.entries(TIPOS_NOTA).map(([k, v]) => (
+              <button
+                key={k}
+                type="button"
+                className={`chip ${tipo === k ? 'active' : ''}`}
+                onClick={() => setTipo(k)}
+              >
+                {v.icono} {v.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-secondary btn-sm" disabled={enviando || !mensaje.trim()} style={{ marginLeft: 'auto' }}>
+            {enviando ? <span className="spinner" /> : 'Agregar nota'}
+          </button>
+        </div>
+      </form>
+
+      {notas === null ? (
+        <p className="lbl2">Cargando...</p>
+      ) : notas.length === 0 ? (
+        <p className="lbl2">Todavía no hay notas.</p>
+      ) : (
+        <div className="timeline">
+          {notas.map((n) => {
+            const info = TIPOS_NOTA[n.tipo] || TIPOS_NOTA.info;
+            return (
+              <div className="timeline-item" key={n.id}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: info.color }}>
+                    {info.icono} {info.label} · {n.autor_nombre || 'Equipo'}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>{formatFecha(n.created_at)}</span>
+                    <button type="button" className="btn-icono-borrar" title="Eliminar nota" onClick={() => eliminar(n)}>
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <p style={{ marginTop: 4, fontSize: '0.88rem' }}>{n.mensaje}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const { esDueno, perfil } = usePerfil();
   // Vista restringida: el técnico asignado a ESTA orden ve lo que necesita
@@ -922,7 +1036,6 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [saldoPendiente, setSaldoPendiente] = useState(0);
   const [negocioNombre, setNegocioNombre] = useState('');
   const [waPlantillas, setWaPlantillas] = useState({});
-  const [notas, setNotas] = useState(ticket.notas_internas || '');
   const [mensaje, setMensaje] = useState('');
   const [actualizaciones, setActualizaciones] = useState([]);
   const [guardando, setGuardando] = useState(false);
@@ -1029,7 +1142,6 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       .update({
         estado,
         prioridad,
-        notas_internas: notas,
         presupuesto: presupuesto === '' ? null : Number(presupuesto),
       })
       .eq('id', ticket.id);
@@ -1329,12 +1441,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
             </div>
           </div>
 
-          <div className="card">
-            <div className="field seccion-notas" style={{ marginBottom: 0 }}>
-              <label>📝 Notas internas (no las ve el cliente)</label>
-              <textarea value={notas} onChange={(e) => setNotas(e.target.value)} style={{ minHeight: 70 }} />
-            </div>
-          </div>
+          <NotasTicket ticketId={ticket.id} />
 
           <div className="card">
             <FotosTicket ticketId={ticket.id} />
@@ -1452,7 +1559,6 @@ const AVATAR_ESTADO = { recibido: '📥', en_proceso: '⚙️', reparado: '✅' 
 // como la pantalla simple que ya conocen los técnicos de v1.
 function DetalleTecnico({ ticket, onCerrar, onGuardado }) {
   const [estado, setEstado] = useState(ticket.estado);
-  const [notas, setNotas] = useState(ticket.notas_internas || '');
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState(null);
 
@@ -1461,7 +1567,7 @@ function DetalleTecnico({ ticket, onCerrar, onGuardado }) {
     setAviso(null);
     const { error: errUpd } = await supabase
       .from('tickets')
-      .update({ estado, notas_internas: notas })
+      .update({ estado })
       .eq('id', ticket.id);
     setGuardando(false);
     if (errUpd) {
@@ -1585,9 +1691,8 @@ function DetalleTecnico({ ticket, onCerrar, onGuardado }) {
             ))}
           </select>
         </div>
-        <div className="field" style={{ marginBottom: 12 }}>
-          <label>📝 Notas internas</label>
-          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Anotá el diagnóstico, estado del repuesto, observación..." />
+        <div style={{ marginBottom: 12 }}>
+          <NotasTicket ticketId={ticket.id} />
         </div>
         <button className="btn" onClick={guardar} disabled={guardando}>
           {guardando ? <span className="spinner" /> : 'Guardar'}
