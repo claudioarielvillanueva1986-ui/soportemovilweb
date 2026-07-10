@@ -5,6 +5,18 @@ import { enviarWhatsApp, responderIA, waConfigurado } from '@/lib/whatsapp-cloud
 // GET  → verificación del webhook (hub.challenge)
 // POST → mensajes entrantes: guarda, y si la conversación está en modo bot, responde con IA.
 
+// Tipos de medio que WhatsApp puede mandar y que guardamos (el archivo en sí
+// no se descarga acá — solo el media_id, que se resuelve al vuelo desde
+// /api/whatsapp/media/[mediaId] cuando alguien lo mira en el panel).
+const MEDIA_TIPOS = { image: 'imagen', audio: 'audio', video: 'video', document: 'documento', sticker: 'imagen' };
+const MEDIA_ETIQUETAS = {
+  image: '📷 Imagen',
+  audio: '🎤 Audio',
+  video: '🎥 Video',
+  document: '📄 Documento',
+  sticker: '🩹 Sticker',
+};
+
 export async function GET(request) {
   const url = new URL(request.url);
   const mode = url.searchParams.get('hub.mode');
@@ -32,19 +44,21 @@ export async function POST(request) {
         const phoneNumberId = value?.metadata?.phone_number_id;
         const contactos = value?.contacts || [];
         for (const msg of value.messages || []) {
-          if (msg.type !== 'text') {
-            // por ahora solo texto; avisamos amablemente si hay config
-            await manejarNoTexto(phoneNumberId, msg.from).catch(() => {});
-            continue;
-          }
           const nombre = contactos.find((c) => c.wa_id === msg.from)?.profile?.name || '';
-          await procesarMensaje({
-            phoneNumberId,
-            from: msg.from,
-            nombre,
-            texto: msg.text?.body || '',
-            waId: msg.id,
-          });
+          if (msg.type === 'text') {
+            await procesarMensaje({
+              phoneNumberId,
+              from: msg.from,
+              nombre,
+              texto: msg.text?.body || '',
+              waId: msg.id,
+            });
+          } else if (MEDIA_TIPOS[msg.type]) {
+            await procesarMedia({ phoneNumberId, from: msg.from, nombre, msg });
+          } else {
+            // ubicación, contactos, etc: por ahora solo avisamos
+            await manejarNoTexto(phoneNumberId, msg.from).catch(() => {});
+          }
         }
       }
     }
@@ -94,6 +108,25 @@ async function procesarMensaje({ phoneNumberId, from, nombre, texto, waId }) {
       p_modo: 'humano',
     });
   }
+}
+
+async function procesarMedia({ phoneNumberId, from, nombre, msg }) {
+  const tipo = MEDIA_TIPOS[msg.type];
+  const media = msg[msg.type] || {};
+  const texto = media.caption || MEDIA_ETIQUETAS[msg.type] || 'Adjunto';
+  const ctx = await rpcConSecreto('wa_guardar_entrante', {
+    p_phone_number_id: phoneNumberId,
+    p_from: from,
+    p_nombre: nombre,
+    p_texto: texto,
+    p_wa_id: msg.id,
+    p_tipo: tipo,
+    p_media_id: media.id || null,
+    p_media_mime: media.mime_type || null,
+  });
+  // Los adjuntos quedan en la bandeja para que el local los mire — el bot no
+  // "ve" imágenes/audios, así que no intentamos responder automáticamente.
+  void ctx;
 }
 
 async function manejarNoTexto(phoneNumberId, from) {

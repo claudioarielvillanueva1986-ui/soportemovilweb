@@ -24,12 +24,67 @@ function hora(iso) {
   }
 }
 
+const PAGE_SIZE = 50;
+
+function MediaAdjunto({ mensaje }) {
+  const [estado, setEstado] = useState('cargando'); // cargando | listo | error
+  const [url, setUrl] = useState(null);
+
+  useEffect(() => {
+    let objUrl = null;
+    let cancelado = false;
+    (async () => {
+      try {
+        const { data: sesion } = await supabase.auth.getSession();
+        const res = await fetch(`/api/whatsapp/media/${mensaje.media_id}`, {
+          headers: { Authorization: `Bearer ${sesion?.session?.access_token || ''}` },
+        });
+        if (!res.ok) throw new Error('media');
+        const blob = await res.blob();
+        objUrl = URL.createObjectURL(blob);
+        if (!cancelado) {
+          setUrl(objUrl);
+          setEstado('listo');
+        }
+      } catch {
+        if (!cancelado) setEstado('error');
+      }
+    })();
+    return () => {
+      cancelado = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+  }, [mensaje.media_id]);
+
+  if (estado === 'error') return <div className="wc-media-error">⚠️ No se pudo cargar el adjunto</div>;
+  if (estado === 'cargando') return <div className="wc-media-cargando"><span className="spinner" /></div>;
+  if (mensaje.tipo === 'imagen') {
+    return (
+      <img
+        src={url}
+        alt={mensaje.texto || 'Imagen'}
+        className="wc-media-img"
+        onClick={() => window.open(url, '_blank')}
+      />
+    );
+  }
+  if (mensaje.tipo === 'audio') return <audio controls src={url} className="wc-media-audio" />;
+  if (mensaje.tipo === 'video') return <video controls src={url} className="wc-media-video" />;
+  return (
+    <a href={url} download target="_blank" rel="noreferrer" className="wc-media-doc">
+      📄 {mensaje.texto || 'Documento'}
+    </a>
+  );
+}
+
 export default function WhatsAppPage() {
-  const { esDueno } = usePerfil();
+  const { perfil, esDueno } = usePerfil();
   const [negocio, setNegocio] = useState(undefined);
   const [convs, setConvs] = useState([]);
   const [activa, setActiva] = useState(null);
   const [mensajes, setMensajes] = useState([]);
+  const [hayMasMensajes, setHayMasMensajes] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
   const [bloqueados, setBloqueados] = useState(new Set());
   const [respuestas, setRespuestas] = useState([]);
   const [texto, setTexto] = useState('');
@@ -40,9 +95,18 @@ export default function WhatsAppPage() {
   const [error, setError] = useState(null);
   const [cfgAbierta, setCfgAbierta] = useState(false);
   const finRef = useRef(null);
+  const msgsRef = useRef(null);
+  const activaRef = useRef(null);
+  useEffect(() => {
+    activaRef.current = activa;
+  }, [activa]);
 
   const cargarConvs = useCallback(async () => {
-    const { data } = await supabase.from('wa_conversaciones').select('*').order('ultima_at', { ascending: false });
+    const { data } = await supabase
+      .from('wa_conversaciones')
+      .select('*')
+      .order('ultima_at', { ascending: false })
+      .limit(150);
     setConvs(data || []);
   }, []);
 
@@ -58,10 +122,60 @@ export default function WhatsAppPage() {
     supabase.from('wa_respuestas_rapidas').select('*').order('orden').then(({ data }) => setRespuestas(data || []));
   }, [cargarConvs, cargarBloqueados]);
 
+  // Solo trae la última "página" de la conversación — no todo el historial.
   const cargarMensajes = useCallback(async (conv) => {
-    const { data } = await supabase.from('wa_mensajes').select('*').eq('conversacion_id', conv.id).order('created_at');
-    setMensajes(data || []);
+    const { data } = await supabase
+      .from('wa_mensajes')
+      .select('*')
+      .eq('conversacion_id', conv.id)
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE);
+    const filas = (data || []).slice().reverse();
+    setMensajes(filas);
+    setHayMasMensajes((data || []).length === PAGE_SIZE);
     setTimeout(() => finRef.current?.scrollIntoView({ block: 'end' }), 30);
+  }, []);
+
+  // Trae mensajes más viejos que el primero cargado, preservando el scroll.
+  const cargarMasAntiguos = useCallback(async () => {
+    if (!activa || !mensajes.length || cargandoMas) return;
+    setCargandoMas(true);
+    const contenedor = msgsRef.current;
+    const alturaPrevia = contenedor?.scrollHeight || 0;
+    const { data } = await supabase
+      .from('wa_mensajes')
+      .select('*')
+      .eq('conversacion_id', activa.id)
+      .lt('created_at', mensajes[0].created_at)
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE);
+    const filas = (data || []).slice().reverse();
+    setMensajes((prev) => [...filas, ...prev]);
+    setHayMasMensajes((data || []).length === PAGE_SIZE);
+    setCargandoMas(false);
+    setTimeout(() => {
+      if (contenedor) contenedor.scrollTop = contenedor.scrollHeight - alturaPrevia;
+    }, 30);
+  }, [activa, mensajes, cargandoMas]);
+
+  // Re-sincroniza solo la "cola" de la conversación abierta (deduplicada por
+  // id) — usado como respaldo del realtime, nunca pisa lo ya cargado arriba.
+  const refrescarColaMensajes = useCallback(async () => {
+    const conv = activaRef.current;
+    if (!conv) return;
+    const { data } = await supabase
+      .from('wa_mensajes')
+      .select('*')
+      .eq('conversacion_id', conv.id)
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE);
+    const filas = (data || []).slice().reverse();
+    setMensajes((prev) => {
+      const idsPrev = new Set(prev.map((m) => m.id));
+      const nuevos = filas.filter((m) => !idsPrev.has(m.id));
+      if (!nuevos.length) return prev;
+      return [...prev, ...nuevos].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    });
   }, []);
 
   async function abrir(conv) {
@@ -71,24 +185,56 @@ export default function WhatsAppPage() {
     await cargarMensajes(conv);
     if (conv.no_leidos > 0) {
       await supabase.rpc('wa_marcar_leido', { p_id: conv.id });
-      cargarConvs();
+      setConvs((prev) => prev.map((c) => (c.id === conv.id ? { ...c, no_leidos: 0 } : c)));
     }
   }
 
+  // Realtime: mensajes/conversaciones nuevas llegan al instante sin refetch
+  // completo. El poll de abajo es solo un respaldo de baja frecuencia.
   useEffect(() => {
-    if (!activa) return;
+    if (!perfil?.negocio_id) return;
+    const filtro2 = `negocio_id=eq.${perfil.negocio_id}`;
+    const ch = supabase
+      .channel(`whatsapp-${perfil.negocio_id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wa_conversaciones', filter: filtro2 },
+        (payload) => {
+          const fila = payload.new;
+          if (!fila) return;
+          setConvs((prev) => {
+            const resto = prev.filter((c) => c.id !== fila.id);
+            return [...resto, fila].sort((a, b) => new Date(b.ultima_at) - new Date(a.ultima_at));
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'wa_mensajes', filter: filtro2 },
+        (payload) => {
+          const fila = payload.new;
+          if (!fila || fila.conversacion_id !== activaRef.current?.id) return;
+          setMensajes((prev) => (prev.some((m) => m.id === fila.id) ? prev : [...prev, fila]));
+          setTimeout(() => finRef.current?.scrollIntoView({ block: 'end' }), 30);
+        }
+      )
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [perfil?.negocio_id]);
+
+  useEffect(() => {
     const t = setInterval(() => {
-      cargarMensajes(activa);
       cargarConvs();
-    }, 10000);
+      refrescarColaMensajes();
+    }, 45000);
     return () => clearInterval(t);
-  }, [activa, cargarMensajes, cargarConvs]);
+  }, [cargarConvs, refrescarColaMensajes]);
 
   async function cambiarModo(modo) {
     if (!activa) return;
     await supabase.rpc('wa_tomar', { p_id: activa.id, p_modo: modo });
     setActiva({ ...activa, modo });
-    cargarConvs();
+    setConvs((prev) => prev.map((c) => (c.id === activa.id ? { ...c, modo } : c)));
   }
 
   async function enviar(e) {
@@ -108,8 +254,7 @@ export default function WhatsAppPage() {
       else {
         setTexto('');
         setActiva({ ...activa, modo: 'humano' });
-        await cargarMensajes(activa);
-        cargarConvs();
+        refrescarColaMensajes();
       }
     } catch (e2) {
       setError(e2.message);
@@ -245,16 +390,22 @@ export default function WhatsAppPage() {
                 <div className="wc-esc">⚠️ Estás atendiendo esta conversación. El bot no responde hasta que la devuelvas.</div>
               )}
 
-              <div className="wc-msgs">
+              <div className="wc-msgs" ref={msgsRef}>
+                {hayMasMensajes && (
+                  <button type="button" className="wc-load-more" onClick={cargarMasAntiguos} disabled={cargandoMas}>
+                    {cargandoMas ? <span className="spinner" /> : 'Cargar mensajes anteriores'}
+                  </button>
+                )}
                 {mensajes.map((m) => {
                   const sent = m.direccion === 'out';
                   const cls = m.autor === 'bot' ? 'bot' : m.autor === 'operador' ? 'operador' : 'cliente';
+                  const esMedia = m.tipo && m.tipo !== 'texto' && m.media_id;
                   return (
                     <div key={m.id} className={`wc-bwrap ${sent ? 'sent' : 'recv'}`}>
-                      <div className={`wc-bubble ${cls}`}>
+                      <div className={`wc-bubble ${cls} ${esMedia ? 'media' : ''}`}>
                         {m.autor === 'bot' && <span className="wc-blabel">🤖 PACHE</span>}
                         {m.autor === 'operador' && <span className="wc-blabel">👤 Vos</span>}
-                        {m.texto}
+                        {esMedia ? <MediaAdjunto mensaje={m} /> : m.texto}
                         <div className="wc-btime">{hora(m.created_at)}</div>
                       </div>
                     </div>
