@@ -137,7 +137,11 @@ export default function DashboardPage() {
   const variacion = ventasAyer > 0 ? Math.round(((ventasHoy - ventasAyer) / ventasAyer) * 100) : null;
   const tono = metaPctRing >= 80 ? 'ok' : metaPctRing >= 50 ? 'mid' : 'low';
   const primerNombre = (perfil?.nombre || 'equipo').split(' ')[0];
-  const ordenes = datos.ultimas_ordenes || [];
+  // "En este momento" debe mostrar solo lo que sigue abierto (recibido/en
+  // proceso/reparado) — tickets_activos ya viene filtrado así desde el RPC.
+  // ultimas_ordenes es distinto: las últimas 5 sin importar estado, incluye
+  // entregadas — no corresponde para este widget.
+  const ordenes = datos.tickets_activos || [];
   const productosHot = datos.productos_hot || [];
   const maxHot = productosHot[0]?.cantidad || 1;
 

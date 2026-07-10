@@ -505,18 +505,27 @@ export default function CajaPage() {
                 <table className="tabla">
                   <thead><tr><th>Orden</th><th>Hora</th><th>Tipo</th><th>Medio</th><th style={{ textAlign: 'right' }}>Monto</th></tr></thead>
                   <tbody>
-                    {pagosOrdenes.slice(0, 30).map((p) => (
-                      <tr key={p.id}>
-                        <td style={{ fontWeight: 700, color: 'var(--accent)' }}>
-                          {p.tickets?.numero ? `#${p.tickets.numero}` : '—'}
-                          {p.tickets?.nombre && <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}> · {p.tickets.nombre}</span>}
-                        </td>
-                        <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{hora(p.created_at)}</td>
-                        <td style={{ textTransform: 'capitalize', color: 'var(--text-dim)' }}>{p.tipo}</td>
-                        <td>{badgeMetodo(p.metodo)}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatMoney(p.monto)}</td>
-                      </tr>
-                    ))}
+                    {pagosOrdenes.slice(0, 30).map((p) => {
+                      const anulacion = Number(p.monto) < 0;
+                      return (
+                        <tr key={p.id} style={{ opacity: anulacion ? 0.75 : 1 }}>
+                          <td style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                            {p.tickets?.numero ? `#${p.tickets.numero}` : '—'}
+                            {p.tickets?.nombre && <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}> · {p.tickets.nombre}</span>}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{hora(p.created_at)}</td>
+                          <td>
+                            {anulacion ? (
+                              <span className="mp-badge" style={{ color: '#ef4444', borderColor: '#ef444466', background: '#ef44441a' }}>Anulación</span>
+                            ) : (
+                              <span style={{ textTransform: 'capitalize', color: 'var(--text-dim)' }}>{p.tipo}</span>
+                            )}
+                          </td>
+                          <td>{badgeMetodo(p.metodo)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: anulacion ? '#ef4444' : 'inherit' }}>{formatMoney(p.monto)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
