@@ -190,8 +190,9 @@ export default function CajaPage() {
     else ventasElectronico += Number(p.monto);
   }
 
-  const pagosOrdenesEfectivo = pagosOrdenes.filter((p) => p.metodo === 'efectivo').reduce((s, p) => s + Number(p.monto), 0);
-  const pagosOrdenesElectronico = pagosOrdenes.filter((p) => p.metodo !== 'efectivo').reduce((s, p) => s + Number(p.monto), 0);
+  const pagosOrdenesActivos = pagosOrdenes.filter((p) => !p.anulado);
+  const pagosOrdenesEfectivo = pagosOrdenesActivos.filter((p) => p.metodo === 'efectivo').reduce((s, p) => s + Number(p.monto), 0);
+  const pagosOrdenesElectronico = pagosOrdenesActivos.filter((p) => p.metodo !== 'efectivo').reduce((s, p) => s + Number(p.monto), 0);
   const totalElectronico = Math.round((ventasElectronico + pagosOrdenesElectronico) * 100) / 100;
 
   // retiros = egresos categoría "retiro"; se muestran junto a los movimientos
@@ -496,7 +497,7 @@ export default function CajaPage() {
           {pagosOrdenes.length > 0 && (
             <div className="card" style={{ overflow: 'hidden', padding: 0, marginTop: 16 }}>
               <div className="pos-card-header">
-                🔧 Cobros de órdenes <span className="count">{pagosOrdenes.length}</span>
+                🔧 Cobros de órdenes <span className="count">{pagosOrdenesActivos.length}</span>
                 <span style={{ marginLeft: 'auto', fontWeight: 800, color: 'var(--text)' }}>
                   {formatMoney(pagosOrdenesEfectivo + pagosOrdenesElectronico)}
                 </span>
@@ -506,23 +507,25 @@ export default function CajaPage() {
                   <thead><tr><th>Orden</th><th>Hora</th><th>Tipo</th><th>Medio</th><th style={{ textAlign: 'right' }}>Monto</th></tr></thead>
                   <tbody>
                     {pagosOrdenes.slice(0, 30).map((p) => {
-                      const anulacion = Number(p.monto) < 0;
+                      const negativo = p.anulado || Number(p.monto) < 0;
                       return (
-                        <tr key={p.id} style={{ opacity: anulacion ? 0.75 : 1 }}>
+                        <tr key={p.id} style={{ opacity: p.anulado ? 0.6 : 1 }}>
                           <td style={{ fontWeight: 700, color: 'var(--accent)' }}>
                             {p.tickets?.numero ? `#${p.tickets.numero}` : '—'}
                             {p.tickets?.nombre && <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}> · {p.tickets.nombre}</span>}
                           </td>
                           <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{hora(p.created_at)}</td>
                           <td>
-                            {anulacion ? (
-                              <span className="mp-badge" style={{ color: '#ef4444', borderColor: '#ef444466', background: '#ef44441a' }}>Anulación</span>
+                            {p.anulado ? (
+                              <span className="mp-badge" style={{ color: '#ef4444', borderColor: '#ef444466', background: '#ef44441a' }}>Anulado</span>
+                            ) : p.tipo === 'devolucion' ? (
+                              <span className="mp-badge" style={{ color: '#ef4444', borderColor: '#ef444466', background: '#ef44441a' }}>Devolución</span>
                             ) : (
                               <span style={{ textTransform: 'capitalize', color: 'var(--text-dim)' }}>{p.tipo}</span>
                             )}
                           </td>
                           <td>{badgeMetodo(p.metodo)}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: anulacion ? '#ef4444' : 'inherit' }}>{formatMoney(p.monto)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: negativo ? '#ef4444' : 'inherit', textDecoration: p.anulado ? 'line-through' : 'none' }}>{formatMoney(p.monto)}</td>
                         </tr>
                       );
                     })}

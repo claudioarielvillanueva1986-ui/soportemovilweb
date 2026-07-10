@@ -235,7 +235,7 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
       .then(({ data }) => setFacturaConectada(!!data?.conectado));
   }, []);
 
-  const abonado = pagos.reduce((s, p) => s + Number(p.monto), 0);
+  const abonado = pagos.filter((p) => !p.anulado).reduce((s, p) => s + Number(p.monto), 0);
   const presu = Number(presupuesto) || 0;
   const saldo = Math.max(0, presu - abonado);
 
@@ -400,19 +400,26 @@ function PagosTicket({ ticketId, presupuesto, onCambio, onSaldo }) {
       )}
 
       {pagos.map((p) => (
-        <div className="carrito-item" key={p.id}>
+        <div className="carrito-item" key={p.id} style={{ opacity: p.anulado ? 0.55 : 1 }}>
           <div className="info">
             <div>
-              {Number(p.monto) < 0 ? 'Devolución' : p.tipo === 'sena' ? 'Seña' : 'Pago'} ·{' '}
+              {p.tipo === 'devolucion' ? 'Devolución' : p.tipo === 'sena' ? 'Seña' : 'Pago'} ·{' '}
               {METODOS_PAGO[p.metodo]}
+              {p.anulado && <span style={{ color: 'var(--error-soft)', fontWeight: 700 }}> · Anulado</span>}
             </div>
             <div className="meta">{formatFecha(p.created_at)}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="subtotal" style={{ color: Number(p.monto) < 0 ? 'var(--error-soft)' : 'inherit' }}>
+            <div
+              className="subtotal"
+              style={{
+                color: p.anulado || Number(p.monto) < 0 ? 'var(--error-soft)' : 'inherit',
+                textDecoration: p.anulado ? 'line-through' : 'none',
+              }}
+            >
               {formatMoney(p.monto)}
             </div>
-            {Number(p.monto) > 0 && (
+            {Number(p.monto) > 0 && !p.anulado && (
               <button
                 type="button"
                 className="btn-icono-borrar"
