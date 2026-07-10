@@ -1156,6 +1156,11 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
             <a className="btn btn-secondary btn-sm" href={`/panel/imprimir/${ticket.id}`}>
               🖨️ Comprobante
             </a>
+            {!vistaTecnico && ['reparado', 'entregado'].includes(ticket.estado) && (
+              <a className="btn btn-secondary btn-sm" href={`/panel/garantia/${ticket.id}`} title="Comprobante de entrega con garantía">
+                🛡️ Garantía
+              </a>
+            )}
             <a className="btn btn-secondary btn-sm" href={`/panel/etiqueta/${ticket.id}`}>
               Etiqueta
             </a>

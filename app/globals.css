@@ -1782,6 +1782,42 @@ main {
   margin-bottom: 4px;
 }
 
+/* ---------- Comprobante de garantía ---------- */
+.garantia-title-band {
+  background: linear-gradient(135deg, #064e3b, #065f46);
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.9em;
+  font-weight: 700;
+}
+.garantia-box {
+  background: linear-gradient(135deg, #064e3b, #065f46);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+}
+.garantia-icon { font-size: 2.2em; flex-shrink: 0; }
+.garantia-dias { font-size: 2rem; font-weight: 900; line-height: 1; }
+.garantia-lbl { font-size: 0.62em; text-transform: uppercase; letter-spacing: 0.08em; color: #6ee7b7; }
+.garantia-texto { font-size: 0.82em; color: #a7f3d0; margin-top: 6px; line-height: 1.5; }
+.garantia-vence { font-size: 0.8em; color: #34d399; margin-top: 8px; font-weight: 600; }
+.garantia-vence strong { color: #fff; font-size: 1.1em; }
+.garantia-terminos {
+  background: #f4f8fc;
+  border: 1px dashed #c2d6e8;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 12px;
+  font-size: 0.72em;
+  color: #6b8499;
+  line-height: 1.7;
+}
+
 .comp-corte {
   display: flex;
   align-items: center;
