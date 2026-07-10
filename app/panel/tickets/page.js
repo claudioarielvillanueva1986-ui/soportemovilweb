@@ -106,6 +106,7 @@ export default function TicketsPage() {
   const [overCol, setOverCol] = useState(null);
   const [tecnicos, setTecnicos] = useState([]);
   const [tecnicoFiltro, setTecnicoFiltro] = useState('');
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     supabase.rpc('equipo_negocio').then(({ data }) => setTecnicos(data || []));
@@ -122,7 +123,8 @@ export default function TicketsPage() {
   }
 
   async function moverEstado(id, destino) {
-    const anterior = tickets.find((t) => t.id === id)?.estado;
+    const t0 = tickets.find((t) => t.id === id);
+    const anterior = t0?.estado;
     setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, estado: destino } : t)));
     const { error: err } = await supabase.from('tickets').update({ estado: destino }).eq('id', id);
     if (err) {
@@ -131,9 +133,13 @@ export default function TicketsPage() {
       return;
     }
     if (destino === 'reparado' && anterior !== 'reparado') notificarOrden(id, 'listo');
+    setToast(`✅ ${t0?.numero || ''} → ${ESTADOS[destino]?.label || destino}`);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
     cargar();
   }
   const timerRef = useRef(null);
+  const toastTimerRef = useRef(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data?.user?.id || null));
@@ -207,6 +213,7 @@ export default function TicketsPage() {
     else if (filtro === 'mias') {
       if (userId) q = q.eq('tecnico_id', userId);
     } else if (filtro !== 'todos') q = q.eq('estado', filtro);
+    if (tecnicoFiltro) q = q.eq('tecnico_id', tecnicoFiltro);
     if (busqueda.trim()) {
       const t = busqueda.trim().replace(/[%,()]/g, '');
       q = q.or(`numero.ilike.%${t}%,nombre.ilike.%${t}%,email.ilike.%${t}%,telefono.ilike.%${t}%,marca_modelo.ilike.%${t}%`);
@@ -356,7 +363,7 @@ export default function TicketsPage() {
               className={`chip ${tecnicoFiltro === p.user_id ? 'active' : ''}`}
               onClick={() => { setTecnicoFiltro(p.user_id); setLimite(100); }}
             >
-              {p.nombre}
+              {p.rol === 'dueno' ? '👑' : '🔧'} {p.nombre}
             </button>
           ))}
         </div>
@@ -505,6 +512,8 @@ export default function TicketsPage() {
           </button>
         </div>
       )}
+
+      {toast && <div className="kanban-toast">{toast}</div>}
     </main>
   );
 }

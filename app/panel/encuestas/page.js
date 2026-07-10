@@ -16,7 +16,7 @@ export default function EncuestasPage() {
   const cargar = useCallback(async () => {
     const [{ data: enc }, { data: ords }] = await Promise.all([
       supabase.from('encuestas').select('*, tickets(numero, nombre, telefono)').order('created_at', { ascending: false }).limit(50),
-      supabase.from('tickets').select('id, numero, nombre, telefono, estado').in('estado', ['listo', 'entregado']).order('created_at', { ascending: false }).limit(50),
+      supabase.from('tickets').select('id, numero, nombre, telefono, estado').in('estado', ['reparado', 'entregado']).order('created_at', { ascending: false }).limit(50),
     ]);
     setLista(enc || []);
     setOrdenes(ords || []);

@@ -12,7 +12,7 @@ import {
   formatFecha,
   formatMoney,
 } from '@/lib/supabase';
-import { linkAvisoWhatsApp } from '@/lib/whatsapp';
+import { linkAvisoWhatsApp, telWhatsApp } from '@/lib/whatsapp';
 import { usePerfil } from '@/lib/panel-context';
 import { useCobroReal, ModalCobroReal, METODOS_ELECTRONICOS_ORDEN } from '@/components/cobro-real';
 import { PantallaCarga } from '@/components/cargando';
@@ -675,6 +675,9 @@ function CostosOrden({ ticketId }) {
 
   if (!m) return null;
 
+  const pctMargen = m.presupuesto > 0 ? Math.round((m.margen / m.presupuesto) * 100) : null;
+  const colorMargen = m.margen >= 0 ? 'var(--ok)' : 'var(--error-soft)';
+
   return (
     <div style={{ marginTop: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -692,11 +695,24 @@ function CostosOrden({ ticketId }) {
         </div>
         <div>
           <span className="lbl2">Margen</span>
-          <strong style={{ color: m.margen >= 0 ? 'var(--accent)' : 'var(--error-soft)' }}>
+          <strong style={{ color: colorMargen, display: 'flex', alignItems: 'center', gap: 6 }}>
             {formatMoney(m.margen)}
+            {pctMargen != null && (
+              <span className="badge" style={{ color: colorMargen, background: `${colorMargen === 'var(--ok)' ? 'rgba(52,211,153,.14)' : 'rgba(248,113,113,.14)'}` }}>
+                {pctMargen}%
+              </span>
+            )}
           </strong>
         </div>
       </div>
+      {pctMargen != null && (
+        <div className="barra-progreso" style={{ marginTop: 8 }}>
+          <div
+            className="barra-progreso-fill"
+            style={{ width: `${Math.min(100, Math.max(0, pctMargen))}%`, background: colorMargen }}
+          />
+        </div>
+      )}
       <p className="lbl2" style={{ marginTop: 6 }}>
         Repuestos: {formatMoney(m.costo_repuestos)} (del costo de inventario) + costo adicional.
       </p>
@@ -743,6 +759,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [equipo, setEquipo] = useState([]);
   const [tecnicoId, setTecnicoId] = useState(ticket.tecnico_id || '');
   const [etiquetas, setEtiquetas] = useState(ticket.etiquetas || []);
+  const [enviandoEncuesta, setEnviandoEncuesta] = useState(false);
 
   useEffect(() => {
     supabase
@@ -774,6 +791,21 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
     } else {
       onGuardado();
     }
+  }
+
+  async function enviarEncuesta() {
+    setEnviandoEncuesta(true);
+    const { data, error } = await supabase.rpc('crear_encuesta', { p_ticket_id: ticket.id });
+    setEnviandoEncuesta(false);
+    if (error) {
+      setAviso({ tipo: 'error', texto: error.message });
+      return;
+    }
+    const tel = telWhatsApp(ticket.telefono);
+    const url = `${window.location.origin}/encuesta/${data.token}`;
+    const texto = `Hola ${ticket.nombre}! 🙏 ¿Nos ayudás con una encuesta rápida sobre tu experiencia con la reparación de tu ${ticket.marca_modelo || ticket.dispositivo}? ${url}`;
+    if (tel) window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank');
+    else window.open(url, '_blank');
   }
 
   async function alternarEtiqueta(tag) {
@@ -814,6 +846,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   };
   const waRecibido = linkAvisoWhatsApp({ ...waArgs, tipo: 'recibido' });
   const waListo = linkAvisoWhatsApp({ ...waArgs, tipo: 'listo' });
+  const waPresupuesto = ticket.presupuesto != null ? linkAvisoWhatsApp({ ...waArgs, tipo: 'presupuesto' }) : null;
 
   async function guardar() {
     setGuardando(true);
@@ -831,14 +864,18 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
       .eq('id', ticket.id);
 
     let errMsg = errUpd?.message;
+    const cambioEstado = estado !== ticket.estado;
 
-    if (!errMsg && mensaje.trim()) {
+    // Siempre queda un registro en el historial cuando cambia el estado,
+    // aunque el operador no haya escrito nada — antes se perdía esa
+    // trazabilidad si el mensaje quedaba vacío.
+    if (!errMsg && (mensaje.trim() || cambioEstado)) {
       const { error: errMsj } = await supabase
         .from('ticket_actualizaciones')
         .insert({
           ticket_id: ticket.id,
-          mensaje: mensaje.trim(),
-          estado: estado !== ticket.estado ? estado : null,
+          mensaje: mensaje.trim() || `Estado actualizado a "${ESTADOS[estado]?.label || estado}".`,
+          estado: cambioEstado ? estado : null,
           publico: true,
         });
       errMsg = errMsj?.message;
@@ -929,6 +966,16 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
               <a className="btn btn-sm" href={waListo} target="_blank" rel="noreferrer" title="Avisar que está listo para retirar">
                 💬 WhatsApp: listo
               </a>
+            )}
+            {waPresupuesto && (
+              <a className="btn btn-sm" href={waPresupuesto} target="_blank" rel="noreferrer" title="Enviar el presupuesto por WhatsApp">
+                📋 Presupuesto
+              </a>
+            )}
+            {['reparado', 'entregado'].includes(ticket.estado) && (
+              <button className="btn btn-secondary btn-sm" onClick={enviarEncuesta} disabled={enviandoEncuesta} title="Enviar encuesta de satisfacción por WhatsApp">
+                {enviandoEncuesta ? <span className="spinner" /> : '⭐ Encuesta'}
+              </button>
             )}
             {!vistaTecnico && (
               <a className="btn btn-secondary btn-sm" href={`/panel/tickets/${ticket.id}/editar`}>
@@ -1021,6 +1068,42 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
           <div className="card">
             <h2 style={{ fontSize: '1rem', marginBottom: 10 }}>Equipo y falla</h2>
             <dl className="detalle-grid">
+              {ticket.color && (
+                <div>
+                  <dt>Color</dt>
+                  <dd>{ticket.color}</dd>
+                </div>
+              )}
+              {ticket.imei_serial && (
+                <div>
+                  <dt>IMEI / Serie</dt>
+                  <dd style={{ fontFamily: 'var(--mono)' }}>{ticket.imei_serial}</dd>
+                </div>
+              )}
+              {ticket.estado_pantalla && (
+                <div>
+                  <dt>Estado de la pantalla</dt>
+                  <dd>{ticket.estado_pantalla}</dd>
+                </div>
+              )}
+              {ticket.condicion_general && (
+                <div>
+                  <dt>Condición general</dt>
+                  <dd>{ticket.condicion_general}</dd>
+                </div>
+              )}
+              {ticket.modo_ingreso?.length > 0 && (
+                <div>
+                  <dt>Cómo ingresó</dt>
+                  <dd>{ticket.modo_ingreso.join(', ')}</dd>
+                </div>
+              )}
+              {ticket.accesorios?.length > 0 && (
+                <div>
+                  <dt>Accesorios</dt>
+                  <dd>{ticket.accesorios.join(', ')}</dd>
+                </div>
+              )}
               {ticket.equipo_password && (
                 <div>
                   <dt>Clave / patrón del equipo</dt>
@@ -1046,6 +1129,12 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
             >
               {ticket.descripcion}
             </p>
+            {ticket.condicion_fisica && (
+              <p style={{ marginTop: 10, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+                <strong style={{ color: 'var(--text)' }}>Condición física al recibir: </strong>
+                {ticket.condicion_fisica}
+              </p>
+            )}
             <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
               <label>Técnico asignado</label>
               {vistaTecnico ? (

@@ -25,13 +25,18 @@ function Talon({ tipo, ticket, negocio, config, senas, qr }) {
   return (
     <div className="comp-talon">
       <div className="comp-head">
-        <div>
-          <div className="comp-negocio">{negocio?.nombre}</div>
-          {lineas.map((l, i) => (
-            <div className="comp-sub" key={i}>
-              {l}
-            </div>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="comp-logo">
+            {(negocio?.nombre || '?').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
+          </div>
+          <div>
+            <div className="comp-negocio">{negocio?.nombre}</div>
+            {lineas.map((l, i) => (
+              <div className="comp-sub" key={i}>
+                {l}
+              </div>
+            ))}
+          </div>
         </div>
         <div className="comp-derecha">
           <div className="comp-tipo">

@@ -159,6 +159,7 @@ export default function NuevaOrdenPage() {
     modelo: '',
     modeloNuevo: '',
     color: '',
+    imei_serial: '',
     descripcion: '',
     equipo_password: '',
     condicion_fisica: '',
@@ -171,9 +172,11 @@ export default function NuevaOrdenPage() {
     prioridad: 'normal',
     sena: '',
     sena_metodo: 'efectivo',
+    tecnico_id: '',
   });
 
   const [servicios, setServicios] = useState([]);
+  const [tecnicos, setTecnicos] = useState([]);
   const [error, setError] = useState(null);
   const [creando, setCreando] = useState(false);
   const [facturaConectada, setFacturaConectada] = useState(false);
@@ -186,6 +189,7 @@ export default function NuevaOrdenPage() {
       .eq('activo', true)
       .order('nombre')
       .then(({ data }) => setServicios(data || []));
+    supabase.rpc('equipo_negocio').then(({ data }) => setTecnicos(data || []));
   }, []);
 
   useEffect(() => {
@@ -363,6 +367,8 @@ export default function NuevaOrdenPage() {
         p_modo_ingreso: equipo.modo_ingreso,
         p_accesorios: equipo.accesorios,
         p_tipo_reparacion: equipo.tipo_reparacion,
+        p_imei_serial: equipo.imei_serial,
+        p_tecnico_id: equipo.tecnico_id || null,
       });
       if (err) throw new Error(err.message);
 
@@ -525,6 +531,10 @@ export default function NuevaOrdenPage() {
                 <input value={equipo.color} onChange={setEq('color')} placeholder="Ej: negro" />
               </div>
               <div className="field">
+                <label>IMEI / N° de serie</label>
+                <input value={equipo.imei_serial} onChange={setEq('imei_serial')} placeholder="Opcional" />
+              </div>
+              <div className="field">
                 <label>Clave / patrón del equipo</label>
                 <input
                   value={equipo.equipo_password}
@@ -631,6 +641,30 @@ export default function NuevaOrdenPage() {
                   {servicios.map((s) => (
                     <button key={s.id} type="button" className="chip" onClick={() => agregarServicioRapido(s)}>
                       + {s.nombre} ({formatMoney(s.precio)})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {tecnicos.length > 0 && (
+              <div className="field">
+                <label>Asignar técnico (opcional)</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className={`chip ${!equipo.tecnico_id ? 'active' : ''}`}
+                    onClick={() => setEquipo((eq) => ({ ...eq, tecnico_id: '' }))}
+                  >
+                    Sin asignar
+                  </button>
+                  {tecnicos.map((t) => (
+                    <button
+                      key={t.user_id}
+                      type="button"
+                      className={`chip ${equipo.tecnico_id === t.user_id ? 'active' : ''}`}
+                      onClick={() => setEquipo((eq) => ({ ...eq, tecnico_id: t.user_id }))}
+                    >
+                      {t.rol === 'dueno' ? '👑' : '🔧'} {t.nombre}
                     </button>
                   ))}
                 </div>
