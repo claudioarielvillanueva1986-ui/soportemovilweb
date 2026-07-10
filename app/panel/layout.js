@@ -11,6 +11,35 @@ import { PantallaCarga } from '@/components/cargando';
 import { Icon } from '@/components/icons';
 import { NotificacionesCentro } from '@/components/notificaciones';
 
+const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+// Reloj en vivo de la topbar — igual que v1: hora HH:MM:SS + día/fecha,
+// actualizado cada segundo con el reloj local del dispositivo.
+function RelojTopbar() {
+  const [ahora, setAhora] = useState(null);
+
+  useEffect(() => {
+    const tick = () => setAhora(new Date());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!ahora) return <div className="topbar-reloj" />;
+  const h = String(ahora.getHours()).padStart(2, '0');
+  const m = String(ahora.getMinutes()).padStart(2, '0');
+  const s = String(ahora.getSeconds()).padStart(2, '0');
+  const d = String(ahora.getDate()).padStart(2, '0');
+  const mo = String(ahora.getMonth() + 1).padStart(2, '0');
+
+  return (
+    <div className="topbar-reloj">
+      <div className="topbar-reloj-hora">{h}:{m}:{s}</div>
+      <div className="topbar-reloj-fecha">{DIAS_CORTOS[ahora.getDay()]} {d}/{mo}</div>
+    </div>
+  );
+}
+
 // Agrupación calcada de la de v1 (Operación / Catálogo / Análisis): los
 // módulos que v1 también tiene van en el mismo grupo y orden. Lo que v2
 // suma de más (MDM, Tienda, Fidelización, Cupones, Encuestas...) se
@@ -358,7 +387,9 @@ export default function PanelLayout({ children }) {
   return (
     <PerfilContext.Provider value={{ perfil, esDueno: perfil?.rol === 'dueno' }}>
       {negocio?.id && <NotificacionesCentro negocioId={negocio.id} />}
-      {/* Barra superior — solo móvil */}
+      {/* Barra superior — solo móvil. Calcada de v1: menú, buscador siempre a
+          mano (no hace falta abrir el drawer), reloj en vivo, usuario y
+          acceso directo a "+ Orden". */}
       <div className="topbar">
         <button
           className="topbar-btn"
@@ -367,12 +398,18 @@ export default function PanelLayout({ children }) {
         >
           <Icon name="menu" size={22} />
         </button>
-        <span className="topbar-brand">
-          <img src="/logo-dark.png" alt="Soporte Móvil" style={{ height: 22, width: 'auto', display: 'block' }} />
-        </span>
-        <span className="user-avatar" style={{ marginRight: 34 }}>
+        <div className="topbar-buscador">
+          <BuscadorGlobal />
+        </div>
+        <RelojTopbar />
+        <span className="user-avatar" title={perfil?.nombre || ''}>
           {(perfil?.nombre || '?').slice(0, 1).toUpperCase()}
         </span>
+        <Link href="/panel/tickets/nueva" className="btn btn-sm topbar-nueva-orden">
+          + Orden
+        </Link>
+        {/* Espacio reservado para la campana de notificaciones (position:fixed) */}
+        <span style={{ width: 30, flexShrink: 0 }} />
       </div>
 
       {/* Drawer móvil */}

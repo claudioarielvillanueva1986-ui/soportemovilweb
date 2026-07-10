@@ -1092,11 +1092,11 @@ textarea {
   .topbar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     position: sticky;
     top: 0;
     z-index: 60;
-    padding: 12px 16px;
+    padding: 10px 12px;
     background: rgba(14, 16, 12, 0.9);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -1109,17 +1109,53 @@ textarea {
     display: flex;
     padding: 4px;
     cursor: pointer;
+    flex-shrink: 0;
   }
-  .topbar-brand {
+  .topbar-buscador {
     flex: 1;
-    display: flex;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 1rem;
-    letter-spacing: -0.01em;
+    min-width: 0;
   }
-  .topbar-brand span {
-    color: var(--accent);
+  .topbar-buscador .buscador input {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+  .topbar-reloj {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.1;
+  }
+  .topbar-reloj-hora {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .topbar-reloj-fecha {
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .topbar .user-avatar {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    font-size: 0.78rem;
+  }
+  .topbar-nueva-orden {
+    flex-shrink: 0;
+    padding: 7px 12px !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap;
+  }
+  /* En pantallas muy angostas el reloj se oculta para que entre el buscador */
+  @media (max-width: 380px) {
+    .topbar-reloj {
+      display: none;
+    }
   }
   .panel-shell {
     grid-template-columns: 1fr;
