@@ -16,6 +16,7 @@ import { linkAvisoWhatsApp, telWhatsApp } from '@/lib/whatsapp';
 import { usePerfil } from '@/lib/panel-context';
 import { useCobroReal, ModalCobroReal, METODOS_ELECTRONICOS_ORDEN } from '@/components/cobro-real';
 import { PantallaCarga } from '@/components/cargando';
+import { useImagenEquipo } from '@/components/imagen-equipo';
 
 const ETIQUETAS = ETIQUETAS_TICKET.map((e) => [e.tag, e.color]);
 
@@ -1044,6 +1045,7 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
   const [tecnicoId, setTecnicoId] = useState(ticket.tecnico_id || '');
   const [etiquetas, setEtiquetas] = useState(ticket.etiquetas || []);
   const [enviandoEncuesta, setEnviandoEncuesta] = useState(false);
+  const { url: fotoEquipo, limpiar: limpiarFotoEquipo } = useImagenEquipo('', ticket.marca_modelo || ticket.dispositivo);
 
   useEffect(() => {
     supabase
@@ -1193,8 +1195,17 @@ function DetalleTicket({ ticket, onCerrar, onGuardado }) {
         <div className="orden-header-stripe" style={{ background: colorEstado }} />
         <div className="orden-header-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-            <div className="orden-av" style={{ background: `${colorEstado}22`, borderColor: `${colorEstado}55` }}>
-              {(ticket.marca_modelo || ticket.dispositivo || '?').slice(0, 3).toUpperCase()}
+            <div className="orden-av" style={{ background: `${colorEstado}22`, borderColor: `${colorEstado}55`, position: 'relative', overflow: 'hidden' }}>
+              {fotoEquipo ? (
+                <img
+                  src={fotoEquipo}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }}
+                  onError={limpiarFotoEquipo}
+                />
+              ) : (
+                (ticket.marca_modelo || ticket.dispositivo || '?').slice(0, 3).toUpperCase()
+              )}
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>

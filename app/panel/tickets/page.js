@@ -10,18 +10,32 @@ import {
   formatFecha,
   formatMoney,
 } from '@/lib/supabase';
+import { useImagenEquipo } from '@/components/imagen-equipo';
 
 // Etiquetas disponibles para las órdenes (color por etiqueta)
 const ETIQUETAS = ETIQUETAS_TICKET.map((e) => [e.tag, e.color]);
 const COLOR_ETIQUETA = Object.fromEntries(ETIQUETAS);
 
 const AV_COLORES_ORD = ['#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#22c55e', '#8b5cf6', '#14b8a6', '#ef4444'];
-function inicialesOrd(nombre) {
-  return (nombre || '?').split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-}
 function avColorOrd(nombre) {
   const n = String(nombre || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   return AV_COLORES_ORD[n % AV_COLORES_ORD.length];
+}
+
+// Miniatura del equipo por fila del listado — igual que v1: intenta la foto
+// real (GSMArena) y si no la encuentra cae en las iniciales de la marca.
+function EquipoAvatar({ dispositivo, marcaModelo }) {
+  const { url, limpiar } = useImagenEquipo('', marcaModelo || dispositivo);
+  const iniciales = (marcaModelo || dispositivo || '?').slice(0, 3).toUpperCase();
+  return (
+    <div className="ord-av" style={{ background: avColorOrd(marcaModelo || dispositivo), position: 'relative', overflow: 'hidden' }}>
+      {url ? (
+        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3 }} onError={limpiar} />
+      ) : (
+        iniciales
+      )}
+    </div>
+  );
 }
 // Columnas del kanban: igual que v1 (4 columnas; No Reparado/Entregado (S/R)/
 // Cancelado no aparecen acá, solo en el listado).
@@ -478,7 +492,7 @@ export default function TicketsPage() {
               <div className="ord-card" key={t.id} onClick={() => router.push(`/panel/tickets/${t.id}`)}>
                 <div className="ord-stripe" style={{ background: color }} />
                 <div className="ord-card-body">
-                  <div className="ord-av" style={{ background: avColorOrd(t.nombre) }}>{inicialesOrd(t.nombre)}</div>
+                  <EquipoAvatar dispositivo={t.dispositivo} marcaModelo={t.marca_modelo} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '.72rem', color: 'var(--text-dim)', fontWeight: 700 }}>{t.numero}</span>

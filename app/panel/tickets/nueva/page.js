@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase, PRIORIDADES, METODOS_PAGO, ESTADOS, formatMoney, formatFecha } from '@/lib/supabase';
 import { useCobroReal, ModalCobroReal, METODOS_ELECTRONICOS_ORDEN } from '@/components/cobro-real';
 import { construirMensaje, PLANTILLA_RECIBIDO_DEFECTO } from '@/lib/whatsapp';
+import { ImagenEquipo } from '@/components/imagen-equipo';
 
 const DISPOSITIVOS = ['Celular', 'Tablet', 'Notebook', 'PC de escritorio', 'Consola', 'Otro'];
 
@@ -574,23 +575,31 @@ export default function NuevaOrdenPage() {
               </div>
               <div className="field">
                 <label>Modelo (los más usados primero)</label>
-                <select value={equipo.modelo} onChange={setEq('modelo')}>
-                  <option value="">— Sin especificar —</option>
-                  {modelos.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                  <option value={NUEVA}>+ Agregar modelo nuevo...</option>
-                </select>
-                {equipo.modelo === NUEVA && (
-                  <input
-                    style={{ marginTop: 8 }}
-                    placeholder="Nombre del modelo nuevo"
-                    value={equipo.modeloNuevo}
-                    onChange={setEq('modeloNuevo')}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <select value={equipo.modelo} onChange={setEq('modelo')}>
+                      <option value="">— Sin especificar —</option>
+                      {modelos.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                      <option value={NUEVA}>+ Agregar modelo nuevo...</option>
+                    </select>
+                    {equipo.modelo === NUEVA && (
+                      <input
+                        style={{ marginTop: 8 }}
+                        placeholder="Nombre del modelo nuevo"
+                        value={equipo.modeloNuevo}
+                        onChange={setEq('modeloNuevo')}
+                      />
+                    )}
+                  </div>
+                  <ImagenEquipo
+                    marca={equipo.marca === NUEVA ? equipo.marcaNueva : equipo.marca}
+                    modelo={equipo.modelo === NUEVA ? equipo.modeloNuevo : equipo.modelo}
                   />
-                )}
+                </div>
               </div>
               <div className="field">
                 <label>Color</label>

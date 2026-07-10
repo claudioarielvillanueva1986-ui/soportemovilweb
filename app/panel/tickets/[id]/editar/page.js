@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, ESTADOS, ESTADOS_SELECCIONABLES, PRIORIDADES, formatMoney } from '@/lib/supabase';
+import { ImagenEquipo } from '@/components/imagen-equipo';
 import { usePerfil } from '@/lib/panel-context';
 import { PantallaCarga } from '@/components/cargando';
 
@@ -228,7 +229,10 @@ export default function EditarOrdenPage() {
             </div>
             <div className="field">
               <label>Marca / modelo</label>
-              <input value={form.marca_modelo} onChange={set('marca_modelo')} />
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <input style={{ flex: 1 }} value={form.marca_modelo} onChange={set('marca_modelo')} />
+                <ImagenEquipo marca="" modelo={form.marca_modelo} />
+              </div>
             </div>
             <div className="field">
               <label>IMEI / Serial</label>

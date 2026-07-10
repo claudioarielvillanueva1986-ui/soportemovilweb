@@ -2322,6 +2322,19 @@ main {
   align-items: center;
   justify-content: center;
 }
+.img-equipo-wrap {
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.img-equipo-icon { opacity: 0.35; }
+.img-equipo-foto { width: 100%; height: 100%; object-fit: contain; }
 .foto-tipo-badge {
   position: absolute;
   bottom: 4px;
