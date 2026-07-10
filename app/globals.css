@@ -2547,3 +2547,108 @@ main {
 .noti-item { display:flex; gap:10px; align-items:center; padding:11px 14px; border-bottom:1px solid var(--border); text-decoration:none; color:var(--text); }
 .noti-item:last-child { border-bottom:0; }
 .noti-item:hover { background:var(--bg-input, rgba(255,255,255,.03)); }
+
+/* ===== Inteligencia de Ventas (IA) ===== */
+.ia-hero {
+  background: linear-gradient(150deg, rgba(0,151,217,0.14) 0%, var(--bg-card) 55%);
+  border-color: var(--border-strong);
+  margin-bottom: 0;
+}
+.ia-badge {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.ia-btn-chat {
+  background: linear-gradient(120deg, var(--accent), var(--accent-hover));
+}
+.ia-estrategias h2 {
+  margin-bottom: 4px;
+}
+.ia-estrategia-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 13px;
+}
+.barra-progreso {
+  height: 7px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.barra-progreso-fill {
+  height: 100%;
+  background: var(--ok);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.stat-grande {
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.ia-chat {
+  left: auto;
+  right: 0;
+  width: 92%;
+  max-width: 400px;
+  border-right: none;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  animation: iaChatIn 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes iaChatIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.ia-chat-msgs {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+.ia-chat-msg {
+  max-width: 85%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.ia-chat-msg.usuario {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-bottom-right-radius: 3px;
+}
+.ia-chat-msg.asistente {
+  align-self: flex-start;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 3px;
+}
+.ia-chat-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.ia-chat-form input {
+  flex: 1;
+}

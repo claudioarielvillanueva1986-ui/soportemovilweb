@@ -148,7 +148,49 @@ export default function ReportesPage() {
               <div className="num kpi-num">{formatMoney(datos.margen)}</div>
               <div className="lbl2">solo ventas con producto vinculado</div>
             </div>
+            <div className="stat">
+              <div className="lbl">Entregadas</div>
+              <div className="num kpi-num" style={{ color: 'var(--ok)' }}>{datos.entregadas}</div>
+              <div className="lbl2">equipos al cliente</div>
+            </div>
+            <div className="stat">
+              <div className="lbl">Devoluciones</div>
+              <div className="num kpi-num" style={{ color: datos.devoluciones > 0 ? 'var(--error)' : 'var(--text)' }}>
+                {formatMoney(datos.devoluciones)}
+              </div>
+              <div className="lbl2">anulaciones y devoluciones</div>
+            </div>
           </div>
+
+          {datos.proyeccion_mes && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h2>🔮 Proyección del mes</h2>
+              <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: 12 }}>
+                Día {datos.proyeccion_mes.dia_actual} de {datos.proyeccion_mes.dias_mes}
+                {' · '}
+                {formatMoney(datos.proyeccion_mes.facturado_mes)} facturado hasta hoy
+                {' · '}
+                {Math.round((datos.proyeccion_mes.dia_actual / datos.proyeccion_mes.dias_mes) * 100)}% del mes
+              </p>
+              <div className="barra-progreso" style={{ height: 10, marginBottom: 8 }}>
+                <div
+                  className="barra-progreso-fill"
+                  style={{
+                    width: `${Math.min(100, Math.round((datos.proyeccion_mes.dia_actual / datos.proyeccion_mes.dias_mes) * 100))}%`,
+                    background: 'var(--accent)',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+                <span>Inicio del mes</span>
+                <span>
+                  Proyección: <strong style={{ color: 'var(--text)' }}>
+                    {formatMoney(datos.proyeccion_mes.promedio_diario * datos.proyeccion_mes.dias_mes)}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )}
 
           {datos.serie_ventas.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
@@ -210,32 +252,54 @@ export default function ReportesPage() {
             </div>
           </div>
 
-          <div className="card">
-            <h2>Top productos vendidos</h2>
-            {datos.top_productos.length === 0 ? (
-              <p style={{ color: 'var(--text-dim)' }}>Sin datos en el período.</p>
-            ) : (
-              <div className="tabla-scroll">
-                <table className="tabla">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th>Un.</th>
-                      <th style={{ textAlign: 'right' }}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {datos.top_productos.map((p) => (
-                      <tr key={p.nombre}>
-                        <td>{p.nombre}</td>
-                        <td>{p.unidades}</td>
-                        <td style={{ textAlign: 'right' }}>{formatMoney(p.total)}</td>
+          <div className="grid-2" style={{ alignItems: 'start' }}>
+            <div className="card">
+              <h2>Top productos vendidos</h2>
+              {datos.top_productos.length === 0 ? (
+                <p style={{ color: 'var(--text-dim)' }}>Sin datos en el período.</p>
+              ) : (
+                <div className="tabla-scroll">
+                  <table className="tabla">
+                    <thead>
+                      <tr>
+                        <th>Producto</th>
+                        <th>Un.</th>
+                        <th style={{ textAlign: 'right' }}>Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {datos.top_productos.map((p) => (
+                        <tr key={p.nombre}>
+                          <td>{p.nombre}</td>
+                          <td>{p.unidades}</td>
+                          <td style={{ textAlign: 'right' }}>{formatMoney(p.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="card">
+              <h2>📱 Equipos por marca</h2>
+              {(datos.equipos_por_marca || []).length === 0 ? (
+                <p style={{ color: 'var(--text-dim)' }}>Sin órdenes en el período.</p>
+              ) : (
+                <div className="tabla-scroll">
+                  <table className="tabla">
+                    <tbody>
+                      {datos.equipos_por_marca.map((e) => (
+                        <tr key={e.marca}>
+                          <td>{e.marca}</td>
+                          <td style={{ textAlign: 'right' }}>{e.cantidad} equipos</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}
