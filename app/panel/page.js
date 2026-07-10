@@ -1,264 +1,306 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase, ESTADOS, formatMoney } from '@/lib/supabase';
 import { usePerfil } from '@/lib/panel-context';
 import { PantallaCarga } from '@/components/cargando';
-import { Icon } from '@/components/icons';
 
-const AVATAR_COLORES = ['#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#22c55e', '#8b5cf6'];
-const DIAS = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const RADIO = 50;
+const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
 
-function Avatar({ nombre }) {
-  const iniciales = nombre
-    .split(' ')
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-  const color =
-    AVATAR_COLORES[
-      nombre.split('').reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_COLORES.length
-    ];
-  return (
-    <span className="avatar" style={{ background: color, color: '#fff' }}>
-      {iniciales}
-    </span>
-  );
+function fechaLarga() {
+  const d = new Date();
+  return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function PillEstado({ estado }) {
-  const info = ESTADOS[estado] || { label: estado, color: '#94a3b8' };
-  return (
-    <span className="pill" style={{ color: info.color, borderColor: `${info.color}66` }}>
-      {info.label}
-    </span>
-  );
+function agoTexto(desde) {
+  if (!desde) return '—';
+  const s = Math.round((Date.now() - desde) / 1000);
+  if (s < 5) return 'recién';
+  if (s < 60) return `hace ${s}s`;
+  if (s < 3600) return `hace ${Math.floor(s / 60)}m`;
+  return 'hace +1h';
+}
+
+function iso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function DashboardPage() {
   const { perfil } = usePerfil();
   const [datos, setDatos] = useState(null);
-  const [serie, setSerie] = useState([]);
   const [error, setError] = useState(null);
-  const [ocultarMonto, setOcultarMonto] = useState(false);
+  const [ventasAyer, setVentasAyer] = useState(0);
   const [botIa, setBotIa] = useState(false);
-  const [waUnread, setWaUnread] = useState(null);
+  const [waStats, setWaStats] = useState({ noLeidos: 0, atencion: 0 });
+  const [actualizadoAt, setActualizadoAt] = useState(null);
+  const [, forceTick] = useState(0);
+
+  const cargar = useCallback(async () => {
+    const { data, error: err } = await supabase.rpc('resumen_panel');
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setDatos(data);
+    setActualizadoAt(Date.now());
+  }, []);
 
   useEffect(() => {
-    supabase.rpc('resumen_panel').then(({ data, error: err }) => {
-      if (err) setError(err.message);
-      else setDatos(data);
-    });
+    cargar();
+    const iv = setInterval(cargar, 60000);
+    return () => clearInterval(iv);
+  }, [cargar]);
+
+  useEffect(() => {
+    // Recalcula "hace Ns/Nm" cada 5s, sin volver a pedir datos.
+    const iv = setInterval(() => forceTick((n) => n + 1), 5000);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    const ayer = new Date(Date.now() - 86400000);
+    supabase
+      .rpc('reporte_historial', { p_desde: iso(ayer), p_hasta: iso(ayer), p_agrupar: 'dia' })
+      .then(({ data }) => {
+        const total = data?.serie_ventas?.[0]?.total;
+        if (total != null) setVentasAyer(Number(total));
+      });
+  }, []);
+
+  useEffect(() => {
     supabase
       .from('negocios')
       .select('bot_ia')
       .maybeSingle()
       .then(({ data }) => {
-        if (data?.bot_ia) {
-          setBotIa(true);
-          supabase
-            .from('wa_conversaciones')
-            .select('no_leidos')
-            .then(({ data: cs }) => setWaUnread((cs || []).reduce((s, c) => s + (c.no_leidos || 0), 0)));
-        }
-      });
-    // gráfico de barras: últimos 7 días de facturación
-    const hasta = new Date();
-    const desde = new Date(Date.now() - 6 * 86400000);
-    const iso = (d) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    supabase
-      .rpc('reporte_historial', { p_desde: iso(desde), p_hasta: iso(hasta), p_agrupar: 'dia' })
-      .then(({ data }) => {
-        if (data?.serie_ventas) setSerie(data.serie_ventas);
+        if (!data?.bot_ia) return;
+        setBotIa(true);
+        supabase
+          .from('wa_conversaciones')
+          .select('no_leidos, modo')
+          .then(({ data: cs }) => {
+            const noLeidos = (cs || []).reduce((s, c) => s + (c.no_leidos || 0), 0);
+            const atencion = (cs || []).filter((c) => c.modo === 'humano').length;
+            setWaStats({ noLeidos, atencion });
+          });
       });
   }, []);
 
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!datos) return <PantallaCarga />;
 
-  const fecha = new Date().toLocaleDateString('es-AR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-  const maxSerie = serie.length ? Math.max(...serie.map((d) => Number(d.total))) : 0;
-  const ventaReciente = datos.tickets_activos?.[0];
-  const hoyTotal = serie.length ? Number(serie[serie.length - 1].total) : 0;
-  const ayerTotal = serie.length > 1 ? Number(serie[serie.length - 2].total) : 0;
-  const deltaPct = ayerTotal > 0 ? Math.round(((hoyTotal - ayerTotal) / ayerTotal) * 100) : null;
+  const ventasHoy = Number(datos.ventas_hoy?.total || 0);
+  const metaDia = Number(datos.meta_dia || 50000);
+  const metaPct = metaDia > 0 ? Math.round((ventasHoy / metaDia) * 100) : 0;
+  const metaPctRing = Math.min(100, Math.max(0, metaPct));
+  const variacion = ventasAyer > 0 ? Math.round(((ventasHoy - ventasAyer) / ventasAyer) * 100) : null;
+  const tono = metaPctRing >= 80 ? 'ok' : metaPctRing >= 50 ? 'mid' : 'low';
+  const primerNombre = (perfil?.nombre || 'equipo').split(' ')[0];
+  const ordenes = datos.ultimas_ordenes || [];
+  const productosHot = datos.productos_hot || [];
+  const maxHot = productosHot[0]?.cantidad || 1;
 
   return (
-    <main className="cloop">
-      {/* Encabezado: saludo + avatar (la campana de notificaciones ya está en la topbar) */}
-      <div className="cl-top">
-        <div className="cl-saludo">
-          <span className="cl-hola">¡Hola</span>
-          <strong>{(perfil?.nombre || '').split(' ')[0] || 'equipo'}!</strong>
-        </div>
-        <Avatar nombre={perfil?.nombre || '?'} />
-      </div>
-
-      {/* Tarjeta destacada: facturación de hoy (tipo balance) */}
-      <div className="cl-hero-card">
-        <div className="cl-hero-top">
-          <span className="cl-hero-lbl">Facturación de hoy</span>
-          <button className="cl-eye" onClick={() => setOcultarMonto((v) => !v)} aria-label="Mostrar/ocultar">
-            <Icon name={ocultarMonto ? 'eyeOff' : 'eye'} size={18} />
-          </button>
-        </div>
-        <div className="cl-hero-monto">
-          {ocultarMonto ? '$ • • • • •' : formatMoney(datos.ventas_hoy.total)}
-          {deltaPct !== null && !ocultarMonto && (
-            <span
-              style={{
-                marginLeft: 10,
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: deltaPct >= 0 ? '#22c55e' : '#ef4444',
-                verticalAlign: 'middle',
-              }}
-            >
-              {deltaPct >= 0 ? '↑' : '↓'} {Math.abs(deltaPct)}% vs ayer
+    <main className="dh-v2">
+      <section className="dh-hero">
+        <div>
+          <h1 className="dh-h1">Hola {primerNombre}</h1>
+          <div className="dh-hero-meta">
+            <span>{fechaLarga()}</span>
+            <span className="dh-dot-sep">·</span>
+            <span className="dh-hero-fresh">
+              <span className="dh-pulse" />
+              Datos {agoTexto(actualizadoAt)}
             </span>
+          </div>
+        </div>
+        <Link
+          href="/panel/reportes"
+          className={`dh-obj is-${tono}`}
+          title="Objetivo del día (ventas vs. promedio mensual +10%)"
+        >
+          <svg viewBox="0 0 120 120" className="dh-obj-ring">
+            <circle cx="60" cy="60" r={RADIO} className="dh-obj-track" />
+            <circle
+              cx="60"
+              cy="60"
+              r={RADIO}
+              className="dh-obj-fill"
+              style={{
+                strokeDasharray: CIRCUNFERENCIA,
+                strokeDashoffset: CIRCUNFERENCIA * (1 - metaPctRing / 100),
+              }}
+            />
+          </svg>
+          <div className="dh-obj-center">
+            <div className="dh-obj-pct">{metaPct}%</div>
+            <div className="dh-obj-lbl">objetivo día</div>
+          </div>
+        </Link>
+      </section>
+
+      <section className="dh-kpis">
+        <Link href="/panel/reportes" className="dh-kpi" data-tone="green">
+          <div className="dh-kpi-head">
+            <i className="dh-kpi-icon">$</i>
+            <span className="dh-kpi-label">Ventas hoy</span>
+          </div>
+          <div className="dh-kpi-value">{formatMoney(ventasHoy)}</div>
+          <div className="dh-kpi-foot">
+            <span>
+              {datos.ventas_hoy.cantidad} {datos.ventas_hoy.cantidad === 1 ? 'transacción' : 'transacciones'}
+            </span>
+            {variacion !== null && (
+              <span className="dh-delta" style={{ color: variacion >= 0 ? 'var(--ok)' : 'var(--error)' }}>
+                {variacion >= 0 ? '↑' : '↓'} {Math.abs(variacion)}% vs ayer
+              </span>
+            )}
+          </div>
+        </Link>
+
+        <Link href="/panel/ventas" className="dh-kpi" data-tone="blue">
+          <div className="dh-kpi-head">
+            <i className="dh-kpi-icon">#</i>
+            <span className="dh-kpi-label">Ticket promedio</span>
+          </div>
+          <div className="dh-kpi-value">{formatMoney(datos.ventas_hoy.promedio)}</div>
+          <div className="dh-kpi-foot">
+            <span>por venta</span>
+          </div>
+        </Link>
+
+        <Link href="/panel/caja" className="dh-kpi" data-tone="teal">
+          <div className="dh-kpi-head">
+            <i className="dh-kpi-icon">▦</i>
+            <span className="dh-kpi-label">Caja turno</span>
+          </div>
+          <div className="dh-kpi-value">{formatMoney(datos.turno?.efectivo_esperado || 0)}</div>
+          <div className="dh-kpi-foot">
+            <span className="dh-pill">{datos.turno ? 'Turno abierto' : 'Sin turno'}</span>
+          </div>
+        </Link>
+
+        <Link
+          href="/panel/inventario"
+          className={`dh-kpi dh-kpi-alert${datos.stock_critico > 0 ? ' is-warn' : ''}`}
+          data-tone="amber"
+        >
+          <div className="dh-kpi-head">
+            <i className="dh-kpi-icon">!</i>
+            <span className="dh-kpi-label">Stock crítico</span>
+            {datos.stock_critico > 0 && <span className="dh-warn-dot" />}
+          </div>
+          <div className="dh-kpi-value">{datos.stock_critico}</div>
+          <div className="dh-kpi-foot">
+            <span>{datos.stock_critico > 0 ? 'a reponer →' : 'todo OK'}</span>
+          </div>
+        </Link>
+      </section>
+
+      <section className="dh-grid2">
+        <Link href="/panel/tickets" className="dh-panel dh-panel-orders" title="Ver todas las órdenes">
+          <header className="dh-panel-head">
+            <h3 className="dh-panel-title">En este momento</h3>
+            <span className="dh-panel-sub">{datos.tickets_abiertos} órdenes activas</span>
+          </header>
+          <div className="dh-orders">
+            {ordenes.length === 0 ? (
+              <div className="dh-empty">Sin órdenes activas. Buen momento para revisar inventario.</div>
+            ) : (
+              ordenes.slice(0, 4).map((o) => {
+                const info = ESTADOS[o.estado] || { label: o.estado, color: '#94a3b8' };
+                const iniciales = (o.nombre || '?')
+                  .split(' ')
+                  .map((w) => w[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase();
+                return (
+                  <div className="dh-order" key={o.numero}>
+                    <span className="avatar" style={{ background: info.color }}>
+                      {iniciales}
+                    </span>
+                    <div className="dh-order-info">
+                      <div className="dh-order-name">{o.nombre}</div>
+                      <div className="dh-order-equipo">{o.marca_modelo || o.dispositivo}</div>
+                    </div>
+                    <span
+                      className="dh-order-state"
+                      style={{ color: info.color, background: `${info.color}22` }}
+                    >
+                      {info.label}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="dh-panel-foot">Ver todas →</div>
+        </Link>
+
+        <Link href="/panel/whatsapp" className="dh-panel dh-panel-wa" title="Abrir WhatsApp">
+          <header className="dh-panel-head">
+            <h3 className="dh-panel-title">WhatsApp</h3>
+            {botIa && (
+              <span className={`dh-wa-badge${waStats.noLeidos > 0 ? ' is-active' : ''}`}>
+                {waStats.noLeidos > 0 ? `${waStats.noLeidos} sin leer` : 'al día'}
+              </span>
+            )}
+          </header>
+          <div className="dh-wa-body">
+            {!botIa ? (
+              <div className="dh-empty">PACHE no está conectado. Activalo en Configuración.</div>
+            ) : (
+              <>
+                <div className="dh-wa-stat">
+                  <div className="dh-wa-num">{waStats.noLeidos > 0 ? waStats.noLeidos : '✓'}</div>
+                  <div className="dh-wa-lbl">
+                    {waStats.noLeidos > 0 ? 'conversaciones sin responder' : 'al día, sin pendientes'}
+                  </div>
+                </div>
+                {waStats.atencion > 0 && (
+                  <div className="dh-wa-stat">
+                    <div className="dh-wa-num dh-wa-num-warn">{waStats.atencion}</div>
+                    <div className="dh-wa-lbl">requieren atención</div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="dh-panel-foot">Abrir conversaciones →</div>
+        </Link>
+      </section>
+
+      <Link href="/panel/reportes" className="dh-panel dh-panel-hot" title="Ver reportes de ventas">
+        <header className="dh-panel-head">
+          <h3 className="dh-panel-title">Productos hot</h3>
+          <span className="dh-panel-sub">top del período</span>
+        </header>
+        <div className="dh-hot-list">
+          {productosHot.length === 0 ? (
+            <div className="dh-empty">Sin datos de ventas aún.</div>
+          ) : (
+            productosHot.slice(0, 5).map((p, i) => (
+              <div className="dh-hot-row" key={p.nombre}>
+                <span className="dh-hot-rank">{String(i + 1).padStart(2, '0')}</span>
+                <span className="dh-hot-name">{p.nombre}</span>
+                <span className="dh-hot-qty">{p.cantidad}</span>
+                <span className="dh-hot-bar">
+                  <span
+                    className="dh-hot-bar-fill"
+                    style={{ width: `${Math.min(100, (p.cantidad / maxHot) * 100)}%` }}
+                  />
+                </span>
+              </div>
+            ))
           )}
         </div>
-        <div className="cl-hero-fecha">
-          {fecha.charAt(0).toUpperCase() + fecha.slice(1)}
-        </div>
-        <div className="cl-hero-act">
-          {ventaReciente
-            ? `Última orden activa: ${ventaReciente.nombre} — ${ventaReciente.marca_modelo || ventaReciente.dispositivo}`
-            : datos.ventas_hoy.cantidad > 0
-            ? `Llevás ${datos.ventas_hoy.cantidad} ${datos.ventas_hoy.cantidad === 1 ? 'venta' : 'ventas'} hoy`
-            : 'Todavía no hay ventas hoy'}
-        </div>
-      </div>
-
-      {/* Fila de accesos con íconos circulares (nav estilo CLOOP) */}
-      <div className="cl-nav">
-        <Link href="/panel/pos" className="cl-nav-btn cl-nav-primary" title="Vender">
-          <Icon name="pos" size={22} />
-          <small>Vender</small>
-        </Link>
-        <Link href="/panel/tickets/nueva" className="cl-nav-btn" title="Nueva orden">
-          <Icon name="ordenes" size={22} />
-          <small>Orden</small>
-        </Link>
-        <Link href="/panel/caja" className="cl-nav-btn" title="Caja">
-          <Icon name="caja" size={22} />
-          <small>Caja</small>
-        </Link>
-        <Link href="/panel/reportes" className="cl-nav-btn" title="Reportes">
-          <Icon name="reportes" size={22} />
-          <small>Reportes</small>
-        </Link>
-      </div>
-
-      <div className="cl-grid">
-        {/* Columna izquierda: tarjetas grandes */}
-        <div className="cl-col">
-          <div className="cl-stat-card">
-            <div className="cl-stat-row">
-              <div>
-                <div className="cl-stat-lbl">Ventas de hoy</div>
-                <div className="cl-stat-num">{datos.ventas_hoy.cantidad}</div>
-              </div>
-              <div className="cl-badge-dia">HOY</div>
-            </div>
-            <div className="cl-stat-sep" />
-            <div className="cl-stat-lbl">Ticket promedio</div>
-            <div className="cl-stat-num sm">{formatMoney(datos.ventas_hoy.promedio)}</div>
-            <div className="cl-stat-sep" />
-            <div className="cl-stat-lbl">Caja del turno</div>
-            <div className="cl-stat-num sm">
-              {datos.turno ? formatMoney(datos.turno.efectivo_esperado) : '—'}
-              <span className={`cl-tag ${datos.turno ? 'ok' : 'off'}`}>
-                {datos.turno ? 'Abierta' : 'Cerrada'}
-              </span>
-            </div>
-          </div>
-
-          {/* Gráfico de barras lima */}
-          <div className="cl-chart-card">
-            <div className="cl-stat-lbl">Facturación · últimos 7 días</div>
-            {serie.length === 0 ? (
-              <p className="cl-empty">Sin ventas en el período.</p>
-            ) : (
-              <div className="cl-chart">
-                {serie.map((d) => {
-                  const wd = DIAS[new Date(d.periodo + 'T12:00:00').getDay()];
-                  return (
-                    <div className="cl-bar-col" key={d.periodo} title={`${d.periodo}: ${formatMoney(d.total)}`}>
-                      <span className="cl-bar-val">
-                        {maxSerie ? `$${Math.round(Number(d.total) / 1000)}k` : ''}
-                      </span>
-                      <div
-                        className="cl-bar"
-                        style={{ height: `${maxSerie ? Math.max(6, (Number(d.total) / maxSerie) * 130) : 6}px` }}
-                      />
-                      <span className="cl-bar-lbl">{wd}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Columna derecha: chips de métricas + órdenes */}
-        <div className="cl-col">
-          <div className="cl-chips">
-            <Link href="/panel/tickets" className="cl-chip">
-              <span className="cl-chip-num">{datos.tickets_abiertos}</span>
-              <span className="cl-chip-lbl">Órdenes abiertas</span>
-            </Link>
-            <Link href="/panel/inventario" className="cl-chip">
-              <span className="cl-chip-num" style={{ color: datos.stock_critico > 0 ? 'var(--warn)' : 'var(--accent)' }}>
-                {datos.stock_critico}
-              </span>
-              <span className="cl-chip-lbl">Stock crítico</span>
-            </Link>
-            <Link href="/panel/ventas" className="cl-chip">
-              <span className="cl-chip-num">{datos.ventas_hoy.cantidad}</span>
-              <span className="cl-chip-lbl">Ventas hoy</span>
-            </Link>
-            {botIa && (
-              <Link href="/panel/whatsapp" className="cl-chip">
-                <span className="cl-chip-num" style={{ color: waUnread > 0 ? 'var(--warn)' : 'var(--accent)' }}>
-                  {waUnread ?? '—'}
-                </span>
-                <span className="cl-chip-lbl">WhatsApp sin leer</span>
-              </Link>
-            )}
-          </div>
-
-          <div className="cl-ordenes-card">
-            <div className="cl-card-head">
-              <strong>En este momento</strong>
-              <Link href="/panel/tickets" className="cl-ver">Ver todas</Link>
-            </div>
-            {datos.tickets_activos.length === 0 ? (
-              <p className="cl-empty">No hay órdenes abiertas.</p>
-            ) : (
-              datos.tickets_activos.map((t) => (
-                <div className="cl-orden" key={t.numero}>
-                  <Avatar nombre={t.nombre} />
-                  <div className="cl-orden-info">
-                    <div className="cl-orden-nom">{t.nombre}</div>
-                    <div className="cl-orden-eq">{t.marca_modelo || t.dispositivo}</div>
-                  </div>
-                  <PillEstado estado={t.estado} />
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
+      </Link>
     </main>
   );
 }
